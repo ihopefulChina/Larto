@@ -1,0 +1,13 @@
+packages:
+  - .
+
+# pnpm >= 10 blocks dependency lifecycle scripts unless allowed here.
+# electron: downloads the runtime binary; esbuild/sharp: native binaries.
+allowBuilds:
+  electron: true
+  esbuild: true
+  sharp: true
+  electron-winstaller: false
+
+minimumReleaseAgeExclude:
+  - '@types/react-dom@19.2.6'

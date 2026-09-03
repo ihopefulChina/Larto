@@ -1,0 +1,7 @@
+node_modules
+out
+dist
+website/dist
+website/.astro
+pnpm-lock.yaml
+*.md

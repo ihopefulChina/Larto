@@ -1,0 +1,55 @@
+# electron-builder configuration. macOS arm64 only (project boundary).
+# Signing/notarization is driven by environment variables in CI:
+#   CSC_LINK / CSC_KEY_PASSWORD          -> Developer ID Application certificate (.p12, base64)
+#   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID -> notarization
+# Without them, `pnpm dist:unsigned` produces an unsigned, ad-hoc build for local testing.
+appId: com.feishudevtools.app
+productName: FeishuDevTools
+copyright: Copyright © 2026 ihopefulChina
+artifactName: ${productName}-${version}-${arch}.${ext}
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asar: true
+compression: maximum
+npmRebuild: false
+electronLanguages:
+  - zh_CN
+  - en
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+  icon: build/icon.icns
+  darkModeSupport: true
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  minimumSystemVersion: '12.0'
+  notarize: true
+  extendInfo:
+    NSCameraUsageDescription: FeishuDevTools 需要访问摄像头以调试使用相机的网页应用。
+    NSMicrophoneUsageDescription: FeishuDevTools 需要访问麦克风以调试使用音频的网页应用。
+    NSLocationWhenInUseUsageDescription: FeishuDevTools 需要位置信息以模拟 JSAPI 定位能力。
+dmg:
+  sign: false
+  contents:
+    - x: 140
+      y: 180
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications
+publish:
+  provider: github
+  owner: ihopefulChina
+  repo: FeishuDevTools
+  releaseType: release

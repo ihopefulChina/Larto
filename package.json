@@ -1,0 +1,63 @@
+{
+  "name": "feishu-dev-tools",
+  "productName": "FeishuDevTools",
+  "version": "0.1.0",
+  "description": "Apple Silicon native web-app debugger for Feishu/Lark H5 development: device simulator, docked Chromium DevTools, real Feishu QR login, official JSAPI bridge, MCP server for AI agents.",
+  "author": {
+    "name": "ihopefulChina",
+    "url": "https://github.com/ihopefulChina"
+  },
+  "homepage": "https://github.com/ihopefulChina/FeishuDevTools",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihopefulChina/FeishuDevTools.git"
+  },
+  "bugs": "https://github.com/ihopefulChina/FeishuDevTools/issues",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.preload.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "icons": "node scripts/make-icons.mjs",
+    "dist": "pnpm build && electron-builder --mac --arm64",
+    "dist:unsigned": "pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "electron-updater": "6.8.9",
+    "qrcode": "1.5.4",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.6",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.1.1",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "prettier": "3.9.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sharp": "0.35.4",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.11",
+    "zustand": "5.0.15"
+  }
+}

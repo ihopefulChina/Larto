@@ -27,6 +27,19 @@ function rotateIfNeeded(): void {
   }
 }
 
+/**
+ * When the parent process that spawned us (a test runner, an agent) exits, stdout/stderr
+ * become broken pipes. Writing then raises EPIPE asynchronously; without this guard the
+ * uncaughtException handler would log again and spin forever. Swallow stream errors and
+ * stop mirroring to the console once a pipe is gone.
+ */
+let consoleBroken = false
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', () => {
+    consoleBroken = true
+  })
+}
+
 function write(level: Level, scope: string, args: unknown[]): void {
   const line = `${new Date().toISOString()} [${level.toUpperCase()}] [${scope}] ${args
     .map((a) =>
@@ -37,8 +50,14 @@ function write(level: Level, scope: string, args: unknown[]): void {
           : safeJson(a)
     )
     .join(' ')}\n`
-  if (level === 'error') console.error(line.trimEnd())
-  else if (!app.isPackaged) console.log(line.trimEnd())
+  if (!consoleBroken) {
+    try {
+      if (level === 'error') console.error(line.trimEnd())
+      else if (!app.isPackaged) console.log(line.trimEnd())
+    } catch {
+      consoleBroken = true
+    }
+  }
   if (!logFile) return
   try {
     rotateIfNeeded()

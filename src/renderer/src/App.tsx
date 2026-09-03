@@ -12,6 +12,7 @@ import { AboutModal } from './components/modals/AboutModal'
 import { PreviewModal } from './components/modals/PreviewModal'
 import { SettingsModal } from './components/modals/SettingsModal'
 import { UpdateDialog } from './components/modals/UpdateDialog'
+import { ConsentModal } from './components/modals/ConsentModal'
 
 export function App() {
   const t = useT()
@@ -106,6 +107,7 @@ export function App() {
       {modal === 'settings' && <SettingsModal />}
       {modal === 'about' && <AboutModal />}
       {modal === 'update' && <UpdateDialog />}
+      {modal === 'consent' && <ConsentModal />}
       {appToast && <div className="appToast">{appToast}</div>}
     </div>
   )

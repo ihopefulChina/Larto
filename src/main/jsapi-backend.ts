@@ -4,18 +4,21 @@
  */
 import { networkInterfaces } from 'node:os'
 import { clipboard } from 'electron'
+import { translate } from '@shared/i18n'
 import { JSAPI_ERROR, jsapiFail, okMsg, type JsapiConfigParams } from '@shared/jsapi'
 import type { JsapiBackendRequest, JsapiBackendResponse } from '@shared/ipc'
 import type { ResolvedLanguage } from '@shared/settings'
 import type { AccountService } from './account'
 import type { SettingsStore } from './store'
 import {
+  confirmAccess,
   requestAccess,
   requestAuthCode,
   verifyCodeToJsapiError,
   verifyJsapiSignature,
   type OpenApiSession
 } from './openapi'
+import { consentBroker } from './consent'
 import { createLogger } from './logger'
 
 const log = createLogger('jsapi')
@@ -90,19 +93,24 @@ export async function handleJsapiBackend(
           ? (params['scopeList'] as string[])
           : []
         const state = typeof params['state'] === 'string' ? params['state'] : undefined
-        const res = await requestAccess(
-          s,
-          { appId, scopeList, ...(state !== undefined ? { state } : {}) },
-          url
-        )
+        const authParams = { appId, scopeList, ...(state !== undefined ? { state } : {}) }
+        const res = await requestAccess(s, authParams, url)
         if (res.autoConfirm && res.code)
           return ok(method, { code: res.code, state: res.state ?? state ?? '' })
-        // Consent UI (`/authen/v1/confirm_inner`) is not implemented yet — see IMPLEMENTATION_PLAN.md phase 6.
-        return fail(
-          method,
-          JSAPI_ERROR.NOT_SUPPORTED,
-          'user consent required; grant the scopes in the Feishu app first'
-        )
+        if (res.autoConfirm || !res.consent) {
+          log.warn('get_auth_info_inner: no code and no app_info', res.raw)
+          return fail(method, JSAPI_ERROR.ACCESS_INTERNAL, 'get_auth_info_inner returned no code')
+        }
+        // Official passport SDK flow: show the AuthzModal, then POST the same params to confirm_inner.
+        const accepted = await consentBroker.ask(res.consent)
+        if (!accepted)
+          return fail(
+            method,
+            JSAPI_ERROR.ACCESS_REFUSED,
+            translate(deps.getLang(), 'consent.refused')
+          )
+        const confirmed = await confirmAccess(s, authParams, url)
+        return ok(method, confirmed)
       }
       case 'biz.util.copyText':
       case 'setClipboardData': {

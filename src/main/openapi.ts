@@ -4,6 +4,7 @@
  * (docs/RESEARCH_OFFICIAL_TOOL.md §4.1, §5.3, §6). All of them need a signed-in session.
  */
 import { ENV_ENDPOINTS } from '@shared/constants'
+import type { AccessConsentInfo } from '@shared/ipc'
 import type { JsapiConfigParams } from '@shared/jsapi'
 import type { FeishuEnv } from '@shared/settings'
 import { requestJson } from './http'
@@ -73,7 +74,71 @@ export interface RequestAccessResult {
   autoConfirm: boolean
   code?: string
   state?: string
+  /** Present when the server wants the user to confirm the scopes first. */
+  consent?: AccessConsentInfo
   raw: unknown
+}
+
+/** Raw shape of `get_auth_info_inner` / `confirm_inner` payloads (passport web SDK). */
+export interface AuthInfoInnerData {
+  auto_confirm?: boolean
+  code?: string
+  state?: string
+  app_info?: { app_name?: string; app_icon_url?: string }
+  suite_info?: { suite_icon_url?: string }
+  current_user?: {
+    user_name?: string
+    tenant_icon_url?: string
+    scope_list?: { name?: string; desc?: string }[]
+  }
+}
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+
+/** Extracts the consent dialog data; `null` when the payload carries no `app_info`. */
+export function parseAccessConsent(d: AuthInfoInnerData): AccessConsentInfo | null {
+  if (!d.app_info) return null
+  return {
+    appName: str(d.app_info.app_name),
+    appIconUrl: str(d.app_info.app_icon_url),
+    suiteIconUrl: str(d.suite_info?.suite_icon_url),
+    userName: str(d.current_user?.user_name),
+    tenantIconUrl: str(d.current_user?.tenant_icon_url),
+    scopes: (d.current_user?.scope_list ?? [])
+      .map((sc) => ({ name: str(sc.name), desc: str(sc.desc) || str(sc.name) }))
+      .filter((sc) => sc.desc)
+  }
+}
+
+function accessBody(p: RequestAccessParams, url: string) {
+  return {
+    app_id: p.appId,
+    scope: p.scopeList.join(' '),
+    state: p.state ?? '',
+    open_app_type: 2,
+    redirect_uri: url
+  }
+}
+
+async function postAuthen(
+  s: OpenApiSession,
+  path: 'get_auth_info_inner' | 'confirm_inner',
+  p: RequestAccessParams,
+  url: string
+): Promise<AuthInfoInnerData> {
+  const ep = ENV_ENDPOINTS[s.env]
+  const res = await requestJson<{ code: number; msg?: string; data?: AuthInfoInnerData }>(
+    `${ep.open}/authen/v1/${path}`,
+    {
+      method: 'POST',
+      headers: { 'X-Device-Info': 'platform=websdk' },
+      cookie: s.cookie,
+      body: accessBody(p, url)
+    }
+  )
+  if (res.data.code !== 0)
+    throw Object.assign(new Error(res.data.msg ?? `${path} failed`), { code: res.data.code })
+  return res.data.data ?? {}
 }
 
 export async function requestAccess(
@@ -81,34 +146,29 @@ export async function requestAccess(
   p: RequestAccessParams,
   url: string
 ): Promise<RequestAccessResult> {
-  const ep = ENV_ENDPOINTS[s.env]
-  const res = await requestJson<{
-    code: number
-    msg?: string
-    data?: { auto_confirm?: boolean; code?: string; state?: string }
-  }>(`${ep.open}/authen/v1/get_auth_info_inner`, {
-    method: 'POST',
-    headers: { 'X-Device-Info': 'platform=websdk' },
-    cookie: s.cookie,
-    body: {
-      app_id: p.appId,
-      scope: p.scopeList.join(' '),
-      state: p.state ?? '',
-      open_app_type: 2,
-      redirect_uri: url
-    }
-  })
-  if (res.data.code !== 0)
-    throw Object.assign(new Error(res.data.msg ?? 'get_auth_info_inner failed'), {
-      code: res.data.code
-    })
-  const d = res.data.data ?? {}
+  const d = await postAuthen(s, 'get_auth_info_inner', p, url)
+  const consent = parseAccessConsent(d)
   return {
     autoConfirm: !!d.auto_confirm,
-    raw: res.data,
+    raw: d,
     ...(d.code ? { code: d.code } : {}),
-    ...(d.state ? { state: d.state } : {})
+    ...(d.state ? { state: d.state } : {}),
+    ...(consent ? { consent } : {})
   }
+}
+
+/**
+ * Second step after the user accepted the consent dialog. The official AuthzModal posts the
+ * very same auth params to `/authen/v1/confirm_inner` and reads `data.code`.
+ */
+export async function confirmAccess(
+  s: OpenApiSession,
+  p: RequestAccessParams,
+  url: string
+): Promise<{ code: string; state: string }> {
+  const d = await postAuthen(s, 'confirm_inner', p, url)
+  if (!d.code) throw Object.assign(new Error('confirm_inner returned no code'), { code: 20050 })
+  return { code: d.code, state: d.state ?? p.state ?? '' }
 }
 
 export async function pushPcPreview(

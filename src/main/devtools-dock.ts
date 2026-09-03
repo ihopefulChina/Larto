@@ -1,4 +1,10 @@
-import { BrowserWindow, webContents, WebContentsView, type WebContents } from 'electron'
+import {
+  BrowserWindow,
+  nativeTheme,
+  webContents,
+  WebContentsView,
+  type WebContents
+} from 'electron'
 import type { Rect } from '@shared/ipc'
 import { createLogger } from './logger'
 
@@ -13,6 +19,46 @@ const log = createLogger('devtools')
 export class DevToolsDock {
   private view: WebContentsView | null = null
   private target: WebContents | null = null
+  private dark = nativeTheme.shouldUseDarkColors
+
+  constructor() {
+    // The DevTools frontend resolves `prefers-color-scheme` once at load and, unlike a
+    // BrowserWindow's contents, is not re-themed when `nativeTheme.themeSource` changes.
+    // Re-creating the view is the only reliable way to make it follow the appearance setting.
+    nativeTheme.on('updated', () => {
+      const dark = nativeTheme.shouldUseDarkColors
+      if (dark === this.dark) return
+      this.dark = dark
+      this.reopen()
+    })
+  }
+
+  private reopen(): void {
+    const view = this.view
+    const target = this.target
+    if (!view || !target || target.isDestroyed()) return
+    const win = findOwner(view)
+    if (!win) return
+    const bounds = view.getBounds()
+    const visible = view.getVisible()
+    // Opening again in the same tick as closeDevTools() yields an empty Elements panel: the
+    // agent host has not detached yet. Wait for `devtools-closed` (with a fallback timer).
+    let done = false
+    const go = () => {
+      if (done) return
+      done = true
+      if (target.isDestroyed() || win.isDestroyed()) return
+      try {
+        this.open(win, target.id, bounds)
+        this.setBounds(bounds, visible)
+      } catch (err) {
+        log.warn('reopen after theme change failed', err)
+      }
+    }
+    target.once('devtools-closed', () => setTimeout(go, 50))
+    this.close()
+    setTimeout(go, 1000)
+  }
 
   get isOpen(): boolean {
     return !!this.view

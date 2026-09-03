@@ -14,7 +14,8 @@ Electron 44 · electron-vite 5 · React 19 · TypeScript 5.9（strict）· zusta
 │ guest.ts      H5 guest WebContents：附着、加固、CDP 仿真、console、清缓存 │
 │ devtools-dock.ts  WebContentsView 承载 DevTools 前端并叠加到窗口    │
 │ account.ts    passport 扫码登录子窗口、Cookie safeStorage、租户切换 │
-│ openapi.ts    JSAPI 签名校验、requestAuthCode、requestAccess、PC 预览推送 │
+│ openapi.ts    JSAPI 签名校验、requestAuthCode、requestAccess(+confirm)、PC 预览推送 │
+│ consent.ts    requestAccess 授权确认：主进程等待 shell 弹窗的决定    │
 │ jsapi-backend.ts  `main` 类 JSAPI（剪贴板/网关 IP/定位/鉴权）       │
 │ preview.ts    二维码生成（qrcode）、localhost→LAN、lark:// schema    │
 │ updater.ts    electron-updater（GitHub Releases）状态机             │
@@ -51,17 +52,21 @@ UrlBar 回车 → `normalizeUrl()`（`shared/url.ts`）→ `simulatorActions.nav
 ### 2.2 机型切换
 
 Dropdown → `simulatorActions.changeDevice(id)` → 写 `settings.deviceId` → `guest:setDevice { guestWebContentsId, deviceId, locale, viewport }` → `guest.ts#applyEmulation()`：`debugger.attach('1.3')`，发送
-`Emulation.setUserAgentOverride`（`buildUserAgent()`）、`Emulation.setDeviceMetricsOverride`（width/height = `guestViewport(device)`，deviceScaleFactor = dpr，mobile，screenWidth/Height = 设备物理逻辑尺寸）、`Emulation.setTouchEmulationEnabled`，然后 `reload()` 使 UA 生效。缩放只改 `<webview>` 的 CSS `transform: scale()`，不改 CSS 视口（E2E 有断言）。
+`Emulation.setUserAgentOverride`（`buildUserAgent()`）、`Emulation.setDeviceMetricsOverride`（width/height = `guestViewport(device)`，deviceScaleFactor = dpr，mobile，screenWidth/Height = 设备物理逻辑尺寸）、`Emulation.setTouchEmulationEnabled`，然后 `reload()` 使 UA 生效。缩放只改 `<webview>` 的 CSS `transform: scale()`，不改 CSS 视口（E2E 有断言）。随后 `window.ts#fitWindowToDevice()` 按官方规则把窗口最小宽度设为 `deviceWidth + 70 + 387 + 100`（PC 机型回到 909，均不超过当前显示器工作区），窗口过窄时自动加宽。
+
+渲染层布局：`.simulatorColumn` 宽 = `max(442, deviceWidth × zoom + 64)`；`.gadgetBox` 取缩放后的实际尺寸并 `margin: 0 auto` 居中（溢出时自动贴左、可滚动），内部 `.gadget` 保持 CSS 像素尺寸、`transform: scale()` 以左上角为原点。PC 机型 `.gadgetBox.pc` 填满列（`calc(100% - 40px)`），与官方一致。
 
 ### 2.3 DevTools
 
 Toolbar「调试器」→ `settings.showDevTools` → 渲染 `DevToolsPane`（占位 div）→ `guest:openDevTools { guestWebContentsId, bounds }` → `devtools-dock.ts`：
 `new WebContentsView()` → `win.contentView.addChildView` → `guest.setDevToolsWebContents(view.webContents)` → `guest.openDevTools({mode:'detach', activate:false})` → `did-finish-load` 后 remove+add child view（使 RWHV 由 hidden 变 visible）。`ResizeObserver`/窗口 resize → `guest:setDevToolsBounds`；modal 打开 → `visible=false`。关闭 → `guest:closeDevTools` → `closeDevTools()` + 销毁 view。
 
+DevTools 前端只在加载时读取 `prefers-color-scheme`，之后不跟随 `nativeTheme` 变化，因此 `devtools-dock.ts` 监听 `nativeTheme#updated`，深浅色变化时销毁并重建 view（等 `devtools-closed` 后再打开，否则 Elements 面板为空）。
+
 ### 2.4 JSAPI 调用
 
 页面 `WebViewJavascriptBridge.callHandler(method, params, cb)` → preload 生成 `callbackId`，`sendToHost('fdt:jsapi', {type:'invoke', ...})` → `jsapi/host.ts`：`classifyJsapi(method)`
-- `main`：`invoke('jsapi:backend', ...)` → `jsapi-backend.ts`（`config` → `openapi.verifyJsapiSignature`，需要登录；未登录返回 `99991691`）。
+- `main`：`invoke('jsapi:backend', ...)` → `jsapi-backend.ts`（`config` → `openapi.verifyJsapiSignature`，需要登录；未登录返回 `99991691`）。`requestAccess` 先 `POST /authen/v1/get_auth_info_inner`：`auto_confirm && code` 直接返回；否则 `consent.ts#ConsentBroker.ask()` 发事件 `jsapi:consent {id, info}` 让 shell 渲染 `ConsentModal`（与官方 passport `AuthzModal` 同款），用户点「授权」→ `jsapi:consentDecision {id, accept}` → `POST /authen/v1/confirm_inner`（同一份参数）取 `code`；取消/Esc/180 s 超时/窗口关闭 → `20047`。
 - `shell`：写入 `useSimulator` 状态 → `JsapiOverlays`/`NavBar` 渲染，用户操作后回结果。
 - `mock`：`jsapi-mocks.ts` 固定值（与官方一致）。
 

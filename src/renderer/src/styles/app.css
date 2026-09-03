@@ -86,8 +86,12 @@ input {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--fg-tertiary);
+  background: transparent;
   border-radius: 4px;
+}
+/* Overlay-style: thumbs only show while the scroll container is hovered. */
+:hover::-webkit-scrollbar-thumb {
+  background: var(--fg-tertiary);
 }
 
 /* ---------- Shell layout ---------- */
@@ -360,22 +364,34 @@ input {
   overflow: auto;
   padding: 20px 0;
   display: flex;
-  justify-content: center;
 }
-.gadget {
+.gadgetBox {
   position: relative;
   flex: none;
+  /* auto margins centre the frame yet collapse to 0 when it overflows, so the left edge
+     stays reachable by scrolling (justify-content: center would clip it). */
+  margin: 0 auto;
+}
+.gadgetBox.pc {
+  width: calc(100% - 40px);
+  height: calc(100% - 4px);
+  margin: 0 20px;
+}
+.gadget {
+  position: absolute;
+  inset: 0 auto auto 0;
   background: #fff;
   color: #1f2329;
   display: flex;
   flex-direction: column;
-  transform-origin: top center;
+  transform-origin: top left;
   box-shadow: 0 0 0 1px var(--border);
   overflow: hidden;
 }
 .gadget.pc {
-  width: calc(100% - 40px);
-  height: calc(100% - 4px);
+  position: static;
+  width: 100%;
+  height: 100%;
 }
 
 .statusBar {
@@ -867,4 +883,65 @@ input {
   padding: 8px 14px;
   border-radius: 8px;
   z-index: 200;
+}
+
+/* ---------- requestAccess consent (mirrors passport AuthzModal) ---------- */
+.consent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.consent .hint {
+  margin: 0;
+  text-align: left;
+}
+.consent-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin: 4px 0 12px;
+}
+.consent-icons img,
+.consent-icons .ph {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  object-fit: cover;
+}
+.consent-arrow {
+  font-size: 20px;
+  color: var(--fg-secondary);
+}
+.consent-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+.consent-user img {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+.consent-scopes {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 22px;
+}
+.linkBtn {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+.linkBtn:hover {
+  text-decoration: underline;
 }

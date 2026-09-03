@@ -17,7 +17,7 @@
 - **设备模拟器**：iPhone / Android / iPad / PC 机型预设，真实 UA（`Lark/x.y.z`）、DPR、屏幕尺寸与安全区；缩放 50%–150%；状态栏与导航栏同步渲染。
 - **调试器**：完整 Chromium DevTools 停靠在窗口右侧（Elements / Console / Sources / Network / Application…）。
 - **飞书扫码登录**：passport 扫码登录、多租户切换；会话经 `safeStorage`（Keychain）加密保存。
-- **官方 JSAPI**：注入与飞书客户端一致的 JSAPI 桥（iOS / PC / Android 三种），`tt.config` 真实鉴权、`requestAuthCode`、剪贴板、定位、Toast / Modal / ActionSheet / 导航栏等。
+- **官方 JSAPI**：注入与飞书客户端一致的 JSAPI 桥（iOS / PC / Android 三种），`tt.config` 真实鉴权、`requestAuthCode`、`requestAccess`（含与飞书一致的授权确认弹窗）、剪贴板、定位、Toast / Modal / ActionSheet / 导航栏等。
 - **预览**：生成真机预览二维码（`lark://client/web?isDev=1&url=…`，`localhost` 自动换成局域网 IP）或推送到本机飞书桌面端。
 - **外观**：深色 / 浅色 / 跟随系统；中英文界面。
 - **地址栏历史**（10 条）、**清缓存**、**自动更新**（GitHub Releases，下载后一键重启安装）。

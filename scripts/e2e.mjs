@@ -42,6 +42,17 @@ const srv = createServer((_req, res) => {
 await new Promise((r) => srv.once('listening', r))
 const PAGE_URL = `http://127.0.0.1:${srv.address().port}/e2e.html`
 
+// A previous instance would win the single-instance lock and answer our MCP calls instead.
+try {
+  await fetch(`http://127.0.0.1:${PORT}/health`)
+  console.error(
+    `another FeishuDevTools instance is already serving MCP on port ${PORT}; quit it first`
+  )
+  process.exit(2)
+} catch {
+  /* port free */
+}
+
 const env = { ...process.env }
 delete env.ELECTRON_RUN_AS_NODE
 const app = spawn(resolve(ROOT, 'node_modules/.bin/electron'), ['.'], {

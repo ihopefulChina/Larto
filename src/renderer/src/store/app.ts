@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { AccountState } from '@shared/account'
 import { resolveLanguage, translate, type I18nKey } from '@shared/i18n'
-import type { AppInfo, UpdateState } from '@shared/ipc'
+import type { AccessConsentPrompt, AppInfo, UpdateState } from '@shared/ipc'
 import {
   DEFAULT_SETTINGS,
   type ResolvedLanguage,
@@ -10,7 +10,7 @@ import {
 } from '@shared/settings'
 import { invoke, on } from '@/lib/bridge'
 
-export type ModalId = 'preview' | 'settings' | 'about' | 'update' | null
+export type ModalId = 'preview' | 'settings' | 'about' | 'update' | 'consent' | null
 
 interface AppState {
   ready: boolean
@@ -22,6 +22,8 @@ interface AppState {
   info: AppInfo | null
   mcp: { running: boolean; url: string | null; error?: string }
   modal: ModalId
+  /** Pending requestAccess consent (main is waiting on `jsapi:consentDecision`). */
+  consent: AccessConsentPrompt | null
 
   init: () => Promise<void>
   setSetting: <K extends WritableSettingKey>(key: K, value: Settings[K]) => Promise<void>
@@ -30,7 +32,7 @@ interface AppState {
 
 const systemLocale = navigator.language
 
-export const useApp = create<AppState>((set) => ({
+export const useApp = create<AppState>((set, get) => ({
   ready: false,
   settings: DEFAULT_SETTINGS,
   dark: matchMedia('(prefers-color-scheme: dark)').matches,
@@ -40,6 +42,7 @@ export const useApp = create<AppState>((set) => ({
   info: null,
   mcp: { running: false, url: null },
   modal: null,
+  consent: null,
 
   async init() {
     const [settings, theme, account, update, info, mcp] = await Promise.all([
@@ -73,8 +76,9 @@ export const useApp = create<AppState>((set) => ({
         update.status === 'downloaded' ||
         update.status === 'error'
       )
-        set({ modal: 'update' })
+        get().openModal('update')
     })
+    on('jsapi:consent', (consent) => set({ consent, modal: 'consent' }))
   },
 
   async setSetting(key, value) {
@@ -85,6 +89,13 @@ export const useApp = create<AppState>((set) => ({
   },
 
   openModal(id) {
+    const { consent, modal } = get()
+    // Dismissing the consent dialog by any other means counts as a refusal.
+    if (modal === 'consent' && id !== 'consent' && consent) {
+      void invoke('jsapi:consentDecision', { id: consent.id, accept: false }).catch(() => undefined)
+      set({ modal: id, consent: null })
+      return
+    }
     set({ modal: id })
   }
 }))

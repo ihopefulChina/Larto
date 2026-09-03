@@ -12,7 +12,8 @@ import { buildMobilePreviewQr, pushPcPreviewAndOpen } from './preview'
 import type { SettingsStore } from './store'
 import { resolveTheme } from './theme'
 import type { UpdaterService } from './updater'
-import { getMainWindow } from './window'
+import { consentBroker } from './consent'
+import { fitWindowToDevice, getMainWindow } from './window'
 
 export interface IpcDeps {
   settings: SettingsStore
@@ -74,10 +75,13 @@ export function registerIpc(deps: IpcDeps): void {
   handle('devices:list', () => [...DEVICES])
 
   handle('guest:attach', (_e, id) => guestManager.attach(id))
-  handle('guest:setDevice', (_e, req) =>
-    guestManager.setDevice(req.webContentsId, req.deviceId, req.viewport)
-  )
+  handle('guest:setDevice', async (_e, req) => {
+    await guestManager.setDevice(req.webContentsId, req.deviceId, req.viewport)
+    const device = guestManager.currentDevice
+    fitWindowToDevice(device.width, device.platform === 'pc')
+  })
   handle('guest:clearCache', (_e, id) => guestManager.clearCache(id))
+  handle('jsapi:consentDecision', (_e, req) => consentBroker.decide(req.id, req.accept))
   handle('guest:openDevTools', (_e, req) => {
     const win = getMainWindow()
     if (!win) throw new Error('no main window')

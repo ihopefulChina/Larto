@@ -123,70 +123,25 @@
         </div>
         <p class="hero__fine">macOS 13 Ventura 或更新版本 · arm64 · 开源 MIT 许可</p>
 
-        <!-- Product art: a CSS rendering of the actual shell layout using the app's design tokens. -->
-        <div class="shot" aria-hidden="true">
-          <div class="shot__toolbar">
-            <div class="shot__traffic"><i></i><i></i><i></i></div>
-            <div class="shot__row">
-              <div class="shot__url">
-                <span class="shot__reload"></span><span>https://open.feishu.cn/app/your-h5</span
-                ><span class="shot__caret"></span>
-              </div>
-              <span class="shot__text">预览</span>
-              <span class="shot__text">清缓存</span>
-              <div class="shot__spacer"></div>
-              <span class="shot__seg shot__seg--on">模拟器</span>
-              <span class="shot__seg shot__seg--on">调试器</span>
-              <span class="shot__text">Jake · 已登录</span>
-            </div>
-          </div>
-          <div class="shot__body">
-            <div class="shot__sim">
-              <div class="shot__simbar"><span>iPhone 13/13 Pro/14</span><span>100%</span></div>
-              <div class="phone">
-                <div class="phone__notch"></div>
-                <div class="phone__status"><span>9:41</span><span>●●●● ᯤ ▮</span></div>
-                <div class="phone__nav"><span>‹ 返回</span><b>我的应用</b><span>···</span></div>
-                <div class="phone__page">
-                  <div class="sk sk--title"></div>
-                  <div class="sk"></div>
-                  <div class="sk sk--short"></div>
-                  <div class="sk__card"></div>
-                  <div class="sk__card sk__card--accent"></div>
-                  <div class="sk"></div>
-                  <div class="sk sk--short"></div>
-                </div>
-                <div class="phone__toast">tt.showToast · 成功</div>
-                <div class="phone__home"></div>
-              </div>
-            </div>
-            <div class="shot__devtools">
-              <div class="dt__tabs">
-                <span class="on">Elements</span><span>Console</span><span>Sources</span
-                ><span>Network</span><span>Application</span>
-              </div>
-              <div class="dt__panes">
-                <pre class="dt__dom">&lt;!DOCTYPE html&gt;
-&lt;html lang="zh-CN"&gt;
-  &lt;head&gt;…&lt;/head&gt;
-  <mark>&lt;body class="lark-h5"&gt;</mark>
-    &lt;div id="app"&gt;…&lt;/div&gt;
-    &lt;script src="lark-sdk.js"&gt;&lt;/script&gt;
-  &lt;/body&gt;
-&lt;/html&gt;</pre>
-                <pre class="dt__css">
-element.style {
-  font-family: -apple-system;
-  padding: 16px;
-}
-body {
-  display: block;
-  margin: 8px;
-}</pre>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Product art: real captures of the app (iPhone 13 preset + docked DevTools), one per theme. -->
+        <figure class="shot">
+          <img
+            class="shot__img shot__img--dark"
+            src="public/hero-dark.webp"
+            width="1581"
+            height="845"
+            alt="FeishuDevTools 深色界面：左侧 iPhone 13 模拟器运行一个审批 H5，右侧停靠 Chrome DevTools 的 Elements 面板"
+            fetchpriority="high"
+          />
+          <img
+            class="shot__img shot__img--light"
+            src="public/hero-light.webp"
+            width="1581"
+            height="845"
+            alt="FeishuDevTools 浅色界面：左侧 iPhone 13 模拟器运行一个审批 H5，右侧停靠 Chrome DevTools 的 Elements 面板"
+            fetchpriority="high"
+          />
+        </figure>
       </section>
 
       <section class="features" id="features">
@@ -223,7 +178,8 @@ body {
             <h3>官方 JSAPI</h3>
             <p>
               注入与飞书客户端一致的 JSAPI 桥；<code>tt.config</code>
-              鉴权、<code>requestAuthCode</code>、剪贴板、定位、Toast、Modal 等即开即用。
+              鉴权、<code>requestAuthCode</code>、<code>requestAccess</code>
+              授权弹窗、剪贴板、定位、Toast、Modal 等即开即用。
             </p>
           </article>
           <article class="card">

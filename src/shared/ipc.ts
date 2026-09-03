@@ -83,6 +83,25 @@ export interface JsapiBackendResponse {
   data: Record<string, unknown>
 }
 
+/**
+ * What `/authen/v1/get_auth_info_inner` returns when the user has to confirm the scopes.
+ * Mirrors the fields the official passport `AuthzModal` renders (app_info / suite_info /
+ * current_user.scope_list); the shell shows the same dialog and reports the decision back.
+ */
+export interface AccessConsentInfo {
+  appName: string
+  appIconUrl: string
+  suiteIconUrl: string
+  userName: string
+  tenantIconUrl: string
+  scopes: { name: string; desc: string }[]
+}
+
+export interface AccessConsentPrompt {
+  id: string
+  info: AccessConsentInfo
+}
+
 export interface JsapiLogEntry {
   ts: number
   method: string
@@ -131,6 +150,8 @@ export interface IpcRequests {
   'preview:pushPc': [[req: { url: string; appId?: string }], { ok: boolean; message?: string }]
 
   'jsapi:backend': [[req: JsapiBackendRequest], JsapiBackendResponse]
+  /** Answer to a `jsapi:consent` prompt; unknown/expired ids are ignored. */
+  'jsapi:consentDecision': [[req: { id: string; accept: boolean }], void]
   /** Renderer reports every JSAPI call (any handler kind) for the MCP `get_jsapi_log` tool. */
   'jsapi:log': [[entry: JsapiLogEntry], void]
 
@@ -155,6 +176,8 @@ export interface IpcEvents {
   /** Menu / MCP driven commands the renderer must execute. */
   'shell:command': ShellCommand
   'guest:titleChanged': { title: string }
+  /** requestAccess needs the user to confirm scopes: show the consent dialog. */
+  'jsapi:consent': AccessConsentPrompt
 }
 export type IpcEventChannel = keyof IpcEvents
 

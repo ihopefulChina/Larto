@@ -89,7 +89,11 @@ export const JSAPI_ERROR = {
   NETWORK: 1014,
   INVALID_PARAM: 104,
   NOT_SUPPORTED: 1001,
-  USER_CANCEL: 1002
+  USER_CANCEL: 1002,
+  /** Passport `ERRCODE_REFUSE_AUTHORIZATION`: user dismissed the requestAccess consent dialog. */
+  ACCESS_REFUSED: 20047,
+  /** Passport `ERRCODE_SYSTEM_INTERNAL_ERROR`: consent payload missing / confirm returned no code. */
+  ACCESS_INTERNAL: 20050
 } as const
 
 /**

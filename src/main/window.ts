@@ -16,6 +16,24 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
 }
 
+/**
+ * Official rule (`setBrowserOptions`): the window's minimum width follows the simulated
+ * device, `deviceWidth + 70 + 387 + 100`, so the frame and the DevTools column always fit.
+ * Clamped to the current display so very large presets (iPad Pro) never exceed the screen.
+ */
+export function fitWindowToDevice(deviceWidth: number, isPc: boolean): void {
+  const win = getMainWindow()
+  if (!win) return
+  const area = screen.getDisplayMatching(win.getBounds()).workArea
+  const wanted = isPc ? DEFAULT_WINDOW.minWidth : deviceWidth + 70 + 387 + 100
+  const minWidth = Math.max(DEFAULT_WINDOW.minWidth, Math.min(wanted, area.width))
+  win.setMinimumSize(minWidth, DEFAULT_WINDOW.minHeight)
+  const bounds = win.getBounds()
+  if (bounds.width >= minWidth || win.isFullScreen()) return
+  const x = Math.max(area.x, Math.min(bounds.x, area.x + area.width - minWidth))
+  win.setBounds({ ...bounds, x, width: minWidth }, true)
+}
+
 export function sendToRenderer<C extends IpcEventChannel>(channel: C, payload: IpcEvents[C]): void {
   const win = getMainWindow()
   if (win) win.webContents.send(channel, payload)

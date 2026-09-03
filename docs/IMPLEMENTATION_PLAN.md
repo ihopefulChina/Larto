@@ -14,7 +14,7 @@
 | 1a | 设备机型切换（模拟器） | `src/shared/devices.ts`, `src/main/guest.ts`(CDP 仿真), `renderer/components/Simulator.tsx` | 完成，E2E 覆盖 |
 | 1b | 调试器（Chromium DevTools 停靠） | `src/main/devtools-dock.ts`, `renderer/components/DevToolsPane.tsx` | 完成，E2E 覆盖 |
 | 1c | 飞书扫码登录 / 多租户切换 | `src/main/account.ts`, `renderer/components/AccountMenu.tsx` | 代码完成，**UAT 待做** |
-| 1d | 飞书官方 JSAPI（真实 `config` 鉴权 + `requestAuthCode` 等） | `src/preload/guest.ts`, `renderer/jsapi/host.ts`, `src/main/jsapi-backend.ts`, `src/main/openapi.ts` | 桥与路由完成；`requestAccess` 授权确认 UI 未做；鉴权链路 **UAT 待做** |
+| 1d | 飞书官方 JSAPI（真实 `config` 鉴权 + `requestAuthCode` / `requestAccess` 等） | `src/preload/guest.ts`, `renderer/jsapi/host.ts`, `src/main/jsapi-backend.ts`, `src/main/openapi.ts`, `src/main/consent.ts`, `modals/ConsentModal.tsx` | 桥、路由与 `requestAccess` 授权确认弹窗完成（官方 AuthzModal 同款 `get_auth_info_inner → 确认 → confirm_inner`）；鉴权链路 **UAT 待做** |
 | 1e | 外观切换（暗/亮/系统） | `src/main/theme.ts`, `renderer/store/app.ts`, `styles/app.css` | 完成，E2E 覆盖 |
 | 1f | URL 输入记录 | `settings.urlHistory`, `renderer/components/UrlBar.tsx` | 完成 |
 | 1g | 二维码预览 / 推送 PC 端预览 | `src/main/preview.ts`, `renderer/components/modals/PreviewModal.tsx` | 二维码完成；PC 推送 **UAT 待做** |
@@ -23,7 +23,7 @@
 | 1j | 系统菜单（帮助/设置/关于/检查更新…） | `src/main/menu.ts` + 各 modal | 完成 |
 | 2 | MCP | `src/main/mcp.ts`（Streamable HTTP，仅回环） | 完成，E2E 就是通过 MCP 驱动的 |
 | 3 | 名称/图标 | `build/icon.icns`, `resources/`, `scripts/make-icons.mjs` | 完成 |
-| 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为 CSS 绘制的产品图，可替换为真截图 |
+| 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为应用真实截图 `website/public/hero-{dark,light}.webp`（本地示例 H5 + 停靠 DevTools 合成） |
 | 5 | GitHub、v0.1.0、无 bug | `.github/workflows/*`, 本文件 §3 | 仓库/CI 完成；**v0.1.0 发布需走 §3 阶段 7** |
 
 **范围外 / 不做**：小程序/网关/工作台等其它开发者工具模块；Intel/Windows/Linux 构建；账号密码自动登录；任何形式的"假登录"或伪造 open-apis 响应；把 `<webview>` 的 `contextIsolation`/`sandbox` 关掉。
@@ -36,14 +36,15 @@
 4. 不提交密钥、Cookie、租户信息、截图中的个人信息。会话仅用 `safeStorage` 存于 userData。
 5. 只支持 macOS arm64（`electron-builder.yml` 只有 `arm64`），最低 macOS 12。
 
-## 1. 现状快照（写于 2026-09-03）
+## 1. 现状快照（更新于 2026-09-04）
 
 - 代码量约 7.3k 行 TS/TSX（`src/`），全部通过 `pnpm typecheck`（三个 tsconfig，strict + exactOptionalPropertyTypes）。
 - `pnpm build` 产出 `out/main/index.js`（ESM）、`out/preload/{shell,guest}.js`（CJS，sandbox 要求）、`out/renderer/`。
 - 自动化验证（本机全部通过，见 `docs/progress.md`）：
-  - `pnpm test`：`tests/shared.test.ts` 7 个用例（URL 归一化、设备/UA、JSAPI 错误格式、i18n）。
+  - `pnpm test`：`tests/shared.test.ts` 7 个用例（URL 归一化、设备/UA、JSAPI 错误格式、i18n）+ `tests/openapi.test.ts` 4 个用例（`requestAccess` 授权载荷解析、verify 错误码映射）。`vitest.config.ts` 提供 `@shared` 别名，可直接测试不依赖 `electron` 的主进程模块。
   - `pnpm e2e`：`scripts/e2e.mjs` 启动应用，通过 MCP 依次验证：启动/健康检查、iPhone 13 仿真（390×733，dpr 3，screen 390×844）、Lark UA、JSAPI 回调 `:ok`、JSAPI 日志、Android 机型切换、缩放不改变 CSS 视口、DevTools 停靠 + 截图、关闭、窗口截图、主题切换、清缓存。
-- 尚未做过：真实飞书账号登录、`tt.config` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
+- 阶段 1–4 已完成（见 `docs/progress.md` 2026-09-04 条目）：窗口最小宽度随机型（官方 `deviceWidth+557` 规则）、模拟器溢出滚动、DevTools 随外观切换重建、`requestAccess` 授权确认弹窗、官网真图。
+- 尚未做过：真实飞书账号登录、`tt.config` / `requestAuthCode` / `requestAccess` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
 
 ## 2. 开发环境与命令
 
@@ -69,9 +70,11 @@ pnpm format           # prettier --write
 
 每个阶段 = 目标 → 具体步骤 → 验收标准 → 验证命令。按顺序做；阶段 5–7 需要真实飞书账号和 Apple 开发者账号，由用户配合。
 
-### 阶段 1 — 交互与像素级还原复核（0.5 天）
+### 阶段 1 — 交互与像素级还原复核（0.5 天）— 已完成 2026-09-04
 
 目标：对照 `docs/RESEARCH_OFFICIAL_TOOL.md` §2、§3 逐项核对 UI。
+
+结果：iPhone/Android/iPad/iPad Pro/PC 六种机型、50%–150% 缩放、深/浅主题、DevTools 开关截图复核（`/tmp/fdt-e2e/p1-*.png`，未入库）。修正：窗口最小宽度随机型（`window.ts#fitWindowToDevice`，官方规则 `deviceWidth + 70 + 387 + 100`，按显示器工作区裁剪，窗口过窄时自动加宽）；模拟器内容溢出时用 `margin: auto` 居中而非 `justify-content: center`（避免左侧被裁切）；缩放后的机身用 `.gadgetBox` 包裹成缩放后的实际尺寸，滚动/居中按视觉尺寸计算；滚动条改为悬停显示。剩余人工核对项如下，供后续再校：
 
 1. 运行 `pnpm dev`，与官方工具（`/Applications/飞书开发者工具.app`，如仍可运行）并排比对：工具栏高度 82px、标题栏 38px、模拟器工具条 28px、按钮态色 `#51565d`、地址栏 hover/focus、历史下拉、机型/缩放下拉。
 2. 检查亮色主题下 `styles/app.css` 的 token（官方仅有暗色，亮色是按同一结构推导的），确保对比度 ≥ 4.5:1。
@@ -79,9 +82,11 @@ pnpm format           # prettier --write
 
 验收：无明显错位；截图对比差异只在字体渲染层面。验证：`pnpm e2e` 仍通过；人工截图存 `/tmp`（不要提交）。
 
-### 阶段 2 — JSAPI 覆盖面补齐（1 天）
+### 阶段 2 — JSAPI 覆盖面补齐（1 天）— 差集核对完成 2026-09-04
 
 目标：官方 preload 支持而我们缺失的方法补全；保持三类路由（`main`/`shell`/`mock`，见 `shared/jsapi.ts`）。
+
+结果：研究文档 §5.3 三张表（宿主实现 / 固定 Mock / 未列出）与 `JSAPI_MAIN_METHODS`、`JSAPI_SHELL_METHODS`、`jsapi-mocks.ts` 逐项对比，无缺失方法。下列细节项仍可打磨（非阻塞）：
 
 1. 用官方 `extraResources/h5/preload.js` 的方法表（研究文档 §5.3）对比 `JSAPI_MAIN_METHODS`/`JSAPI_SHELL_METHODS`/`jsapi-mocks.ts`，列出差集。
 2. `shell` 类（UI）：补 `biz.navigation.setLeft/setRight/setMenu` 的按钮渲染细节、`previewImage` 手势、`showActionSheet` 取消项文案；UI 全在 `renderer/components/JsapiOverlays.tsx` 与 `NavBar.tsx`。
@@ -91,21 +96,24 @@ pnpm format           # prettier --write
 
 验收：`pnpm test`、`pnpm e2e` 通过；`get_jsapi_log` 中无 `not handler api` 的常用方法。
 
-### 阶段 3 — `requestAccess` 授权确认 UI（0.5 天）
+### 阶段 3 — `requestAccess` 授权确认 UI（0.5 天）— 代码完成 2026-09-04，UAT 待做
 
-目标：官方在 `requestAccess`（scope 授权）时会弹确认页 `/authen/v1/confirm_inner`。当前 `src/main/jsapi-backend.ts:100` 直接走无确认分支。
+官方并不是打开一个确认网页：h5 渲染层内嵌的 passport web SDK（`vendor.js` 中的 `AuthzModal`）读取 `POST /authen/v1/get_auth_info_inner` 的响应——`auto_confirm && code` 直接返回；否则用 `app_info / suite_info / current_user.scope_list` 渲染确认弹窗，用户点「授权」后把**同一份** auth 参数 `POST /authen/v1/confirm_inner`，取 `data.code`；拒绝返回 `20047`（`ERRCODE_REFUSE_AUTHORIZATION`），无 code 返回 `20050`。主进程通过 `webRequest.onBeforeSendHeaders` 给这两个请求注入 `session` Cookie 与 `X-Device-Info: platform=websdk`（`libs/main/browsers/base.js`）。
 
-1. 在 `openapi.ts#requestAccess` 收到需要确认的响应（研究文档 §5.4 记录的 code）时，主进程用 `BrowserWindow`（`parent: mainWindow, modal: true`，独立 `partition` 与登录窗一致）加载确认 URL，携带账号 Cookie。
-2. 监听 `will-redirect`/`did-navigate` 到成功页后取 `code` 返回给页面；用户关窗 → `JSAPI_ERROR.USER_CANCEL`。
-3. 未登录时先触发 `account.login()`，成功后重试一次。
+实现（与官方一致）：
 
-验收：用一个真实 H5（有 `requestAccess` 调用）走通；`get_jsapi_log` 显示 `requestAccess` 返回 `code`。**需要真实账号（UAT）。**
+1. `openapi.ts`：`requestAccess` 解析 `consent`（`parseAccessConsent`），`confirmAccess` 发 `confirm_inner`。
+2. `main/consent.ts`：`ConsentBroker.ask(info)` 通过事件 `jsapi:consent` 让 shell 弹窗，等待 `jsapi:consentDecision`（180 s 超时 / 窗口关闭 = 拒绝）。
+3. `renderer/components/modals/ConsentModal.tsx`：应用图标 ⇄ 飞书图标、「{appName}请求你的授权」、授权账号、权限列表（前 3 项 + 查看更多）、取消 / 授权；Esc、点遮罩、切到其它弹窗均视为拒绝。
+4. `jsapi-backend.ts`：`requestAccess` → 直出 code / 弹窗 → `confirm_inner` → `{code, state}`。
 
-### 阶段 4 — 官网真图与文案（0.5 天）
+验收：用一个真实 H5（有 `requestAccess` 调用，且应用未开 auto_confirm）走通；`get_jsapi_log` 显示 `requestAccess` 返回 `code`。**需要真实账号（UAT）。** 若线上 `app_info`/`scope_list` 字段名与 `AuthInfoInnerData` 不一致，以真实响应为准修正并回写研究文档 §5.3。
 
-1. 运行应用，打开一个公开页面（如 `https://open.feishu.cn/document/...`），暗/亮各截一张窗口图：可用 MCP `screenshot` 的 `window`（工具栏 + 模拟器）与 `devtools`（DevTools 面板）两张合成，或用 macOS 截屏。禁止包含账号信息。
-2. 存到 `website/assets/hero-{dark,light}.png`，替换 `website/index.html` 中 `.shot` 的 CSS 产品图（保留 CSS 版本作为 `<noscript>`/回退也可）。
-3. `pages.yml` 已配置；仓库 Settings → Pages → Source 选 GitHub Actions 后自动部署到 `https://ihopefulchina.github.io/FeishuDevTools/`。
+### 阶段 4 — 官网真图与文案（0.5 天）— 真图完成 2026-09-04，Pages 部署待仓库推送
+
+1. 已做：应用加载本地示例 H5（审批列表，虚构数据，无账号信息），iPhone 13 + 停靠 DevTools，用 MCP `screenshot` 的 `window` 与 `devtools` 两张按 `get_state().devtools.bounds` 合成（DevTools 顶部 Chromium 的「切换语言」信息条已裁掉），暗/亮各一张，存为 `website/public/hero-{dark,light}.webp`（≈130 KB/张，3162×1690）。`index.html` 的 `.shot` 现为两张 `<img>`，按 `data-theme` 显示其一；CSS 产品图及其 token 已删除。
+2. 未做：`pages.yml` 已配置，仓库推送到 GitHub 并在 Settings → Pages → Source 选 GitHub Actions 后自动部署到 `https://ihopefulchina.github.io/FeishuDevTools/`。
+3. 重新截图：复用 `docs/progress.md` 2026-09-04 条目里描述的流程（本地 http 服务 + MCP），禁止包含账号信息。
 
 验收：Pages 部署成功，Lighthouse 性能/可访问性 ≥ 90。
 

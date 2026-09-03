@@ -30,6 +30,7 @@ const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
   'preview:mobileQr',
   'preview:pushPc',
   'jsapi:backend',
+  'jsapi:consentDecision',
   'jsapi:log',
   'update:check',
   'update:download',
@@ -44,7 +45,8 @@ const EVENT_CHANNELS: ReadonlySet<string> = new Set<IpcEventChannel>([
   'account:changed',
   'update:state',
   'shell:command',
-  'guest:titleChanged'
+  'guest:titleChanged',
+  'jsapi:consent'
 ])
 
 export interface ShellBridge {

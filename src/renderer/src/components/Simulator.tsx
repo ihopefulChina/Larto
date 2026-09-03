@@ -82,14 +82,12 @@ export function Simulator() {
   }, [])
 
   const scale = zoom / 100
+  // The frame keeps its CSS-pixel size and is scaled visually; the box around it takes the
+  // scaled size so centring and scrolling work on the visible footprint.
+  const boxStyle = isPc ? undefined : { width: device.width * scale, height: device.height * scale }
   const frameStyle = isPc
     ? undefined
-    : {
-        width: device.width,
-        height: device.height,
-        transform: `scale(${scale})`,
-        marginBottom: (scale - 1) * device.height
-      }
+    : { width: device.width, height: device.height, transform: `scale(${scale})` }
 
   return (
     <div
@@ -150,25 +148,27 @@ export function Simulator() {
         </Dropdown>
       </div>
       <div className="simulatorContent">
-        <div className={`gadget ${isPc ? 'pc' : ''}`} style={frameStyle}>
-          {!isPc && <StatusBar device={device} />}
-          {!isPc && <NavBar />}
-          <div className="webviewContainer">
-            <webview
-              ref={webviewRef}
-              src={initialSrc.current}
-              partition={GUEST_PARTITION}
-              preload={PRELOAD_PLACEHOLDER}
-              useragent={ua}
-              allowpopups
-            />
-            <JsapiOverlays />
-          </div>
-          {device.homeIndicator && (
-            <div className="homeIndicator">
-              <span />
+        <div className={`gadgetBox ${isPc ? 'pc' : ''}`} style={boxStyle}>
+          <div className={`gadget ${isPc ? 'pc' : ''}`} style={frameStyle}>
+            {!isPc && <StatusBar device={device} />}
+            {!isPc && <NavBar />}
+            <div className="webviewContainer">
+              <webview
+                ref={webviewRef}
+                src={initialSrc.current}
+                partition={GUEST_PARTITION}
+                preload={PRELOAD_PLACEHOLDER}
+                useragent={ua}
+                allowpopups
+              />
+              <JsapiOverlays />
             </div>
-          )}
+            {device.homeIndicator && (
+              <div className="homeIndicator">
+                <span />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -34,6 +34,7 @@ vi.mock('electron', () => ({
 vi.mock('electron-updater', () => ({ default: { autoUpdater: updater.autoUpdater } }))
 
 const { UpdaterService, resolveUpdateCapability } = await import('../src/main/updater')
+const updatableRuntime = { platform: 'darwin' as const, isPackaged: true }
 
 beforeEach(() => {
   updater.listeners.clear()
@@ -111,7 +112,7 @@ describe('UpdaterService.check', () => {
       get: () => ({ skippedUpdateVersion: '2.0.0' }),
       patch: vi.fn()
     }
-    const service = new UpdaterService(settings as never)
+    const service = new UpdaterService(settings as never, updatableRuntime)
 
     const manual = service.check({ manual: true })
     const silentJoiner = service.check({ manual: false })
@@ -167,7 +168,7 @@ describe('UpdaterService.check', () => {
       get: () => ({ skippedUpdateVersion: null }),
       patch: vi.fn()
     }
-    const service = new UpdaterService(settings as never)
+    const service = new UpdaterService(settings as never, updatableRuntime)
     updater.autoUpdater.emit('update-available', {
       version: '2.0.0',
       releaseDate: '2026-09-04',

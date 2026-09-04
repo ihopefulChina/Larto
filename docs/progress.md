@@ -2,6 +2,29 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-04 — v0.1.1 npm、Release 与本机安装
+
+**做了什么**
+
+- 首次公开发布 `feishu-devtools-mcp@0.1.1`，并把 `ihopefulChina/FeishuDevTools` 的 `.github/workflows/release.yml` 配置为 npm Trusted Publisher；Codex 用户配置只新增 `[mcp_servers.feishu-devtools]`，运行命令为 `npx --yes feishu-devtools-mcp@latest`，原配置完整备份到 `config.toml.bak`。
+- 创建并推送注释 tag `v0.1.1`。Release 工作流重新在原生 runner 生成 macOS arm64/x64、Windows x64、Linux x64 包，完成打包后启动 smoke、19 项发布资产校验、SHA-256 清单和 GitHub artifact attestation，再将含 20 个附件的 Release 从草稿原子公开。
+- 将本机 `/Applications/FeishuDevTools.app` 的旧 0.1.0 移入废纸篓后安装 0.1.1 arm64，并刷新 LaunchServices/Dock 图标缓存；用户设置目录未删除。旧开发实例不响应正常退出且忽略 `SIGTERM`，确认其精确 PID/可执行路径后仅终止该实例，再执行替换。
+- 正式 tag 流程的 `publish-mcp` 在包已存在时暴露顺序缺陷：内容检查先执行 `npm publish --dry-run`，npm 11 将不可覆盖的既有版本判为失败，使后续“已发布则跳过”无法运行。内容检查改为不访问 registry 的 `npm pack --dry-run --ignore-scripts`；实际发布步骤仍先查询精确版本，存在即保持不变。
+
+**验证**
+
+- `npm view feishu-devtools-mcp@0.1.1` 返回 `latest=0.1.1`、发布 integrity/shasum；`npx --yes feishu-devtools-mcp@0.1.1 --version` 返回 0.1.1。Trusted Publisher 创建成功，限定仓库、`release.yml` 和 publish 权限。
+- 手动 Release 门禁 `33871463954` 全平台成功；正式 tag run `33873672040` 的 validate、macOS arm64/x64、Windows、Linux 与 `publish-release` 全部成功。公开 Release 为非草稿、非预发布，20 个附件均为 uploaded；attestation 为 19 个发布主体并进入 Sigstore/Rekor。
+- 从公开 Release 重新下载 `SHA256SUMS.txt` 与 arm64 DMG：清单恰含 19 项，DMG 的 SHA-256 匹配，`hdiutil verify` 通过，`gh attestation verify --repo ihopefulChina/FeishuDevTools` 返回成功。
+- 本机安装版版本 0.1.1、Bundle ID `app.ihopeful.FeishuDevTools`、arm64、最低 macOS 13；新图标 SHA-256 为 `fd02dc5e0c4d5f4d0596890e31defa2fef148527831aefdece4a4595e973e128`，`codesign --verify --deep --strict` 与 `/health` 200 通过，当前从 `/Applications` 启动。Codex `config.toml` 与备份均为有效 TOML、权限 0600；结构化比对确认除新增 MCP 表外其余配置未变。
+- 工作流修复运行 MCP Node Test 20/20、`npm pack --dry-run --ignore-scripts`、定向 Prettier 与 `git diff --check`，全部通过。
+
+**结论 / 遗留**
+
+- v0.1.1 应用 Release 与 npm MCP 已公开，本机应用和 Codex MCP 已安装；Codex 需要重启一次后在 `/mcp` 查看新 server。
+- 正式 tag run 的最终总状态因上述 npm dry-run 顺序缺陷显示 failure，但应用 Release、证明与 npm 实际状态均已独立核验成功；修复保留在 main，供后续 tag 使用，不移动已公开的 v0.1.1 tag。
+- 真实飞书扫码登录、多租户、`tt.config` / `requestAuthCode` / `requestAccess`、真实更新下载安装仍待账号/租户 UAT。macOS 仅 ad-hoc 签名且未公证，Windows/Linux 未签名；Linux unpacked smoke 不等于每一种安装格式的真实发行版 UAT。
+
 ## 2026-09-04 — v0.1.1 图标复核与跨平台 CI 收口
 
 **做了什么**

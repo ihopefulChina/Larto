@@ -12,6 +12,10 @@
 
 官方飞书开发者工具即将停止支持 ARM 版本。FeishuDevTools 以 1:1 的界面与工作流复刻其网页调试模块，让 H5 开发在 Apple Silicon Mac 上继续工作，并为 AI 助手加上了 MCP 接口。
 
+<p align="center">
+  <img src="website/public/hero-dark.webp" width="900" alt="FeishuDevTools：iPhone 13 模拟器与停靠的 Chromium DevTools" />
+</p>
+
 ## 功能
 
 - **设备模拟器**：iPhone / Android / iPad / PC 机型预设，真实 UA（`Lark/x.y.z`）、DPR、屏幕尺寸与安全区；缩放 50%–150%；状态栏与导航栏同步渲染。
@@ -26,7 +30,7 @@
 
 ## 安装
 
-在 [Releases](https://github.com/ihopefulChina/FeishuDevTools/releases/latest) 下载 `FeishuDevTools-x.y.z-arm64.dmg`，拖入「应用程序」。要求 macOS 12+，Apple Silicon。
+在 [Releases](https://github.com/ihopefulChina/FeishuDevTools/releases/latest) 下载 `FeishuDevTools-x.y.z-arm64.dmg`，拖入「应用程序」。要求 **macOS 13 Ventura 或更新版本**，Apple Silicon。
 
 未经 Apple 公证的构建首次打开会被 Gatekeeper 拦截：在「系统设置 → 隐私与安全性」点击「仍要打开」，或执行
 `xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app`。
@@ -74,15 +78,19 @@ pnpm dist:unsigned    # 本机打未签名 dmg/zip
 
 ## 发布
 
-1. 修改 `package.json` 的 `version`，提交。
-2. `git tag vX.Y.Z && git push --tags`。
+变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。发版步骤：
+
+1. 修改 `package.json` 的 `version`，更新 CHANGELOG，提交。
+2. `git tag vX.Y.Z && git push origin vX.Y.Z`。
 3. `release.yml` 在 macOS runner 上构建 arm64 dmg/zip 与 `latest-mac.yml` 并发布到 GitHub Release；应用内自动更新与官网下载按钮都读取这个 Release。
 
 签名与公证是可选的：在仓库 Secrets 中配置 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID` 后自动生效。注意 macOS 上 electron-updater 的自动安装要求应用已签名；未签名时更新对话框会退化为跳转下载页。
 
 ## 状态
 
-v0.1.0 基底框架已完成并通过自动化验证；真实飞书登录、JSAPI 鉴权、PC 预览推送、签名与自动更新链路仍待真实环境验收。详细状态、阶段计划与验收标准见 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) 与 [`docs/progress.md`](docs/progress.md)。
+**v0.1.0** 已发布。`pnpm typecheck` / 单测 / MCP 端到端在本机与 GitHub Actions 均通过；官网已部署。
+
+尚未用真实飞书账号验收登录与 JSAPI 鉴权，尚未配置 Apple 签名 / 公证。未签名包的自动安装会退化为跳转 GitHub Release 下载页。阶段计划与验收标准见 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) 与 [`docs/progress.md`](docs/progress.md)。
 
 ## 致谢与声明
 

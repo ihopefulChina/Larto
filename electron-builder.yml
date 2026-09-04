@@ -33,7 +33,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  minimumSystemVersion: '12.0'
+  minimumSystemVersion: '13.0'
   notarize: true
   extendInfo:
     NSCameraUsageDescription: FeishuDevTools 需要访问摄像头以调试使用相机的网页应用。

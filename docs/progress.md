@@ -12,6 +12,7 @@
 - 远程 Intel smoke 暴露官方欢迎页的公网依赖：应用与设备仿真已启动，但加载飞书 CDN 超时导致假失败。CI 和 Release 的四平台 smoke 改用隔离 userData 中的本地 `data:` 页，正常用户的默认首页不变。
 - Windows 单测不再把 macOS `/Applications/...` 字面路径当作跨平台 fixture；改用当前平台的绝对路径 round-trip，保持生产代码对打包入口的精确匹配，不放宽 shell 导航安全边界。
 - Release 的 macOS Intel 打包后 smoke 补齐隔离配置中的 `lastUrl`，与 arm64、Windows、Linux 一致使用本地 `data:` 页，不再在正式发布矩阵里重新引入公网依赖。
+- Ubuntu 源码 smoke 已完成安全沙箱、guest 仿真与 DevTools 附着，但 Xvfb 的 GPU 截图路径偶发 `UnknownVizError`；该步骤补 `--disable-gpu`，与既有 Linux 打包后 smoke 保持一致，不改变应用默认启动参数。
 
 **验证**
 

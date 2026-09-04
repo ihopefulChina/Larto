@@ -76,7 +76,7 @@ jobs:
         run: |
           mkdir -p "$FDT_USER_DATA"
           node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
-          xvfb-run -a pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
+          xvfb-run -a pnpm exec electron . --disable-gpu --smoke-test="$RUNNER_TEMP/smoke.png"
           test -s "$RUNNER_TEMP/smoke.png"
       - name: Smoke test (Windows)
         if: runner.os == 'Windows'

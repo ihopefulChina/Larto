@@ -8,7 +8,7 @@
 
 ## 项目边界（不可越过）
 
-- 目标是复刻官方「网页调试」模块；macOS arm64 only；不做小程序/网关/工作台等其它模块，不做 Intel/Windows。
+- 目标是复刻官方「网页调试」模块；发布目标为 macOS arm64/x64、Windows x64 与 Linux x64；不做小程序/网关/工作台等其它模块。
 - 真实飞书登录、真实 JSAPI 鉴权（`config`/`requestAuthCode`/`requestAccess`）。禁止伪造登录态或伪造 open-apis 响应；只有 `src/shared/jsapi-mocks.ts` 中与官方工具一致的固定值算合法 mock。
 - `<webview>` 必须保持 `contextIsolation=true, sandbox=true, nodeIntegration=false`；JSAPI 桥只能在 `src/preload/guest.ts` 注入。
 - 新增 IPC 必须同时更新 `src/shared/ipc.ts`、`src/preload/shell.ts` 白名单、`src/main/ipc.ts`；新增 MCP 工具必须更新 README 表格与 `scripts/e2e.mjs`。
@@ -19,7 +19,7 @@
 
 - 先跑最窄的相关验证，提交前跑全套：`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`。
 - E2E 需要本机有显示器；截图输出在 `/tmp/fdt-e2e/`，不要提交。
-- 静态检查/构建通过 ≠ 真实飞书 UAT、签名、发布通过；未做过的项在文档里明确写「待 UAT」。
+- 静态检查/单平台构建通过 ≠ 跨平台原生启动、真实飞书 UAT、签名或发布通过；未做过的项在文档里明确写「待 UAT」。
 - 报告时列出：已运行的检查、结果、未运行项。
 
 ## 版本控制
@@ -31,7 +31,7 @@
 ## 参考与禁区
 
 - `/Applications/飞书开发者工具.app` 是只读参考，用于比对界面与行为；不要复制其代码或资源到仓库。
-- `/Users/ihopeful/code/soft/FeiDev`（如存在）是废弃的历史原型，只作对照，不迁移代码。
+- 相邻目录 `../FeiDev`（如存在）是废弃的历史原型，只作对照，不迁移代码。
 
 ## CodeGraph
 

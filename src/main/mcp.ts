@@ -34,7 +34,12 @@ export class McpService {
   private server: Server | null = null
   private url: string | null = null
   private error: string | undefined
+  /** Serializes stop/listen transitions; a newer settings change supersedes queued work. */
+  private lifecycleQueue: Promise<void> = Promise.resolve()
+  private lifecycleGeneration = 0
   private readonly jsapiLog: JsapiLogEntry[] = []
+  private deviceRequestSequence = 0
+  private pendingDeviceRequest: { deviceId: string; requestId: string } | null = null
 
   constructor(private readonly deps: McpDeps) {}
 
@@ -48,32 +53,112 @@ export class McpService {
   }
 
   async start(): Promise<void> {
-    await this.stop()
-    const { enabled, port } = this.deps.settings.get().mcp
-    if (!enabled) return
-    const server = createServer((req, res) => void this.handle(req, res))
-    await new Promise<void>((resolve) => {
-      server.once('error', (err: NodeJS.ErrnoException) => {
-        this.error = err.code === 'EADDRINUSE' ? `port ${port} is already in use` : err.message
-        log.error('mcp listen failed', err)
-        resolve()
+    const generation = ++this.lifecycleGeneration
+    return this.enqueueLifecycle(generation, async () => {
+      // Coalesce settings edits that were superseded before their turn reached the socket.
+      if (generation !== this.lifecycleGeneration) return
+      await this.stopCurrentServer()
+      if (generation !== this.lifecycleGeneration) return
+
+      this.error = undefined
+      const { enabled, port } = this.deps.settings.get().mcp
+      if (!enabled) return
+
+      const server = createServer((req, res) => void this.handle(req, res))
+      const listenError = await this.listen(server, port)
+
+      // A newer setting may arrive while listen() is pending. Never publish that older socket or
+      // let its eventual callback overwrite the status of the requested configuration.
+      if (generation !== this.lifecycleGeneration) {
+        if (!listenError) await this.close(server)
+        return
+      }
+      if (listenError) {
+        this.error = this.listenErrorMessage(listenError, port)
+        log.error('mcp listen failed', listenError)
+        return
+      }
+
+      this.server = server
+      this.url = `http://127.0.0.1:${port}/mcp`
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        if (this.server !== server) return
+        this.error = this.listenErrorMessage(err, port)
+        log.error('mcp server failed', err)
       })
-      server.listen(port, '127.0.0.1', () => {
-        this.server = server
-        this.url = `http://127.0.0.1:${port}/mcp`
-        this.error = undefined
-        log.info(`mcp listening on ${this.url}`)
-        resolve()
+      server.once('close', () => {
+        if (this.server !== server) return
+        this.server = null
+        this.url = null
       })
+      log.info(`mcp listening on ${this.url}`)
     })
   }
 
   async stop(): Promise<void> {
+    const generation = ++this.lifecycleGeneration
+    return this.enqueueLifecycle(generation, async () => {
+      if (generation !== this.lifecycleGeneration) return
+      await this.stopCurrentServer()
+      if (generation === this.lifecycleGeneration) this.error = undefined
+    })
+  }
+
+  private enqueueLifecycle(generation: number, operation: () => Promise<void>): Promise<void> {
+    const queued = this.lifecycleQueue.then(async () => {
+      try {
+        await operation()
+      } catch (err) {
+        if (generation === this.lifecycleGeneration) {
+          this.error = err instanceof Error ? err.message : String(err)
+        }
+        log.error('mcp lifecycle failed', err)
+      }
+    })
+    this.lifecycleQueue = queued
+    return queued
+  }
+
+  private async stopCurrentServer(): Promise<void> {
     const s = this.server
     this.server = null
     this.url = null
     if (!s) return
-    await new Promise<void>((resolve) => s.close(() => resolve()))
+    await this.close(s)
+  }
+
+  private close(server: Server): Promise<void> {
+    if (!server.listening) return Promise.resolve()
+    return new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+
+  private listen(server: Server, port: number): Promise<NodeJS.ErrnoException | undefined> {
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        server.off('error', onError)
+        server.off('listening', onListening)
+      }
+      const onError = (err: NodeJS.ErrnoException) => {
+        cleanup()
+        resolve(err)
+      }
+      const onListening = () => {
+        cleanup()
+        resolve(undefined)
+      }
+      server.once('error', onError)
+      server.once('listening', onListening)
+      try {
+        server.listen(port, '127.0.0.1')
+      } catch (err) {
+        cleanup()
+        resolve(err as NodeJS.ErrnoException)
+      }
+    })
+  }
+
+  private listenErrorMessage(err: NodeJS.ErrnoException, port: number): string {
+    return err.code === 'EADDRINUSE' ? `port ${port} is already in use` : err.message
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -226,8 +311,25 @@ export class McpService {
         inputSchema: { deviceId: z.enum(DEVICES.map((d) => d.id) as [string, ...string[]]) }
       },
       async ({ deviceId }) => {
-        this.deps.sendCommand({ type: 'setDevice', deviceId })
-        return text({ ok: true, deviceId })
+        const requestId = `mcp-device-${++this.deviceRequestSequence}`
+        // A second MCP caller supersedes the first command immediately. Waiting until the
+        // renderer reaches its next CDP call is too late: changing the webview user agent can
+        // stop the older reload, which used to let that older request report a false success.
+        if (this.pendingDeviceRequest) {
+          guestManager.failDeviceRequest({
+            ...this.pendingDeviceRequest,
+            message: 'device request was superseded'
+          })
+        }
+        this.pendingDeviceRequest = { deviceId, requestId }
+        const applied = guestManager.waitForDeviceApplied(deviceId, requestId)
+        this.deps.sendCommand({ type: 'setDevice', deviceId, requestId })
+        try {
+          await applied
+          return text({ ok: true, deviceId })
+        } finally {
+          if (this.pendingDeviceRequest?.requestId === requestId) this.pendingDeviceRequest = null
+        }
       }
     )
 

@@ -1,41 +1,59 @@
 name: Release
 
-# Push a tag `vX.Y.Z` (matching package.json "version") to build the arm64 DMG + ZIP and publish
-# them, together with latest-mac.yml for electron-updater, to a GitHub Release.
-# Signing / notarisation only happen when the corresponding secrets exist (see README "Release").
+# A single vX.Y.Z tag builds every desktop target in parallel, then one final job verifies and
+# publishes the complete asset set. This avoids concurrent jobs racing to create the same Release.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: macos-latest
-    timeout-minutes: 45
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck && pnpm test && pnpm build
-      - name: Check tag matches package.json version
+      - name: Check release versions
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          PKG=$(node -p "require('./package.json').version")
-          TAG=${GITHUB_REF_NAME#v}
-          [ "$PKG" = "$TAG" ] || { echo "package.json is $PKG but tag is $TAG"; exit 1; }
-      - name: Build and publish (electron-builder)
+          ROOT_VERSION=$(node -p "require('./package.json').version")
+          MCP_VERSION=$(node -p "require('./packages/feishu-devtools-mcp/package.json').version")
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          [ "$ROOT_VERSION" = "$TAG_VERSION" ] || { echo "package.json is $ROOT_VERSION but tag is $TAG_VERSION"; exit 1; }
+          [ "$MCP_VERSION" = "$TAG_VERSION" ] || { echo "MCP package is $MCP_VERSION but tag is $TAG_VERSION"; exit 1; }
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  package-macos:
+    needs: validate
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build macOS arm64 and x64 artifacts
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional Developer ID + notarisation. Missing secrets still inject "" into the
-          # environment; electron-builder treats CSC_LINK="" as a file path (the repo root)
-          # and fails with "not a file". Unset empties below so unsigned builds work.
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -51,25 +69,240 @@ jobs:
           if [ -z "${APPLE_ID}" ]; then
             unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
           fi
-          # Publish separately: dmg + zip race to POST /releases and the loser gets
-          # 422 tag_name already_exists (electron-builder GitHub publisher).
-          pnpm exec electron-builder --mac --arm64 --publish never
-      - uses: actions/upload-artifact@v4
+          pnpm exec electron-builder --mac --arm64 --x64 --publish never
+      - name: Smoke test packaged macOS arm64 app
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+        run: |
+          mkdir -p "$FDT_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          file dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools | grep -q arm64
+          dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          test -s "$RUNNER_TEMP/packaged-smoke.png"
+      - run: node scripts/verify-release-assets.mjs dist mac
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          name: macos-arm64
+          name: packaged-smoke-macos-arm64
+          path: ${{ runner.temp }}/packaged-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-macos
           path: |
-            dist/FeishuDevTools-*.dmg
-            dist/FeishuDevTools-*.zip
-            dist/FeishuDevTools-*.blockmap
+            dist/FeishuDevTools-*-mac-*.dmg
+            dist/FeishuDevTools-*-mac-*.dmg.blockmap
+            dist/FeishuDevTools-*-mac-*.zip
+            dist/FeishuDevTools-*-mac-*.zip.blockmap
             dist/latest-mac.yml
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  smoke-macos-intel:
+    needs: package-macos
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          files: |
-            dist/FeishuDevTools-*.dmg
-            dist/FeishuDevTools-*.zip
-            dist/FeishuDevTools-*.blockmap
-            dist/latest-mac.yml
+          name: release-macos
+          path: release-macos
+      - name: Smoke test packaged macOS x64 app
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+        run: |
+          mkdir -p "$FDT_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          shopt -s nullglob
+          archives=(release-macos/FeishuDevTools-*-mac-x64.zip)
+          [ "${#archives[@]}" -eq 1 ] || { echo "Expected exactly one macOS x64 ZIP"; exit 1; }
+          ditto -x -k "${archives[0]}" "$RUNNER_TEMP/fdt-macos-x64"
+          file "$RUNNER_TEMP/fdt-macos-x64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools" | grep -q x86_64
+          "$RUNNER_TEMP/fdt-macos-x64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools" --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          test -s "$RUNNER_TEMP/packaged-smoke.png"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: packaged-smoke-macos-x64
+          path: ${{ runner.temp }}/packaged-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  package-windows:
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build Windows x64 artifacts
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
+            Remove-Item Env:CSC_LINK -ErrorAction SilentlyContinue
+            Remove-Item Env:CSC_KEY_PASSWORD -ErrorAction SilentlyContinue
+            $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+          }
+          pnpm exec electron-builder --win --x64 --publish never
+      - name: Smoke test packaged Windows x64 app
+        shell: pwsh
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}\fdt-packaged-smoke-profile
+        run: |
+          $smoke = Join-Path $env:RUNNER_TEMP 'packaged-smoke.png'
+          New-Item -ItemType Directory -Path $env:FDT_USER_DATA -Force | Out-Null
+          '{"mcp":{"enabled":false},"autoCheckUpdates":false}' | Set-Content (Join-Path $env:FDT_USER_DATA 'settings.json') -Encoding utf8NoBOM
+          $process = Start-Process -FilePath '.\dist\win-unpacked\FeishuDevTools.exe' -ArgumentList '--disable-gpu', "--smoke-test=$smoke" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged app exited with $($process.ExitCode)" }
+          if (-not (Test-Path $smoke) -or (Get-Item $smoke).Length -le 0) { throw "Smoke screenshot is missing or empty at $smoke" }
+      - run: node scripts/verify-release-assets.mjs dist windows
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: packaged-smoke-windows-x64
+          path: ${{ runner.temp }}/packaged-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-windows
+          path: |
+            dist/FeishuDevTools-*-windows-*.exe
+            dist/FeishuDevTools-*-windows-*.exe.blockmap
+            dist/FeishuDevTools-*-windows-*.zip
+            dist/latest.yml
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  package-linux:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools rpm xvfb
+      - run: pnpm build
+      - run: pnpm exec electron-builder --linux --x64 --publish never
+      - name: Smoke test packaged Linux x64 app
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+        run: |
+          mkdir -p "$FDT_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          file dist/linux-unpacked/feishu-dev-tools | grep -q x86-64
+          xvfb-run -a dist/linux-unpacked/feishu-dev-tools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          test -s "$RUNNER_TEMP/packaged-smoke.png"
+      - run: node scripts/verify-release-assets.mjs dist linux
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: packaged-smoke-linux-x64
+          path: ${{ runner.temp }}/packaged-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-linux
+          path: |
+            dist/FeishuDevTools-*-linux-*.AppImage
+            dist/FeishuDevTools-*-linux-*.deb
+            dist/FeishuDevTools-*-linux-*.rpm
+            dist/FeishuDevTools-*-linux-*.tar.gz
+            dist/latest-linux.yml
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish-release:
+    needs: [package-macos, smoke-macos-intel, package-windows, package-linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - run: node scripts/verify-release-assets.mjs release-assets all
+      - run: node scripts/create-checksums.mjs release-assets
+      - name: Verify checksums
+        working-directory: release-assets
+        run: sha256sum --check SHA256SUMS.txt
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: release-assets/SHA256SUMS.txt
+      - name: Prepare release notes from the changelog
+        run: node scripts/extract-release-notes.mjs "$GITHUB_REF_NAME" "$RUNNER_TEMP/release-notes.md"
+      - name: Upload the complete asset set to a draft Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          name: FeishuDevTools ${{ github.ref_name }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: release-assets/*
           fail_on_unmatched_files: true
-          generate_release_notes: true
+          draft: true
+          overwrite_files: true
+      - name: Publish the verified GitHub Release atomically
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+
+  publish-mcp:
+    needs: publish-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/feishu-devtools-mcp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Install an npm CLI with trusted publishing support
+        run: npm install --global npm@11.19.0 && test "$(npm --version)" = 11.19.0
+      - run: node --test test/*.test.mjs
+      - name: Validate npm publication contents
+        run: npm publish --dry-run --ignore-scripts
+      - name: Publish npm package through trusted publishing
+        run: |
+          PACKAGE=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$(npm view "$PACKAGE@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "$PACKAGE@$VERSION is already published; leaving it unchanged."
+          else
+            npm publish --access public
+          fi

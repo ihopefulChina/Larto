@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
+import { appendFileSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 
@@ -21,7 +21,12 @@ export function getLogDir(): string {
 
 function rotateIfNeeded(): void {
   try {
-    if (statSync(logFile).size > MAX_BYTES) renameSync(logFile, `${logFile}.1`)
+    if (statSync(logFile).size > MAX_BYTES) {
+      const previous = `${logFile}.1`
+      // POSIX rename replaces the destination; Windows rename does not do so reliably.
+      rmSync(previous, { force: true })
+      renameSync(logFile, previous)
+    }
   } catch {
     /* file does not exist yet */
   }

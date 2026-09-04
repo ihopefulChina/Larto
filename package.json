@@ -1,8 +1,9 @@
 {
   "name": "feishu-dev-tools",
   "productName": "FeishuDevTools",
-  "version": "0.1.0",
-  "description": "Apple Silicon native web-app debugger for Feishu/Lark H5 development: device simulator, docked Chromium DevTools, real Feishu QR login, official JSAPI bridge, MCP server for AI agents.",
+  "desktopName": "FeishuDevTools.desktop",
+  "version": "0.1.1",
+  "description": "Cross-platform web-app debugger for Feishu/Lark H5 development: device simulator, docked Chromium DevTools, real Feishu QR login, official JSAPI bridge, and MCP server for AI agents.",
   "author": {
     "name": "ihopefulChina",
     "url": "https://github.com/ihopefulChina"
@@ -27,13 +28,17 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.preload.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests && node --test scripts/*.test.mjs packages/feishu-devtools-mcp/test/*.test.mjs",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "icons": "node scripts/make-icons.mjs",
-    "dist": "pnpm build && electron-builder --mac --arm64",
-    "dist:unsigned": "pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
+    "screenshots": "pnpm build && node scripts/capture-site-screenshots.mjs",
+    "dist": "pnpm build && electron-builder --publish never",
+    "dist:mac": "pnpm build && electron-builder --mac --arm64 --x64 --publish never",
+    "dist:win": "pnpm build && electron-builder --win --x64 --publish never",
+    "dist:linux": "pnpm build && electron-builder --linux --x64 --publish never",
+    "dist:unsigned": "pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --x64 --publish never",
     "e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {

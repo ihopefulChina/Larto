@@ -1,98 +1,221 @@
+import { useMemo, type MouseEvent, type ReactNode } from 'react'
+import { GITHUB_URL } from '@shared/constants'
+import type { I18nKey } from '@shared/i18n'
 import { invoke } from '@/lib/bridge'
+import { isMarkup, sanitizeReleaseNotes } from '@/lib/release-notes'
 import { useApp, useT } from '@/store/app'
+import iconUrl from '@/assets/icon.png'
 import { Modal } from '../Modal'
 
-/** Official flow (§9): available → user downloads → downloaded → user restarts. */
+const RELEASES_URL = `${GITHUB_URL}/releases/latest`
+
+/**
+ * Sparkle-style update window: app icon, headline, one-line status, release notes, then
+ * "Skip This Version" on the left and "Remind Me Later" / "Install Update" on the right.
+ * Flow stays the official one (§9): available → download → downloaded → relaunch.
+ */
 export function UpdateDialog() {
   const t = useT()
   const update = useApp((s) => s.update)
+  const info = useApp((s) => s.info)
+  const autoCheck = useApp((s) => s.settings.autoCheckUpdates)
   const close = () => useApp.getState().openModal(null)
+  const app = info?.name ?? 'FeishuDevTools'
+  const vars = (extra: Record<string, string> = {}) => ({
+    app,
+    cur: info?.version ?? '',
+    ...extra
+  })
+  const msg = (key: I18nKey, values: Record<string, string>) =>
+    Object.entries(values).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, v), t(key))
 
-  let body: React.ReactNode
-  let footer: React.ReactNode = (
-    <button className="btn" onClick={close}>
-      {t('common.close')}
-    </button>
-  )
+  let title: string
+  let hint: string
+  let body: ReactNode = null
+  let left: ReactNode = null
+  let right: ReactNode
   switch (update.status) {
-    case 'checking':
     case 'idle':
-      body = <p className="hint">{t('update.checking')}</p>
+    case 'checking':
+      title = t('update.checking')
+      hint = t('update.checking.hint')
+      body = <div className="progress indeterminate" aria-hidden="true" />
+      right = (
+        <button className="btn" onClick={close}>
+          {t('common.cancel')}
+        </button>
+      )
       break
     case 'notAvailable':
-      body = (
-        <p className="hint">
-          {t('update.notAvailable')} ({update.currentVersion})
-        </p>
+      title = t('update.notAvailable')
+      hint = msg('update.notAvailable.hint', vars({ cur: update.currentVersion }))
+      right = (
+        <button className="btn primary" onClick={close} autoFocus>
+          {t('common.ok')}
+        </button>
       )
       break
+    case 'unsupported': {
+      title = t('update.unsupported')
+      const hintKey = `update.unsupported.${update.reason}` as I18nKey
+      hint = msg(hintKey, vars({ cur: update.currentVersion }))
+      right = (
+        <>
+          <button className="btn" onClick={close}>
+            {t('common.close')}
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => void invoke('app:openExternal', RELEASES_URL).then(close)}
+            autoFocus
+          >
+            {t('update.openReleases')}
+          </button>
+        </>
+      )
+      break
+    }
     case 'available':
+      title = msg('update.available', vars())
+      hint = msg('update.available.hint', vars({ new: update.info.version }))
       body = (
         <>
-          <p>
-            {t('update.available')}: <b>v{update.info.version}</b>
-          </p>
-          {update.info.releaseNotes && (
-            <div className="notes" dangerouslySetInnerHTML={{ __html: update.info.releaseNotes }} />
-          )}
+          <ReleaseNotes notes={update.info.releaseNotes} label={t('update.releaseNotes')} />
+          <label className="updateAuto">
+            <input
+              type="checkbox"
+              checked={autoCheck}
+              onChange={(e) =>
+                void useApp.getState().setSetting('autoCheckUpdates', e.target.checked)
+              }
+            />
+            {t('settings.autoCheckUpdates')}
+          </label>
         </>
       )
-      footer = (
+      left = (
+        <button className="btn" onClick={() => void invoke('update:skip').then(close)}>
+          {t('update.skip')}
+        </button>
+      )
+      right = (
         <>
           <button className="btn" onClick={close}>
             {t('update.later')}
           </button>
-          <button className="btn primary" onClick={() => void invoke('update:download')}>
-            {t('update.download')}
-          </button>
-        </>
-      )
-      break
-    case 'downloading':
-      body = (
-        <>
-          <p>
-            {t('update.downloading')} {update.percent.toFixed(0)}%
-          </p>
-          <div className="progress">
-            <span style={{ width: `${update.percent}%` }} />
-          </div>
-          <p className="hint">
-            {(update.transferred / 1048576).toFixed(1)} / {(update.total / 1048576).toFixed(1)} MB ·{' '}
-            {(update.bytesPerSecond / 1048576).toFixed(2)} MB/s
-          </p>
-        </>
-      )
-      footer = null
-      break
-    case 'downloaded':
-      body = (
-        <p>
-          {t('update.downloaded')}: <b>v{update.info.version}</b>
-        </p>
-      )
-      footer = (
-        <>
-          <button className="btn" onClick={close}>
-            {t('update.later')}
-          </button>
-          <button className="btn primary" onClick={() => void invoke('update:install')}>
+          <button className="btn primary" onClick={() => void invoke('update:download')} autoFocus>
             {t('update.install')}
           </button>
         </>
       )
       break
-    case 'error':
+    case 'downloading':
+      title = t('update.downloading')
+      hint = msg('update.downloading.hint', vars({ new: update.info.version }))
       body = (
-        <p style={{ color: 'var(--danger)' }}>
-          {t('update.error')}: {update.message}
-        </p>
+        <>
+          <div className="progress">
+            <span style={{ width: `${update.percent}%` }} />
+          </div>
+          <p className="updateMeta">
+            {mb(update.transferred)} / {mb(update.total)} MB · {mb(update.bytesPerSecond, 2)} MB/s ·{' '}
+            {update.percent.toFixed(0)}%
+          </p>
+        </>
+      )
+      right = null
+      break
+    case 'downloaded':
+      title = t('update.downloaded')
+      hint = msg('update.downloaded.hint', vars({ new: update.info.version }))
+      body = <ReleaseNotes notes={update.info.releaseNotes} label={t('update.releaseNotes')} />
+      right = (
+        <>
+          <button className="btn" onClick={close}>
+            {t('update.later')}
+          </button>
+          <button className="btn primary" onClick={() => void invoke('update:install')} autoFocus>
+            {t('update.relaunch')}
+          </button>
+        </>
+      )
+      break
+    case 'error':
+      title = t('update.error')
+      hint = t('update.error.hint')
+      body = <p className="updateError">{update.message}</p>
+      right = (
+        <>
+          <button className="btn" onClick={close}>
+            {t('common.close')}
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => void invoke('app:openExternal', RELEASES_URL).then(close)}
+            autoFocus
+          >
+            {t('update.openReleases')}
+          </button>
+        </>
       )
       break
   }
+
   return (
-    <Modal title={t('menu.checkUpdate')} width={400} footer={footer}>
+    <Modal
+      title={title}
+      width={560}
+      chrome="plain"
+      className="update"
+      footer={
+        right || left ? (
+          <>
+            <div className="updateFootLeft">{left}</div>
+            <div className="updateFootRight">{right}</div>
+          </>
+        ) : undefined
+      }
+    >
+      <div className="updateHead">
+        <img src={iconUrl} alt="" />
+        <div>
+          <h2>{title}</h2>
+          <p>{hint}</p>
+        </div>
+      </div>
       {body}
     </Modal>
   )
+}
+
+function ReleaseNotes({ notes, label }: { notes: string; label: string }) {
+  const html = useMemo(
+    () => (notes && isMarkup(notes) ? sanitizeReleaseNotes(notes) : null),
+    [notes]
+  )
+  if (!notes.trim()) return null
+  const onClick = (e: MouseEvent<HTMLDivElement>) => {
+    const a = (e.target as HTMLElement).closest('a')
+    if (!a) return
+    e.preventDefault()
+    const href = a.getAttribute('href')
+    if (href) void invoke('app:openExternal', href)
+  }
+  return html !== null ? (
+    <div
+      className="releaseNotes"
+      role="document"
+      aria-label={label}
+      onClick={onClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  ) : (
+    <div className="releaseNotes plain" role="document" aria-label={label}>
+      {notes}
+    </div>
+  )
+}
+
+function mb(bytes: number, digits = 1): string {
+  return (bytes / 1048576).toFixed(digits)
 }

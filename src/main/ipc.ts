@@ -3,6 +3,7 @@ import { DEVICES } from '@shared/devices'
 import type { AppInfo, IpcArgs, IpcRequestChannel, IpcResult } from '@shared/ipc'
 import type { ResolvedLanguage } from '@shared/settings'
 import type { AccountService } from './account'
+import { hasSecureAccountStorage } from './account'
 import { devToolsDock } from './devtools-dock'
 import { guestManager } from './guest'
 import { handleJsapiBackend } from './jsapi-backend'
@@ -13,7 +14,7 @@ import type { SettingsStore } from './store'
 import { resolveTheme } from './theme'
 import type { UpdaterService } from './updater'
 import { consentBroker } from './consent'
-import { fitWindowToDevice, getMainWindow } from './window'
+import { fitWindowToDevice, getMainWindow, isCurrentShellUrl } from './window'
 
 export interface IpcDeps {
   settings: SettingsStore
@@ -32,7 +33,12 @@ type Handler<C extends IpcRequestChannel> = (
 function handle<C extends IpcRequestChannel>(channel: C, handler: Handler<C>): void {
   ipcMain.handle(channel, (event, ...args) => {
     const win = getMainWindow()
-    if (!win || event.sender !== win.webContents)
+    if (
+      !win ||
+      event.sender !== win.webContents ||
+      event.senderFrame !== win.webContents.mainFrame ||
+      !isCurrentShellUrl(event.senderFrame.url)
+    )
       throw new Error(`ipc ${channel}: unauthorised sender`)
     return handler(event, ...(args as IpcArgs<C>))
   })
@@ -49,7 +55,8 @@ export function getAppInfo(): AppInfo {
     arch: process.arch,
     isPackaged: app.isPackaged,
     userDataPath: app.getPath('userData'),
-    logPath: getLogDir()
+    logPath: getLogDir(),
+    accountStorage: hasSecureAccountStorage() ? 'protected' : 'memoryOnly'
   }
 }
 
@@ -75,11 +82,18 @@ export function registerIpc(deps: IpcDeps): void {
   handle('devices:list', () => [...DEVICES])
 
   handle('guest:attach', (_e, id) => guestManager.attach(id))
+  handle('guest:ready', (_e, id) => guestManager.markRendererReady(id))
   handle('guest:setDevice', async (_e, req) => {
-    await guestManager.setDevice(req.webContentsId, req.deviceId, req.viewport)
-    const device = guestManager.currentDevice
-    fitWindowToDevice(device.width, device.platform === 'pc')
+    await guestManager.setDevice(req.webContentsId, req.deviceId, req.viewport, {
+      reload: req.reload,
+      background: req.background,
+      requestId: req.requestId
+    })
+    // ResizeObserver / drag previews can fire every frame. They only change an existing PC
+    // viewport and must not repeatedly query displays or animate the outer application window.
+    if (!req.background) fitWindowToDevice(guestManager.currentDevice, deps.settings.get().zoom)
   })
+  handle('guest:deviceCommandFailed', (_e, req) => guestManager.failDeviceRequest(req))
   handle('guest:clearCache', (_e, id) => guestManager.clearCache(id))
   handle('jsapi:consentDecision', (_e, req) => consentBroker.decide(req.id, req.accept))
   handle('guest:openDevTools', (_e, req) => {
@@ -89,6 +103,14 @@ export function registerIpc(deps: IpcDeps): void {
   })
   handle('guest:setDevToolsBounds', (_e, req) => devToolsDock.setBounds(req.bounds, req.visible))
   handle('guest:closeDevTools', () => devToolsDock.close())
+  handle('guest:snapshotDevTools', async () => {
+    try {
+      const img = await devToolsDock.capture()
+      return img && !img.isEmpty() ? img.toDataURL() : null
+    } catch {
+      return null
+    }
+  })
 
   handle('account:getState', () => deps.account.getState())
   handle('account:login', () => deps.account.login())
@@ -98,12 +120,23 @@ export function registerIpc(deps: IpcDeps): void {
   handle('preview:mobileQr', (_e, req) => buildMobilePreviewQr(req))
   handle('preview:pushPc', (_e, req) => pushPcPreviewAndOpen(deps, req))
 
-  handle('jsapi:backend', (_e, req) => handleJsapiBackend(deps, req))
+  handle('jsapi:backend', (_e, req) =>
+    handleJsapiBackend(
+      {
+        account: deps.account,
+        settings: deps.settings,
+        getLang: deps.getLang,
+        requestGuestPermission: (permission) => guestManager.requestPagePermission(permission)
+      },
+      req
+    )
+  )
   handle('jsapi:log', (_e, entry) => deps.mcp.recordJsapi(entry))
 
   handle('update:check', () => deps.updater.check())
   handle('update:download', () => deps.updater.download())
   handle('update:install', () => deps.updater.install())
+  handle('update:skip', () => deps.updater.skip())
   handle('update:getState', () => deps.updater.getState())
 
   handle('mcp:getStatus', () => deps.mcp.status())

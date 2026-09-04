@@ -22,7 +22,6 @@ export function App() {
   const showDevTools = useApp((s) => s.settings.showDevTools)
   const setSetting = useApp((s) => s.setSetting)
   const [focusSignal, setFocusSignal] = useState(0)
-  const [appToast, setAppToast] = useState<string | null>(null)
 
   useEffect(() => {
     void useApp.getState().init()
@@ -37,8 +36,7 @@ export function App() {
     if (id === null) return
     await invoke('guest:clearCache', id)
     simulatorActions.reload()
-    setAppToast(t('cache.cleared'))
-    setTimeout(() => setAppToast(null), 1500)
+    useApp.getState().showToast(t('cache.cleared'), 1500)
   }, [t])
 
   const toggleDevTools = useCallback(
@@ -63,7 +61,7 @@ export function App() {
           toggleDevTools(cmd.show)
           break
         case 'setDevice':
-          void simulatorActions.changeDevice(cmd.deviceId)
+          void simulatorActions.changeDevice(cmd.deviceId, cmd.requestId)
           break
         case 'setZoom':
           if (ZOOM_LEVELS.includes(cmd.zoom)) void setSetting('zoom', cmd.zoom)
@@ -94,13 +92,9 @@ export function App() {
 
   return (
     <div className="main">
-      <Toolbar
-        focusSignal={focusSignal}
-        onClearCache={() => void clearCache()}
-        onToggleDevTools={() => toggleDevTools()}
-      />
+      <Toolbar onClearCache={() => void clearCache()} onToggleDevTools={() => toggleDevTools()} />
       <div className="idePanel">
-        <Simulator />
+        <Simulator focusSignal={focusSignal} />
         {showDevTools && <DevToolsPane />}
       </div>
       {modal === 'preview' && <PreviewModal />}
@@ -108,7 +102,6 @@ export function App() {
       {modal === 'about' && <AboutModal />}
       {modal === 'update' && <UpdateDialog />}
       {modal === 'consent' && <ConsentModal />}
-      {appToast && <div className="appToast">{appToast}</div>}
     </div>
   )
 }

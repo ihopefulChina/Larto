@@ -76,7 +76,6 @@ export interface RequestAccessResult {
   state?: string
   /** Present when the server wants the user to confirm the scopes first. */
   consent?: AccessConsentInfo
-  raw: unknown
 }
 
 /** Raw shape of `get_auth_info_inner` / `confirm_inner` payloads (passport web SDK). */
@@ -150,7 +149,6 @@ export async function requestAccess(
   const consent = parseAccessConsent(d)
   return {
     autoConfirm: !!d.auto_confirm,
-    raw: d,
     ...(d.code ? { code: d.code } : {}),
     ...(d.state ? { state: d.state } : {}),
     ...(consent ? { consent } : {})

@@ -1,5 +1,6 @@
-import { app } from 'electron'
+import { app, session } from 'electron'
 import { createLogger } from './logger'
+import { summarizeErrorForLog } from './log-summary'
 
 const log = createLogger('http')
 
@@ -24,9 +25,9 @@ export class HttpError extends Error {
 
 /**
  * Thin JSON HTTP client for passport / open platform calls.
- * Uses Node's fetch (undici) so we can set the Cookie header explicitly and stay
- * independent from any Electron session cookie jar. Proxy support: see
- * `applyProxyToNodeFetch` in settings phase (docs/IMPLEMENTATION_PLAN.md).
+ * Uses the default Electron session's fetch so passport/open-platform calls obey the same
+ * system/manual/direct proxy policy as the guest. Cookies remain explicit and independent from
+ * the session cookie jar.
  */
 export async function requestJson<T = unknown>(
   url: string,
@@ -46,10 +47,13 @@ export async function requestJson<T = unknown>(
     headers['Content-Type'] ??= 'application/json'
   }
   try {
-    const res = await fetch(url, {
+    const res = await session.defaultSession.fetch(url, {
       method: opts.method ?? 'GET',
       headers,
       ...(body !== undefined ? { body } : {}),
+      // Chromium otherwise replaces our explicit passport session with unrelated cookies from
+      // the default session's jar (for example passport_web_did), which makes a fresh login 401.
+      credentials: 'omit',
       signal: controller.signal,
       redirect: 'manual'
     })
@@ -63,7 +67,19 @@ export async function requestJson<T = unknown>(
     if (!res.ok) throw new HttpError(res.status, url, text)
     return { status: res.status, headers: res.headers, data: data as T }
   } catch (err) {
-    if (!(err instanceof HttpError)) log.warn(`request failed ${opts.method ?? 'GET'} ${url}`, err)
+    if (!(err instanceof HttpError)) {
+      let host = 'invalid-url'
+      try {
+        host = new URL(url).host
+      } catch {
+        /* only the non-sensitive classification is logged */
+      }
+      log.warn('request failed', {
+        method: opts.method ?? 'GET',
+        host,
+        ...summarizeErrorForLog(err)
+      })
+    }
     throw err
   } finally {
     clearTimeout(timer)

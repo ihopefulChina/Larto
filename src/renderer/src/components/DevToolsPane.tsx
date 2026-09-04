@@ -8,12 +8,15 @@ import { useSimulator } from '@/store/simulator'
  * Docked Chromium DevTools. This component only renders a placeholder; the main process
  * overlays a WebContentsView hosting the DevTools frontend at the placeholder's bounds
  * (see src/main/devtools-dock.ts for why a second <webview> cannot be used).
- * The overlay is hidden while an app modal is open so dialogs are never covered.
+ *
+ * Native views always paint above the DOM, so whenever something in the shell must appear on
+ * top of DevTools (app modals, the account/history dropdowns) the overlay is hidden. To keep
+ * that invisible to the user, a screenshot of the panel is painted into the placeholder first.
  */
 export function DevToolsPane() {
   const ref = useRef<HTMLDivElement>(null)
   const guestId = useSimulator((s) => s.webContentsId)
-  const modalOpen = useApp((s) => s.modal !== null)
+  const covered = useApp((s) => s.modal !== null || s.devtoolsCovers > 0)
   const openedFor = useRef<number | null>(null)
 
   useEffect(() => {
@@ -27,11 +30,12 @@ export function DevToolsPane() {
     // Main ignores bounds updates while no view exists, so reporting early is harmless; the
     // post-open report matters: the first layout pass may have observed a 0-width column.
     const report = () => {
-      if (alive)
-        void invoke('guest:setDevToolsBounds', {
-          bounds: bounds(),
-          visible: !useApp.getState().modal
-        })
+      if (!alive) return
+      const s = useApp.getState()
+      void invoke('guest:setDevToolsBounds', {
+        bounds: bounds(),
+        visible: s.modal === null && s.devtoolsCovers === 0
+      })
     }
     void invoke('guest:openDevTools', { guestWebContentsId: guestId, bounds: bounds() })
       .then(() => {
@@ -55,12 +59,32 @@ export function DevToolsPane() {
   useEffect(() => {
     const el = ref.current
     if (!el || openedFor.current === null) return
-    const r = el.getBoundingClientRect()
-    void invoke('guest:setDevToolsBounds', {
-      bounds: { x: r.left, y: r.top, width: r.width, height: r.height },
-      visible: !modalOpen
-    })
-  }, [modalOpen])
+    const rect = (): Rect => {
+      const r = el.getBoundingClientRect()
+      return { x: r.left, y: r.top, width: r.width, height: r.height }
+    }
+    let cancelled = false
+    if (covered) {
+      // Snapshot first, then hide: the placeholder shows the frozen panel underneath the popover.
+      void invoke('guest:snapshotDevTools')
+        .catch(() => null)
+        .then((dataUrl) => {
+          if (cancelled) return
+          if (dataUrl) el.style.backgroundImage = `url(${dataUrl})`
+          void invoke('guest:setDevToolsBounds', { bounds: rect(), visible: false })
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+    void invoke('guest:setDevToolsBounds', { bounds: rect(), visible: true })
+    // Leave the snapshot behind the (now visible) view for a moment: a re-shown view needs a
+    // frame or two before it paints again.
+    const timer = setTimeout(() => {
+      el.style.backgroundImage = ''
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [covered])
 
   return <div ref={ref} className="devtoolsColumn" />
 }

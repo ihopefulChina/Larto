@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_URL_LENGTH } from '@shared/settings'
+import { translate } from '@shared/i18n'
 import { displayUrl, normalizeUrl } from '@shared/url'
 import { invoke } from '@/lib/bridge'
-import { useApp, useT } from '@/store/app'
+import { useApp, useCoversDevTools, useT } from '@/store/app'
 import { simulatorActions, useSimulator } from '@/store/simulator'
 import { ChevronDown, RefreshIcon } from './icons'
 
 /** Called by the toolbar and by menu/MCP `navigate` commands so history stays in sync. */
 export async function navigateTo(raw: string): Promise<void> {
   const url = normalizeUrl(raw)
-  if (!url) return
+  if (!url) {
+    const app = useApp.getState()
+    app.showToast(translate(app.lang, 'toolbar.invalidUrl'))
+    return
+  }
   const current = useSimulator.getState().url
   if (url === current) simulatorActions.reload()
   else simulatorActions.loadUrl(url)
@@ -26,8 +31,11 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
+  const historyId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const historyRef = useRef<HTMLDivElement>(null)
+  useCoversDevTools(open, historyRef)
 
   useEffect(() => {
     if (!editing) setValue(displayUrl(currentUrl))
@@ -57,14 +65,19 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
   }
 
   return (
-    <div ref={boxRef} className="urlbox">
+    <div ref={boxRef} className="urlbox" aria-busy={loading}>
       <button
+        type="button"
         className="tbtn icon"
         title={t('toolbar.refresh')}
+        aria-label={t('toolbar.refresh')}
         onClick={() => simulatorActions.reload()}
         disabled={!currentUrl}
       >
-        <RefreshIcon style={loading ? { animation: 'spin 1s linear infinite' } : undefined} />
+        <RefreshIcon
+          aria-hidden
+          style={loading ? { animation: 'spin 1s linear infinite' } : undefined}
+        />
       </button>
       <input
         ref={inputRef}
@@ -72,6 +85,13 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
         maxLength={MAX_URL_LENGTH}
         placeholder={t('toolbar.urlPlaceholder')}
         spellCheck={false}
+        role="combobox"
+        aria-label={t('toolbar.urlPlaceholder')}
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        aria-controls={historyId}
+        aria-activedescendant={open && active >= 0 ? `${historyId}-option-${active}` : undefined}
+        aria-expanded={open}
         onFocus={() => {
           setEditing(true)
           setOpen(true)
@@ -100,19 +120,25 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
         }}
       />
       <button
+        type="button"
         className="tbtn icon right"
         title={t('toolbar.history')}
+        aria-label={t('toolbar.history')}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={historyId}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((v) => !v)}
       >
-        <ChevronDown />
+        <ChevronDown aria-hidden />
       </button>
       {open && (
-        <div className="history">
+        <div ref={historyRef} className="history">
           <div className="history-head">
             <span>{t('toolbar.history')}</span>
             {history.length > 0 && (
               <button
+                type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   void invoke('settings:clearHistory').then((h) =>
@@ -124,21 +150,26 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
               </button>
             )}
           </div>
-          {history.length === 0 ? (
-            <div className="history-empty">—</div>
-          ) : (
-            history.map((h, i) => (
-              <button
-                key={h}
-                className={`history-item ${i === active ? 'active' : ''}`}
-                title={h}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => submit(h)}
-              >
-                {h}
-              </button>
-            ))
-          )}
+          <div id={historyId} role="listbox" aria-label={t('toolbar.history')}>
+            {history.length === 0 ? (
+              <div className="history-empty">{t('toolbar.historyEmpty')}</div>
+            ) : (
+              history.map((h, i) => (
+                <button
+                  id={`${historyId}-option-${i}`}
+                  key={h}
+                  className={`history-item ${i === active ? 'active' : ''}`}
+                  role="option"
+                  aria-selected={i === active}
+                  title={h}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => submit(h)}
+                >
+                  {h}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

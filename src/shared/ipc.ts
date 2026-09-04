@@ -24,13 +24,18 @@ export interface UpdateInfoLite {
   releaseDate: string
 }
 
+export type UnsupportedUpdateReason =
+  'development' | 'windowsPortable' | 'linuxPackage' | 'platform'
+
 export type UpdateState =
   | { status: 'idle' }
   | { status: 'checking' }
   | { status: 'available'; info: UpdateInfoLite }
   | { status: 'notAvailable'; currentVersion: string }
+  | { status: 'unsupported'; currentVersion: string; reason: UnsupportedUpdateReason }
   | {
       status: 'downloading'
+      info: UpdateInfoLite
       percent: number
       bytesPerSecond: number
       transferred: number
@@ -50,6 +55,7 @@ export interface AppInfo {
   isPackaged: boolean
   userDataPath: string
   logPath: string
+  accountStorage: 'protected' | 'memoryOnly'
 }
 
 export interface PreviewQrResult {
@@ -70,6 +76,12 @@ export interface GuestEmulationRequest {
    * explicit CDP viewport override so `innerWidth/innerHeight` are correct from the first script.
    */
   viewport?: { width: number; height: number }
+  /** Reload the current document after CDP emulation is fully applied. */
+  reload?: boolean
+  /** Adaptive PC ResizeObserver update; it must not supersede an explicit device command. */
+  background?: boolean
+  /** Correlates an MCP command with its exact device operation; omitted for normal UI updates. */
+  requestId?: string
 }
 
 export interface JsapiBackendRequest {
@@ -130,7 +142,12 @@ export interface IpcRequests {
   'devices:list': [[], DeviceSpec[]]
 
   'guest:attach': [[webContentsId: number], void]
+  'guest:ready': [[webContentsId: number], void]
   'guest:setDevice': [[req: GuestEmulationRequest], void]
+  'guest:deviceCommandFailed': [
+    [req: { deviceId: string; requestId: string; message: string }],
+    void
+  ]
   'guest:clearCache': [[webContentsId: number], void]
   /**
    * DevTools are hosted in a main-process WebContentsView overlaid on the shell at `bounds`
@@ -140,6 +157,12 @@ export interface IpcRequests {
   'guest:openDevTools': [[req: { guestWebContentsId: number; bounds: Rect }], void]
   'guest:setDevToolsBounds': [[req: { bounds: Rect; visible: boolean }], void]
   'guest:closeDevTools': [[], void]
+  /**
+   * PNG data URL of the DevTools overlay (null when unavailable). The renderer paints it into
+   * the placeholder before hiding the overlay so popovers/modals can sit above DevTools
+   * without the panel visibly disappearing.
+   */
+  'guest:snapshotDevTools': [[], string | null]
 
   'account:getState': [[], AccountState]
   'account:login': [[], AccountState]
@@ -158,6 +181,7 @@ export interface IpcRequests {
   'update:check': [[], UpdateState]
   'update:download': [[], UpdateState]
   'update:install': [[], void]
+  'update:skip': [[], UpdateState]
   'update:getState': [[], UpdateState]
 
   'mcp:getStatus': [[], { running: boolean; url: string | null; error?: string }]
@@ -185,7 +209,7 @@ export type ShellCommand =
   | { type: 'reload' }
   | { type: 'navigate'; url: string }
   | { type: 'toggleDevTools'; show?: boolean }
-  | { type: 'setDevice'; deviceId: string }
+  | { type: 'setDevice'; deviceId: string; requestId?: string }
   | { type: 'setZoom'; zoom: number }
   | { type: 'clearCache' }
   | { type: 'openPreview' }

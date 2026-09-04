@@ -1,296 +1,641 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FeishuDevTools — 飞书网页应用调试器（Apple Silicon）</title>
+    <title>FeishuDevTools — 跨平台飞书 H5 调试工作台</title>
     <meta
       name="description"
-      content="FeishuDevTools 是飞书开发者工具「网页调试」模块的开源复刻：设备模拟器、Chromium DevTools、飞书扫码登录、官方 JSAPI、二维码预览、MCP 接入。原生支持 Apple Silicon。"
+      content="面向 macOS、Windows 与 Linux 的飞书 / Lark H5 调试工作台：设备模拟器、停靠的 Chromium DevTools、真实扫码登录与 JSAPI 鉴权，以及仅监听本机的 MCP 服务。"
     />
-    <meta property="og:title" content="FeishuDevTools" />
+    <meta name="color-scheme" content="light dark" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="FeishuDevTools — 跨平台飞书 H5 调试工作台" />
     <meta
       property="og:description"
-      content="飞书网页应用调试器，原生支持 Apple Silicon，内建 MCP。"
+      content="设备模拟、Chromium DevTools、真实飞书登录与 JSAPI 鉴权，以及本机 MCP 自动化。"
     />
-    <meta property="og:image" content="public/icon-512.png" />
-    <meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta
+      property="og:image"
+      content="https://ihopefulchina.github.io/FeishuDevTools/public/hero-light.webp"
+    />
+    <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="public/favicon.png" />
     <link rel="apple-touch-icon" href="public/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
-    <script>
-      // Apply the saved theme before first paint to avoid a flash.
-      ;(function () {
-        try {
-          var t = localStorage.getItem('fdt-theme')
-          if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t
-          else
-            document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)')
-              .matches
-              ? 'dark'
-              : 'light'
-        } catch (e) {}
-      })()
-    </script>
   </head>
   <body>
-    <header class="nav">
-      <div class="nav__inner">
-        <a class="nav__brand" href="#top">
-          <img src="public/favicon.png" width="22" height="22" alt="" />
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="FeishuDevTools 首页">
+          <img src="public/favicon.png" width="26" height="26" alt="" />
           <span>FeishuDevTools</span>
         </a>
-        <nav class="nav__links">
-          <a href="#features">功能</a>
+        <nav class="site-nav" aria-label="页面导航">
+          <a href="#capabilities">能力</a>
           <a href="#mcp">MCP</a>
-          <a href="#download">下载</a>
-          <a href="https://github.com/ihopefulChina/FeishuDevTools" target="_blank" rel="noreferrer"
-            >GitHub</a
-          >
+          <a href="#security">安全边界</a>
+          <a href="#downloads">下载</a>
+          <a href="#faq">常见问题</a>
         </nav>
-        <button
-          class="theme-toggle"
-          id="theme-toggle"
-          type="button"
-          aria-label="切换外观"
-          title="切换外观"
-        >
-          <svg
-            class="icon-sun"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <circle cx="12" cy="12" r="4" />
-            <path
-              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
-            />
-          </svg>
-          <svg
-            class="icon-moon"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <main id="top">
-      <section class="hero">
-        <div class="hero__glow" aria-hidden="true"></div>
-        <img
-          class="hero__icon"
-          src="public/icon-512.png"
-          width="112"
-          height="112"
-          alt="FeishuDevTools 图标"
-        />
-        <h1>飞书网页调试，<br />回到 Apple Silicon。</h1>
-        <p class="hero__lead">
-          官方开发者工具停止支持 ARM 之后，FeishuDevTools 以 1:1
-          的界面与工作流复刻其「网页调试」模块： 设备模拟器、Chromium DevTools、飞书扫码登录、官方
-          JSAPI 与二维码预览——并为 AI 加上了 MCP。
-        </p>
-        <div class="hero__cta">
+        <div class="header-actions">
           <a
-            class="btn btn--primary"
-            id="download-btn"
-            href="https://github.com/ihopefulChina/FeishuDevTools/releases/latest"
-          >
-            下载 macOS 版
-            <span class="btn__meta" id="download-meta">Apple Silicon · DMG</span>
-          </a>
-          <a
-            class="btn btn--ghost"
+            class="icon-link"
             href="https://github.com/ihopefulChina/FeishuDevTools"
             target="_blank"
             rel="noreferrer"
-            >在 GitHub 上查看</a
+            aria-label="在 GitHub 查看源代码"
           >
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+          </a>
+          <a class="header-cta" href="#downloads">下载 0.1.1</a>
         </div>
-        <p class="hero__fine">macOS 13 Ventura 或更新版本 · arm64 · 开源 MIT 许可</p>
+      </div>
+    </header>
 
-        <!-- Product art: real captures of the app (iPhone 13 preset + docked DevTools), one per theme. -->
-        <figure class="shot">
-          <img
-            class="shot__img shot__img--dark"
-            src="public/hero-dark.webp"
-            width="1581"
-            height="845"
-            alt="FeishuDevTools 深色界面：左侧 iPhone 13 模拟器运行一个审批 H5，右侧停靠 Chrome DevTools 的 Elements 面板"
-            fetchpriority="high"
-          />
-          <img
-            class="shot__img shot__img--light"
-            src="public/hero-light.webp"
-            width="1581"
-            height="845"
-            alt="FeishuDevTools 浅色界面：左侧 iPhone 13 模拟器运行一个审批 H5，右侧停靠 Chrome DevTools 的 Elements 面板"
-            fetchpriority="high"
-          />
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="shell hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span>开源 · 0.1.1</p>
+            <h1>把飞书 H5，放进一套可验证的调试工作台。</h1>
+            <p class="hero-lead">
+              在 macOS、Windows 与 Linux 上复现飞书网页调试工作流：设备模拟、停靠的 Chromium
+              DevTools、真实扫码登录与 JSAPI 鉴权。需要自动化时，再接入本机 MCP。
+            </p>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                data-primary-download
+                href="#downloads"
+                aria-describedby="platform-note"
+                >选择适合我的版本</a
+              >
+              <a class="button button-secondary" href="#security">查看安全边界</a>
+            </div>
+            <p class="platform-note" id="platform-note" data-platform-note aria-live="polite">
+              macOS Apple Silicon / Intel · Windows x64 · Linux x64
+            </p>
+          </div>
+
+          <aside class="release-proof" aria-label="0.1.1 发布摘要">
+            <div class="proof-head">
+              <span>RELEASE / 0.1.1</span>
+              <span class="proof-state">公开构建</span>
+            </div>
+            <dl class="proof-list">
+              <div>
+                <dt>macOS</dt>
+                <dd>arm64 · x64</dd>
+              </div>
+              <div>
+                <dt>Windows</dt>
+                <dd>x64</dd>
+              </div>
+              <div>
+                <dt>Linux</dt>
+                <dd>x64 · 4 种包格式</dd>
+              </div>
+              <div>
+                <dt>校验</dt>
+                <dd>SHA-256</dd>
+              </div>
+              <div>
+                <dt>源码</dt>
+                <dd>MIT License</dd>
+              </div>
+            </dl>
+            <p class="proof-disclosure">
+              当前公开构建尚未配置商业代码签名：macOS 安装包内的 <code>.app</code> 仅做 ad-hoc
+              签名且未公证，Windows 与 Linux 未签名。下载后请核对校验和。
+            </p>
+          </aside>
+        </div>
+
+        <figure class="shell product-shot">
+          <div class="shot-frame">
+            <picture>
+              <source srcset="public/hero-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="public/hero-light.webp"
+                width="2360"
+                height="2100"
+                alt="FeishuDevTools 主窗口：左侧 iPhone 17 Pro 模拟器，右侧停靠 Chromium DevTools"
+                fetchpriority="high"
+                decoding="async"
+              />
+            </picture>
+          </div>
+          <figcaption>同一窗口完成页面模拟、元素检查、网络分析与控制台调试。</figcaption>
         </figure>
       </section>
 
-      <section class="features" id="features">
-        <h2>你熟悉的一切，一个都不少。</h2>
-        <p class="section__lead">
-          界面结构、快捷键与交互细节均按官方工具逐项还原，切换过来不需要重新学习。
-        </p>
-        <div class="grid">
-          <article class="card">
-            <div class="card__icon">📱</div>
-            <h3>设备模拟器</h3>
-            <p>
-              iPhone、Android 与 iPad 机型预设，真实 UA、DPR 与安全区；缩放
-              50%–150%，状态栏与导航栏同步渲染。
-            </p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🛠</div>
-            <h3>Chromium DevTools</h3>
-            <p>
-              完整的 Elements / Console / Network / Sources
-              面板停靠在窗口右侧，与页面同一个渲染进程，零延迟。
-            </p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🔐</div>
-            <h3>飞书扫码登录</h3>
-            <p>
-              用飞书 App 扫码即可登录，支持多租户切换；会话使用系统 Keychain 加密保存，随时退出。
-            </p>
-          </article>
-          <article class="card">
-            <div class="card__icon">⚡️</div>
-            <h3>官方 JSAPI</h3>
-            <p>
-              注入与飞书客户端一致的 JSAPI 桥；<code>tt.config</code>
-              鉴权、<code>requestAuthCode</code>、<code>requestAccess</code>
-              授权弹窗、剪贴板、定位、Toast、Modal 等即开即用。
-            </p>
-          </article>
-          <article class="card">
-            <div class="card__icon">▦</div>
-            <h3>二维码预览</h3>
-            <p>
-              一键生成真机预览二维码，或直接推送到本机飞书桌面端；<code>localhost</code>
-              自动替换为局域网地址。
-            </p>
-          </article>
-          <article class="card">
-            <div class="card__icon">🌗</div>
-            <h3>外观与细节</h3>
-            <p>
-              深色 / 浅色 / 跟随系统；地址栏历史、清理缓存、中英文界面，以及带「帮助 · 设置 · 关于 ·
-              检查更新」的系统菜单。
-            </p>
-          </article>
+      <section class="trust-strip" aria-label="项目可信度摘要">
+        <div class="shell trust-grid">
+          <div><strong>公开源码</strong><span>实现与发布配置均可审阅</span></div>
+          <div><strong>本机 MCP</strong><span>仅监听 127.0.0.1</span></div>
+          <div><strong>真实鉴权</strong><span>不伪造 open-apis 响应</span></div>
+          <div><strong>受限网页容器</strong><span>隔离、沙箱、禁用 Node</span></div>
         </div>
       </section>
 
-      <section class="mcp" id="mcp">
-        <div class="mcp__text">
-          <h2>为 AI 而生的调试器。</h2>
-          <p>
-            FeishuDevTools 内建一个仅监听本机回环地址的
-            <strong>MCP（Model Context Protocol）服务</strong>。 把它接到 Cursor、Claude 或任何 MCP
-            客户端，AI 就能自己打开页面、切换机型、截图、执行脚本、读取控制台与 JSAPI 调用记录——
-            然后修好你的 bug。
-          </p>
-          <ul class="mcp__tools">
-            <li><code>navigate</code></li>
-            <li><code>set_device</code></li>
-            <li><code>set_zoom</code></li>
-            <li><code>screenshot</code></li>
-            <li><code>evaluate</code></li>
-            <li><code>get_dom</code></li>
-            <li><code>click</code></li>
-            <li><code>fill</code></li>
-            <li><code>get_console</code></li>
-            <li><code>get_jsapi_log</code></li>
-            <li><code>toggle_devtools</code></li>
-            <li><code>clear_cache</code></li>
-          </ul>
-        </div>
-        <pre class="mcp__code"><span class="c">// Cursor · .cursor/mcp.json</span>
-{
-  "mcpServers": {
-    "feishu-dev-tools": {
-      "url": "http://127.0.0.1:17331/mcp"
-    }
-  }
-}</pre>
-      </section>
-
-      <section class="download" id="download">
-        <h2>下载</h2>
-        <p class="section__lead">应用内置自动更新：新版本发布后会提示下载，安装完成自动重启。</p>
-        <div class="download__box">
-          <div>
-            <div class="download__name">
-              FeishuDevTools <span id="release-version">最新版</span>
+      <section class="section download-section" id="downloads" aria-labelledby="download-title">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">DOWNLOADS</p>
+              <h2 id="download-title">选择你的平台。</h2>
             </div>
-            <div class="download__meta" id="release-meta">macOS · Apple Silicon (arm64) · .dmg</div>
+            <p data-release-summary aria-live="polite">
+              FeishuDevTools 0.1.1 · 所有公开包均提供 SHA-256 校验
+            </p>
           </div>
-          <a
-            class="btn btn--primary"
-            id="download-btn-2"
-            href="https://github.com/ihopefulChina/FeishuDevTools/releases/latest"
-            >下载</a
-          >
+
+          <div class="release-ledger">
+            <article class="release-row" data-platform-row="mac">
+              <div class="release-platform">
+                <span class="platform-mark" aria-hidden="true">MAC</span>
+                <div>
+                  <h3>macOS</h3>
+                  <p>macOS 13 Ventura 或更新 · 包内 App 为 ad-hoc 签名 · 未公证</p>
+                </div>
+              </div>
+              <div class="asset-groups">
+                <div class="asset-group">
+                  <span>Apple Silicon</span>
+                  <a
+                    data-asset="mac-arm64-dmg"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >DMG <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="mac-arm64-zip"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >ZIP <small data-size></small
+                  ></a>
+                </div>
+                <div class="asset-group">
+                  <span>Intel</span>
+                  <a
+                    data-asset="mac-x64-dmg"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >DMG <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="mac-x64-zip"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >ZIP <small data-size></small
+                  ></a>
+                </div>
+              </div>
+            </article>
+
+            <article class="release-row" data-platform-row="windows">
+              <div class="release-platform">
+                <span class="platform-mark" aria-hidden="true">WIN</span>
+                <div>
+                  <h3>Windows</h3>
+                  <p>Windows 10/11 x64 · 当前安装器未签名</p>
+                </div>
+              </div>
+              <div class="asset-groups">
+                <div class="asset-group">
+                  <span>x64</span>
+                  <a
+                    data-asset="windows-x64-setup"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >安装版 <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="windows-x64-portable"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >便携版 <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="windows-x64-zip"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >ZIP <small data-size></small
+                  ></a>
+                </div>
+              </div>
+            </article>
+
+            <article class="release-row" data-platform-row="linux">
+              <div class="release-platform">
+                <span class="platform-mark" aria-hidden="true">LIN</span>
+                <div>
+                  <h3>Linux</h3>
+                  <p>x64 · 未签名 · AppImage 拒绝 <code>--no-sandbox</code></p>
+                </div>
+              </div>
+              <div class="asset-groups">
+                <div class="asset-group">
+                  <span>x64</span>
+                  <a
+                    data-asset="linux-x64-appimage"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >AppImage <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="linux-x64-deb"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >DEB <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="linux-x64-rpm"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >RPM <small data-size></small
+                  ></a>
+                  <a
+                    data-asset="linux-x64-targz"
+                    href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+                    >tar.gz <small data-size></small
+                  ></a>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="checksum-bar">
+            <div>
+              <strong>下载后核验文件完整性</strong>
+              <code>shasum -a 256 &lt;已下载文件&gt;，再与清单同名项比对</code>
+            </div>
+            <a
+              class="text-link"
+              data-asset="checksums"
+              href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+              >下载 SHA256SUMS.txt</a
+            >
+          </div>
+          <p class="release-caveat">
+            GitHub API 不可用或发布仍在同步时，上述链接会回退到
+            <a href="https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1"
+              >0.1.1 Release 页面</a
+            >。 请按文件名确认平台与架构。
+          </p>
         </div>
-        <details class="faq">
-          <summary>提示「无法打开，因为无法验证开发者」怎么办？</summary>
-          <p>
-            未经 Apple 公证的构建首次打开会被 Gatekeeper 拦截。在「系统设置 →
-            隐私与安全性」中点击「仍要打开」， 或在终端执行
-            <code>xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app</code>。
-          </p>
-        </details>
-        <details class="faq">
-          <summary>支持 Intel Mac 或 Windows 吗？</summary>
-          <p>
-            首版只构建 Apple Silicon（arm64）。Intel Mac 请继续使用官方开发者工具；Windows
-            暂无计划。
-          </p>
-        </details>
+      </section>
+
+      <section class="section section-alt" id="capabilities" aria-labelledby="capabilities-title">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">WORKBENCH</p>
+            <h2 id="capabilities-title">熟悉的网页调试链路，集中在一个窗口。</h2>
+            <p>
+              只聚焦飞书 / Lark
+              H5，不加入小程序、网关或工作台等相邻模块。范围更窄，也更容易核验每条行为。
+            </p>
+          </div>
+
+          <div class="feature-chapter">
+            <div class="feature-copy">
+              <span class="chapter-index">01 / SIMULATOR</span>
+              <h3>设备、UA、安全区同步切换。</h3>
+              <p>
+                默认 iPhone 17 Pro。切换机型时，viewport、DPR、圆角、状态栏、Home 指示条与
+                <code>Lark/x.y.z</code> UA 一起变化，页面重新加载。
+              </p>
+              <ul class="fact-list">
+                <li><strong>多类设备</strong><span>iPhone、Android、iPad 与 PC 预设</span></li>
+                <li><strong>50%–150%</strong><span>六档显示缩放</span></li>
+                <li><strong>PC viewport</strong><span>随窗口伸缩，或拖动 / 输入尺寸固定</span></li>
+                <li><strong>触屏派发</strong><span>移动设备中将鼠标交互转为触摸事件</span></li>
+              </ul>
+            </div>
+            <picture class="feature-media feature-media-phone">
+              <source srcset="public/simulator-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="public/simulator-light.webp"
+                width="868"
+                height="2020"
+                loading="lazy"
+                decoding="async"
+                alt="iPhone 17 Pro 预设下的设备模拟器"
+              />
+            </picture>
+          </div>
+
+          <div class="feature-chapter feature-chapter-reverse">
+            <div class="feature-copy">
+              <span class="chapter-index">02 / DEVTOOLS</span>
+              <h3>完整 Chromium DevTools，原位停靠。</h3>
+              <p>
+                Elements、Console、Sources、Network、Application 与页面共享同一个 Chromium
+                调试目标。选择元素时，移动端触摸模拟会暂时让位，完成后自动恢复。
+              </p>
+              <ul class="fact-list">
+                <li><strong>真实调试目标</strong><span>不是日志面板或精简替代品</span></li>
+                <li><strong>一致外观</strong><span>DevTools 随应用切换深色 / 浅色</span></li>
+                <li><strong>正确层级</strong><span>菜单、登录窗口和弹窗不会被面板遮住</span></li>
+              </ul>
+            </div>
+            <picture class="feature-media feature-media-wide">
+              <source srcset="public/devtools-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="public/devtools-light.webp"
+                width="1492"
+                height="2020"
+                loading="lazy"
+                decoding="async"
+                alt="停靠在主窗口右侧的 Chromium DevTools Elements 面板"
+              />
+            </picture>
+          </div>
+        </div>
+      </section>
+
+      <section class="section mcp-section" id="mcp" aria-labelledby="mcp-title">
+        <div class="shell mcp-layout">
+          <div class="mcp-copy">
+            <p class="eyebrow">LOCAL MCP</p>
+            <h2 id="mcp-title">让 AI 操作调试器，但不开放公网端口。</h2>
+            <p>
+              应用内建 Streamable HTTP MCP，只监听 <code>127.0.0.1</code>。npm 包提供 stdio
+              桥与客户端安装命令；应用未运行时，它可以在本机拉起应用并等待模拟器就绪。
+            </p>
+            <pre
+              class="command"
+            ><span aria-hidden="true">$ </span>npx --yes feishu-devtools-mcp@0.1.1 install cursor</pre>
+            <p class="command-note">
+              也支持 <code>claude-code</code>、<code>claude-desktop</code> 与
+              <code>codex</code>；修改已有配置前会保留 <code>.bak</code>，并以原子替换写入。HTTP
+              客户端可直接连接 <code>http://127.0.0.1:17331/mcp</code>。
+            </p>
+            <a
+              class="text-link text-link-light"
+              href="https://www.npmjs.com/package/feishu-devtools-mcp"
+              target="_blank"
+              rel="noreferrer"
+              >在 npm 查看 feishu-devtools-mcp</a
+            >
+          </div>
+
+          <div class="trace-panel" aria-label="MCP 调试过程示例">
+            <div class="trace-head">
+              <span>LOCAL TRACE</span><span class="trace-connected">127.0.0.1 · CONNECTED</span>
+            </div>
+            <p class="trace-request">
+              “打开 localhost:5173，切到 iPhone 17 Pro，检查底部按钮为什么被安全区挡住。”
+            </p>
+            <ol class="trace-list">
+              <li><code>navigate</code><span>http://localhost:5173</span><b>OK</b></li>
+              <li><code>set_device</code><span>iphone-17-pro</span><b>OK</b></li>
+              <li><code>screenshot</code><span>target = page</span><b>PNG</b></li>
+              <li><code>evaluate</code><span>getComputedStyle(footer)</span><b>JSON</b></li>
+            </ol>
+            <p class="trace-result">
+              18 个工具覆盖导航、设备、缩放、截图、DOM、脚本、控制台和 JSAPI 调用记录。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="security" aria-labelledby="security-title">
+        <div class="shell security-layout">
+          <div class="section-heading security-intro">
+            <p class="eyebrow">TRUST BOUNDARY</p>
+            <h2 id="security-title">把可信写成可检查的边界。</h2>
+            <p>
+              FeishuDevTools
+              是独立社区项目，不是飞书官方产品。项目公开说明数据流、能力范围和当前发布限制，不用模糊措辞替代安全承诺。
+              <br />
+              <a
+                class="text-link security-policy-link"
+                href="https://github.com/ihopefulChina/FeishuDevTools/blob/main/SECURITY.md"
+                target="_blank"
+                rel="noreferrer"
+                >阅读完整安全政策与私密报告流程</a
+              >
+            </p>
+          </div>
+          <dl class="evidence-list">
+            <div>
+              <dt>网页隔离</dt>
+              <dd>
+                <code>contextIsolation=true</code
+                >、<code>sandbox=true</code>、<code>nodeIntegration=false</code>。
+              </dd>
+            </div>
+            <div>
+              <dt>JSAPI 注入位置</dt>
+              <dd>桥只从受限 guest preload 注入；开放平台鉴权请求返回真实结果，不伪造登录态。</dd>
+            </div>
+            <div>
+              <dt>敏感权限</dt>
+              <dd>
+                按当前网页来源询问且仅本次运行有效；JSAPI 剪贴板读写同样需要确认，登录分区拒绝全部
+                Web 权限。
+              </dd>
+            </div>
+            <div>
+              <dt>登录会话</dt>
+              <dd>
+                仅在受保护的 Electron <code>safeStorage</code> 后端可用时持久化。Linux 后端为
+                <code>basic_text</code>、<code>unknown</code> 或没有可用 keyring 时，新登录 Cookie
+                不写入磁盘，只在当前应用进程内有效。
+              </dd>
+            </div>
+            <div>
+              <dt>Linux AppImage</dt>
+              <dd>
+                打包检查会拒绝带
+                <code>--no-sandbox</code>
+                的桌面入口；应用运行时检测到该参数、Electron 实际开关或
+                <code>ELECTRON_DISABLE_SANDBOX</code> 也会直接退出，不会静默降低 Chromium 隔离级别。
+              </dd>
+            </div>
+            <div>
+              <dt>MCP 网络范围</dt>
+              <dd>只监听本机回环地址；端口可修改，服务可在设置中关闭。</dd>
+            </div>
+            <div>
+              <dt>发布可追溯性</dt>
+              <dd>
+                0.1.1 发布流程配置为生成平台 / 架构明确的资产、统一 SHA256SUMS 与 GitHub artifact
+                attestations；下载前仍需确认工作流成功且这些校验材料已实际可用。
+              </dd>
+            </div>
+            <div class="evidence-warning">
+              <dt>当前限制</dt>
+              <dd>
+                0.1.1 仍是未完成正式代码签名的早期版本；真实账号登录、三项核心 JSAPI
+                鉴权与跨平台原生安装体验仍需持续 UAT。
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="start" aria-labelledby="start-title">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">GET STARTED</p>
+            <h2 id="start-title">安装后，直接打开你的开发地址。</h2>
+          </div>
+          <ol class="steps">
+            <li>
+              <span>01</span>
+              <h3>安装对应平台版本</h3>
+              <p>从上方发布矩阵下载，先用 SHA256SUMS 核对文件，再按系统提示安装或解压。</p>
+            </li>
+            <li>
+              <span>02</span>
+              <h3>加载本地 H5</h3>
+              <p>
+                在地址栏输入 <code>http://localhost:5173</code> 等地址，选择目标机型并开始调试。
+              </p>
+            </li>
+            <li>
+              <span>03</span>
+              <h3>按需登录与接入 MCP</h3>
+              <p>扫码后再验证真实鉴权链路；需要自动化时安装 MCP 桥，或直接配置本机 HTTP 地址。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-shell">
+          <div class="section-heading">
+            <p class="eyebrow">FAQ</p>
+            <h2 id="faq-title">下载前需要知道的事。</h2>
+          </div>
+          <div class="faq-list">
+            <details>
+              <summary>FeishuDevTools 和官方飞书开发者工具是什么关系？</summary>
+              <p>
+                FeishuDevTools 是独立开源项目，与飞书 /
+                字节跳动无关。它参考官方工具的「网页调试」行为与工作流，未复制官方代码或资源；小程序、网关、工作台等模块不在范围内。
+              </p>
+            </details>
+            <details>
+              <summary>macOS 应该选 Apple Silicon 还是 Intel？</summary>
+              <p>
+                M1、M2、M3、M4 等芯片选择 <strong>arm64 / Apple Silicon</strong>；处理器显示 Intel
+                的 Mac 选择 <strong>x64 / Intel</strong>。浏览器通常无法可靠判断 Mac
+                芯片，所以官网不会擅自替你选择。
+              </p>
+            </details>
+            <details>
+              <summary>为什么系统提示“未知开发者”或 SmartScreen 警告？</summary>
+              <p>
+                当前版本尚未配置 Apple Developer ID / 公证和 Windows 代码签名。macOS DMG / ZIP 内的
+                <code>.app</code> 仅做 ad-hoc 签名，下载容器本身没有 Developer ID 签名；Windows
+                安装器未签名。这是已公开的发布限制。请只从本项目 GitHub Releases
+                下载，并在放行前核对 SHA-256。
+              </p>
+            </details>
+            <details>
+              <summary>Linux 上登录会话如何保存？</summary>
+              <p>
+                应用只在 Electron <code>safeStorage</code> 选中受保护后端时持久化会话。若后端为
+                <code>basic_text</code>、<code>unknown</code> 或没有可用的受保护 keyring，新登录
+                Cookie 不会写入磁盘，只在当前应用进程内有效；退出后需要重新登录。
+              </p>
+            </details>
+            <details>
+              <summary>为什么 AppImage 不支持 <code>--no-sandbox</code>？</summary>
+              <p>
+                该参数会关闭 Chromium 沙箱。0.1.1 的打包校验会检查 AppImage
+                桌面入口，应用本身也会在检测到该参数、Electron 实际开关或
+                <code>ELECTRON_DISABLE_SANDBOX</code> 时拒绝启动。若系统不支持所需沙箱，请修复 user
+                namespace 配置或改用其它包格式；不要绕过隔离保护。
+              </p>
+            </details>
+            <details>
+              <summary>JSAPI 鉴权是模拟结果吗？</summary>
+              <p>
+                不是。<code>tt.config</code>、<code>requestAuthCode</code> 与
+                <code>requestAccess</code>
+                请求飞书开放平台并返回真实结果；工具不伪造 open-apis
+                响应。少数纯设备能力使用与官方工具一致的固定模拟值。
+              </p>
+            </details>
+            <details>
+              <summary>MCP 会把调试页面暴露到局域网吗？</summary>
+              <p>
+                不会。MCP 服务只监听
+                <code>127.0.0.1</code
+                >，其它设备无法直接访问；你也可以修改端口或在设置中关闭服务。npm 包只是 stdio
+                与本机端口之间的桥。
+              </p>
+            </details>
+            <details>
+              <summary>现在可以作为正式生产工具使用吗？</summary>
+              <p>
+                0.1.1 仍是 pre-1.0 版本。自动化测试和构建通过不等于真实飞书账号
+                UAT、代码签名或企业环境验证完成；请先在非关键项目中验证你的租户、代理和鉴权流程。
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing">
+        <div class="shell closing-inner">
+          <div>
+            <p class="eyebrow" data-release-name>FEISHUDEVTOOLS / 0.1.1</p>
+            <h2>选对平台，然后开始调试。</h2>
+          </div>
+          <div class="closing-actions">
+            <a class="button button-primary" data-primary-download href="#downloads"
+              >选择下载版本</a
+            >
+            <a
+              class="button button-secondary"
+              href="https://github.com/ihopefulChina/FeishuDevTools"
+              target="_blank"
+              rel="noreferrer"
+              >审阅源代码</a
+            >
+          </div>
+        </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <p>FeishuDevTools 是社区项目，与飞书 / 字节跳动无关。飞书是北京飞书科技有限公司的商标。</p>
-      <p>
-        <a href="https://github.com/ihopefulChina/FeishuDevTools" target="_blank" rel="noreferrer"
-          >GitHub</a
-        >
-        ·
-        <a
-          href="https://github.com/ihopefulChina/FeishuDevTools/issues"
-          target="_blank"
-          rel="noreferrer"
-          >反馈问题</a
-        >
-        ·
-        <a
-          href="https://github.com/ihopefulChina/FeishuDevTools/blob/main/LICENSE"
-          target="_blank"
-          rel="noreferrer"
-          >MIT License</a
-        >
-      </p>
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <p>
+          FeishuDevTools 是独立开源项目，与飞书 / 字节跳动无关。「飞书」「Lark」是其所有者的商标。
+        </p>
+        <nav aria-label="页脚导航">
+          <a href="https://github.com/ihopefulChina/FeishuDevTools" target="_blank" rel="noreferrer"
+            >GitHub</a
+          >
+          <a
+            href="https://github.com/ihopefulChina/FeishuDevTools/releases"
+            target="_blank"
+            rel="noreferrer"
+            >Releases</a
+          >
+          <a
+            href="https://github.com/ihopefulChina/FeishuDevTools/issues"
+            target="_blank"
+            rel="noreferrer"
+            >Issues</a
+          >
+          <a
+            href="https://github.com/ihopefulChina/FeishuDevTools/blob/main/SECURITY.md"
+            target="_blank"
+            rel="noreferrer"
+            >安全政策</a
+          >
+          <a
+            href="https://github.com/ihopefulChina/FeishuDevTools/blob/main/LICENSE"
+            target="_blank"
+            rel="noreferrer"
+            >MIT License</a
+          >
+        </nav>
+      </div>
     </footer>
 
     <script src="script.js" defer></script>

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { join } from 'node:path'
-import { app, BrowserWindow, safeStorage, session } from 'electron'
+import { app, BrowserWindow, safeStorage, session, type Session } from 'electron'
 import { z } from 'zod'
 import type { AccountInfo, AccountState, AccountTenant, AccountUser } from '@shared/account'
 import {
@@ -9,10 +9,24 @@ import {
   OPEN_PLATFORM_APP_ID,
   buildLoginUrl
 } from '@shared/constants'
-import type { FeishuEnv, ResolvedLanguage } from '@shared/settings'
+import type { FeishuEnv, ProxySettings, ResolvedLanguage } from '@shared/settings'
 import { JsonStore } from './store'
 import { HttpError, requestJson } from './http'
 import { createLogger } from './logger'
+import { summarizeErrorForLog } from './log-summary'
+import { applyProxyToSession } from './proxy'
+import {
+  brandMatchesEnv,
+  NOT_LOGIN_CODE,
+  parseSessionCookies,
+  SESSION_EXPIRED_CODES,
+  SessionExpiredError,
+  toUserEntries,
+  unwrapPassport,
+  type Envelope,
+  type PassportUser,
+  type PassportUserEntry
+} from './passport'
 
 const log = createLogger('account')
 
@@ -53,13 +67,28 @@ export function cookieHeader(secrets: Secrets): string {
   return `session=${secrets.session}; session_list=${secrets.sessionList.join('_')}`
 }
 
-interface PassportUser {
-  id: string
-  name: string
-  avatar_url?: string
-  display_name?: string
-  login_credential_id?: string
-  tenant?: { id: string; name: string; icon_url?: string; tenant_brand?: string }
+/**
+ * Electron's Linux `basic_text` backend reports encryption as available even though it only
+ * obfuscates the value. Never persist a Feishu session unless the selected OS backend actually
+ * protects it; an unsupported Linux desktop can still stay signed in for the current process.
+ */
+export function hasSecureAccountStorage(platform: NodeJS.Platform = process.platform): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false
+  if (platform !== 'linux') return true
+  try {
+    const backend = safeStorage.getSelectedStorageBackend()
+    return backend !== 'basic_text' && backend !== 'unknown'
+  } catch {
+    return false
+  }
+}
+
+/** Passport sign-in does not need browser permissions; its throw-away partition denies all. */
+export function denyAllSessionPermissions(
+  target: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>
+): void {
+  target.setPermissionCheckHandler(() => false)
+  target.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
 }
 
 export class AccountService extends EventEmitter<AccountEvents> {
@@ -67,18 +96,27 @@ export class AccountService extends EventEmitter<AccountEvents> {
   private secrets: Secrets | null = null
   private state: AccountState = { status: 'signedOut' }
   private loginWindow: BrowserWindow | null = null
+  private warnedMemoryOnly = false
 
   constructor(
     private readonly getEnv: () => FeishuEnv,
-    private readonly getLang: () => ResolvedLanguage
+    private readonly getLang: () => ResolvedLanguage,
+    private readonly getProxy: () => ProxySettings
   ) {
     super()
     this.store = new JsonStore(join(app.getPath('userData'), 'account.json'), PersistedSchema)
-    this.restore()
   }
 
   getState(): AccountState {
     return this.state
+  }
+
+  /** Reconfigure an already-open login window as part of a live proxy policy change. */
+  async applyProxy(proxy: ProxySettings): Promise<void> {
+    const win = this.loginWindow
+    if (!win || win.isDestroyed()) return
+    await applyProxyToSession(win.webContents.session, proxy)
+    if (this.loginWindow === win && !win.isDestroyed()) win.webContents.reload()
   }
 
   /** Cookie header for open platform / passport calls, or null when signed out. */
@@ -95,11 +133,22 @@ export class AccountService extends EventEmitter<AccountEvents> {
     this.emit('change', state)
   }
 
-  private restore(): void {
+  /**
+   * Decrypt the persisted session. Must run after `app.whenReady()` because every platform's
+   * secure-storage backend is selected during application startup.
+   */
+  restore(): void {
     const persisted = this.store.get()
     if (!persisted.sessionEnc || !persisted.sessionListEnc || !persisted.account || !persisted.env)
       return
     if (persisted.env !== this.getEnv()) return
+    if (!hasSecureAccountStorage()) {
+      // A session written while a real keyring was available must not be handed to Linux's
+      // `basic_text` fallback (nor should old basic-text data remain on disk).
+      log.warn('secure credential storage unavailable; discarding persisted session')
+      this.clearPersistedSessionBestEffort()
+      return
+    }
     try {
       this.secrets = {
         session: decrypt(persisted.sessionEnc),
@@ -107,36 +156,84 @@ export class AccountService extends EventEmitter<AccountEvents> {
       }
       this.state = { status: 'signedIn', account: persisted.account as AccountInfo }
       // Validate lazily so startup is never blocked by the network.
-      void this.refresh().catch((err) => log.warn('refresh after restore failed', err))
+      void this.refresh().catch((err) =>
+        log.warn('refresh after restore failed', summarizeErrorForLog(err))
+      )
     } catch (err) {
-      log.warn('could not decrypt stored session; signing out', err)
-      this.store.set(PersistedSchema.parse({}))
+      // Keychain access can be denied transiently (unsigned builds re-prompt on every launch).
+      // Stay signed out for this run but keep the file; a later launch or a fresh login fixes it.
+      log.warn(
+        'could not decrypt stored session; signed out for this session',
+        summarizeErrorForLog(err)
+      )
+      this.secrets = null
     }
   }
 
   private persist(account: AccountInfo | null): void {
     if (!account || !this.secrets) {
-      this.store.set(PersistedSchema.parse({}))
+      this.clearPersistedSession()
+      return
+    }
+    if (!hasSecureAccountStorage()) {
+      if (!this.warnedMemoryOnly) {
+        this.warnedMemoryOnly = true
+        log.warn('secure credential storage unavailable; keeping session in memory only')
+      }
+      this.clearPersistedSessionBestEffort()
+      return
+    }
+    let sessionEnc: string
+    let sessionListEnc: string
+    try {
+      sessionEnc = encrypt(this.secrets.session)
+      sessionListEnc = encrypt(this.secrets.sessionList.join('_'))
+    } catch (err) {
+      // Losing persistence must not turn a successful network login into a failed login. Keep
+      // the authenticated process alive, but never fall back to plaintext storage.
+      log.warn(
+        'could not encrypt account session; keeping session in memory only',
+        summarizeErrorForLog(err)
+      )
+      this.clearPersistedSessionBestEffort()
       return
     }
     this.store.set({
       version: 1,
       env: account.env,
-      sessionEnc: encrypt(this.secrets.session),
-      sessionListEnc: encrypt(this.secrets.sessionList.join('_')),
+      sessionEnc,
+      sessionListEnc,
       account
     })
   }
 
-  /** Re-fetches profile; on 401 marks the account expired (official `sessionExpired`). */
+  private clearPersistedSession(): void {
+    this.store.set(PersistedSchema.parse({}))
+  }
+
+  private clearPersistedSessionBestEffort(): void {
+    try {
+      this.clearPersistedSession()
+    } catch (err) {
+      // The in-memory session is still safe and usable. Report the exact storage failure without
+      // leaking any credential material into logs.
+      log.warn('could not clear persisted account session', summarizeErrorForLog(err))
+    }
+  }
+
+  /**
+   * Re-fetches the profile; an expired session (HTTP 401 or passport code 34/4401/4) marks the
+   * account expired like the official `sessionExpired` hook. Other errors (offline…) keep state.
+   */
   async refresh(): Promise<AccountState> {
     if (!this.secrets || this.state.status === 'signedOut') return this.state
     try {
-      const account = await this.loadAccount(this.getEnv(), this.secrets)
+      const account = await this.loadAccount(this.getEnv(), this.secrets, true)
       this.persist(account)
       this.setState({ status: 'signedIn', account })
     } catch (err) {
-      if (err instanceof HttpError && err.status === 401) {
+      if (isSessionExpired(err)) {
+        log.warn('passport session expired; signing out', summarizeErrorForLog(err))
         const previous =
           this.state.status === 'signedIn' || this.state.status === 'expired'
             ? this.state.account
@@ -152,20 +249,27 @@ export class AccountService extends EventEmitter<AccountEvents> {
   }
 
   async login(): Promise<AccountState> {
-    if (this.state.status === 'signingIn') return this.state
+    if (this.state.status === 'signingIn') {
+      this.loginWindow?.focus()
+      return this.state
+    }
     const env = this.getEnv()
     const lang = this.getLang()
+    const previous = this.state
     this.setState({ status: 'signingIn' })
     try {
       const secrets = await this.openLoginWindow(env, lang)
-      const account = await this.loadAccount(env, secrets)
+      const account = await this.loadAccount(env, secrets, false)
       this.secrets = secrets
       this.persist(account)
       this.setState({ status: 'signedIn', account })
-      log.info(`signed in as ${account.user.name} @ ${account.tenant.name}`)
+      log.info(`signed in (${account.tenantList.length} tenant(s), env=${env})`)
     } catch (err) {
-      log.warn('login failed', err)
-      this.setState({ status: 'signedOut' })
+      log.warn('login failed', summarizeErrorForLog(err))
+      // A cancelled re-login must not throw away a still valid session, nor the expired
+      // account the menu was showing.
+      const keep = (previous.status === 'signedIn' && this.secrets) || previous.status === 'expired'
+      this.setState(keep ? previous : { status: 'signedOut' })
       throw err
     }
     return this.state
@@ -185,47 +289,92 @@ export class AccountService extends EventEmitter<AccountEvents> {
     const target = this.state.account.tenantList.find((t) => t.userId === tenantUserId)
     if (!target) throw new Error('unknown tenant')
     const ep = ENV_ENDPOINTS[env]
-    const res = await requestJson<{ code?: number }>(`${ep.passport}/accounts/web/switch`, {
+    // Official `switchTenant`: POST { user_id, credential_id } of the *target* identity and read
+    // the new `session` / `session_list` cookies from the response headers.
+    const res = await requestJson<Envelope<unknown>>(`${ep.passport}/accounts/web/switch`, {
       method: 'POST',
       headers: passportHeaders(this.getLang()),
       cookie: cookieHeader(this.secrets),
-      body: { user_id: target.userId, credential_id: this.state.account.user.loginCredentialId }
+      body: {
+        user_id: target.userId,
+        credential_id: target.credentialId || this.state.account.user.loginCredentialId
+      }
     })
-    const setCookies = res.headers.getSetCookie?.() ?? []
-    const next = { ...this.secrets }
-    for (const c of setCookies) {
-      const m = /^(session|session_list)=([^;]+)/.exec(c)
-      if (m?.[1] === 'session' && m[2]) next.session = m[2]
-      if (m?.[1] === 'session_list' && m[2]) next.sessionList = m[2].split('_').filter(Boolean)
+    const cookies = parseSessionCookies(res.headers.getSetCookie?.() ?? [])
+    if (!cookies.session) {
+      const code = res.data?.code ?? 0
+      if (SESSION_EXPIRED_CODES.has(code) || code === NOT_LOGIN_CODE)
+        throw new SessionExpiredError(code)
+      throw new Error(
+        `switch tenant failed: ${res.data?.message ?? res.data?.msg ?? `code ${code}, no session cookie`}`
+      )
     }
-    this.secrets = next
-    return this.refresh()
+    // Swap cookies and state together: if the new identity cannot be loaded (network…), the
+    // old session and the old tenant stay in place instead of drifting apart.
+    const next: Secrets = {
+      session: cookies.session,
+      sessionList: cookies.sessionList ?? this.secrets.sessionList
+    }
+    try {
+      const account = await this.loadAccount(env, next, true)
+      this.secrets = next
+      this.persist(account)
+      this.setState({ status: 'signedIn', account })
+    } catch (err) {
+      if (!isSessionExpired(err)) throw err
+      // The *new* cookies are already dead; the old ones are most likely gone too (passport
+      // rotates the session on switch), so treat it like an expired refresh.
+      this.secrets = next
+      return this.refresh()
+    }
+    return this.state
   }
 
-  private async loadAccount(env: FeishuEnv, secrets: Secrets): Promise<AccountInfo> {
+  /**
+   * Profile + tenant list, following the official `loginV2`: `GET /accounts/web/user` (current
+   * identity), `POST /accounts/security/user/web_list` (identities that already have a
+   * session) and `POST /accounts/security/user/user_center` (every bound identity; the ones not
+   * in `web_list` are listed as `isLogin: false`). Only the first call is fatal.
+   */
+  private async loadAccount(
+    env: FeishuEnv,
+    secrets: Secrets,
+    signedIn: boolean
+  ): Promise<AccountInfo> {
     const ep = ENV_ENDPOINTS[env]
     const headers = passportHeaders(this.getLang())
     const cookie = cookieHeader(secrets)
-    const me = await requestJson<{ user: PassportUser }>(
-      `${ep.passport}/accounts/web/user?app_id=${OPEN_PLATFORM_APP_ID}`,
-      {
-        headers,
-        cookie
-      }
+    const appId = Number(OPEN_PLATFORM_APP_ID)
+    const me = unwrapPassport(
+      (
+        await requestJson<Envelope<{ user?: PassportUser }>>(
+          `${ep.passport}/accounts/web/user?app_id=${OPEN_PLATFORM_APP_ID}`,
+          { headers, cookie }
+        )
+      ).data,
+      signedIn
     )
-    const list = await requestJson<
-      | { user_list?: { user: PassportUser; is_login: boolean }[] }
-      | { user: PassportUser; is_login: boolean }[]
-    >(`${ep.passport}/accounts/security/user/web_list`, {
-      method: 'POST',
-      headers,
-      cookie,
-      body: { app_id: Number(OPEN_PLATFORM_APP_ID) }
-    }).catch((err) => {
-      log.warn('web_list failed; continuing with current tenant only', err)
-      return null
-    })
-    const u = me.data.user
+    const u = me.user
+    if (!u || typeof u.id !== 'string') throw new Error('passport: /accounts/web/user has no user')
+
+    const optional = async (path: string, label: string): Promise<PassportUserEntry[]> => {
+      try {
+        const res = await requestJson<Envelope<unknown>>(`${ep.passport}${path}`, {
+          method: 'POST',
+          headers,
+          cookie,
+          body: { app_id: appId }
+        })
+        return toUserEntries(unwrapPassport(res.data, signedIn))
+      } catch (err) {
+        if (isSessionExpired(err)) throw err
+        log.warn(`${label} failed; continuing without it`, summarizeErrorForLog(err))
+        return []
+      }
+    }
+    const loggedIn = await optional('/accounts/security/user/web_list', 'web_list')
+    const bound = await optional('/accounts/security/user/user_center', 'user_center')
+
     const user: AccountUser = {
       id: u.id,
       name: u.name,
@@ -239,12 +388,23 @@ export class AccountService extends EventEmitter<AccountEvents> {
       avatar: pu.tenant?.icon_url ?? '',
       brand: pu.tenant?.tenant_brand ?? env,
       isLogin,
-      userId: pu.id
+      userId: pu.id,
+      credentialId: pu.login_credential_id ?? ''
     })
-    const rawList = list ? (Array.isArray(list.data) ? list.data : (list.data.user_list ?? [])) : []
-    const tenantList = rawList.map((e) => toTenant(e.user, e.is_login))
+    const seen = new Set<string>()
+    const tenantList: AccountTenant[] = []
+    const add = (pu: PassportUser, isLogin: boolean) => {
+      if (seen.has(pu.id) || !brandMatchesEnv(pu.tenant?.tenant_brand, env)) return
+      seen.add(pu.id)
+      tenantList.push(toTenant(pu, isLogin))
+    }
+    for (const e of loggedIn) add(e.user, e.is_login ?? true)
+    for (const e of bound) add(e.user, false)
+    if (!seen.has(u.id)) tenantList.unshift(toTenant(u, true))
     const tenant = tenantList.find((t) => t.userId === u.id) ?? toTenant(u, true)
-    return { env, user, tenant, tenantList: tenantList.length ? tenantList : [tenant] }
+    // The current identity is by definition logged in even if web_list omitted it.
+    tenant.isLogin = true
+    return { env, user, tenant, tenantList }
   }
 
   /**
@@ -256,13 +416,14 @@ export class AccountService extends EventEmitter<AccountEvents> {
     return new Promise<Secrets>((resolve, reject) => {
       const partition = `${LOGIN_PARTITION_PREFIX}${Date.now()}`
       const ses = session.fromPartition(partition)
+      denyAllSessionPermissions(ses)
       const parent = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w.isVisible())
       const win = new BrowserWindow({
         width: 600,
         height: 720,
         resizable: false,
         minimizable: false,
-        titleBarStyle: 'hiddenInset',
+        ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
         title: lang === 'zh-CN' ? '登录飞书' : 'Sign in to Feishu',
         show: false,
         ...(parent ? { parent } : {}),
@@ -308,9 +469,22 @@ export class AccountService extends EventEmitter<AccountEvents> {
         this.loginWindow = null
         finish(() => reject(new Error('login cancelled')))
       })
-      void win.loadURL(buildLoginUrl(env, lang))
+      // This throw-away partition is not one of the long-lived sessions configured at startup.
+      // Apply the current policy before its first request so QR/password login never bypasses the
+      // proxy selected in Settings. Proxy and navigation failures reject the existing login flow.
+      void Promise.resolve()
+        .then(() => applyProxyToSession(ses, this.getProxy()))
+        .then(() => {
+          if (!settled && !win.isDestroyed()) return win.loadURL(buildLoginUrl(env, lang))
+          return undefined
+        })
+        .catch((err) => finish(() => reject(err)))
     })
   }
+}
+
+function isSessionExpired(err: unknown): boolean {
+  return err instanceof SessionExpiredError || (err instanceof HttpError && err.status === 401)
 }
 
 function isSuccessPage(url: string): boolean {

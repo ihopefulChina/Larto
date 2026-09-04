@@ -40,7 +40,15 @@ export function NavBar() {
       else openMore()
     }
     return (
-      <button key={`${side}-${index}`} className="navBtn" onClick={onClick}>
+      <button
+        key={`${side}-${index}`}
+        type="button"
+        className="navBtn"
+        onClick={onClick}
+        aria-label={
+          item.text ? undefined : item.icon === 'back' ? t('simulator.back') : t('simulator.more')
+        }
+      >
         {item.imageBase64 ? (
           <img
             src={
@@ -51,7 +59,7 @@ export function NavBar() {
             alt=""
           />
         ) : null}
-        {item.icon === 'back' && <BackIcon />}
+        {item.icon === 'back' && <BackIcon aria-hidden />}
         {item.text}
       </button>
     )
@@ -65,7 +73,7 @@ export function NavBar() {
       <div className="side left">
         {left.map((item, i) => renderItem(item, 'left', i))}
         {navBar.showClose && navBar.left === null && (
-          <button className="navBtn" onClick={() => simulatorActions.close()}>
+          <button type="button" className="navBtn" onClick={() => simulatorActions.close()}>
             {t('simulator.close')}
           </button>
         )}
@@ -77,8 +85,13 @@ export function NavBar() {
         {right.length ? (
           right.map((item, i) => renderItem(item, 'right', i))
         ) : (
-          <button className="navBtn" onClick={openMore}>
-            <MoreIcon />
+          <button
+            type="button"
+            className="navBtn"
+            onClick={openMore}
+            aria-label={t('simulator.more')}
+          >
+            <MoreIcon aria-hidden />
           </button>
         )}
       </div>

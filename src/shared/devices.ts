@@ -49,6 +49,25 @@ export const DEVICES: readonly DeviceSpec[] = [
   ios('iphone-13', 'iPhone 13/13 Pro/14', 390, 844, 47, 3, true, true),
   ios('iphone-14-pro', 'iPhone 14 Pro', 393, 852, 54, 3, true, true),
   ios('iphone-14-pro-max', 'iPhone 14 Pro Max', 430, 932, 54, 3, true, true),
+  // Official catalogue stops at 14 (tool last shipped 2022). Extra presets for current H5 work.
+  ios('iphone-15', 'iPhone 15/15 Pro', 393, 852, 54, 3, true, true, 'iOS 17.0.0'),
+  ios('iphone-15-plus', 'iPhone 15 Plus/15 Pro Max', 430, 932, 54, 3, true, true, 'iOS 17.0.0'),
+  ios('iphone-16', 'iPhone 16', 393, 852, 54, 3, true, true, 'iOS 18.0.0'),
+  ios('iphone-16-plus', 'iPhone 16 Plus', 430, 932, 54, 3, true, true, 'iOS 18.0.0'),
+  ios('iphone-16-pro', 'iPhone 16 Pro', 402, 874, 59, 3, true, true, 'iOS 18.0.0'),
+  ios('iphone-17-pro', 'iPhone 17 Pro', 402, 874, 59, 3, true, true, 'iOS 26.0.0'),
+  ios(
+    'iphone-16-pro-max',
+    'iPhone 16 Pro Max/17 Pro Max',
+    440,
+    956,
+    62,
+    3,
+    true,
+    true,
+    'iOS 18.0.0'
+  ),
+  ios('iphone-air', 'iPhone Air', 420, 912, 59, 3, true, true, 'iOS 18.0.0'),
   ios('iphone-13-mini', 'iPhone 13 mini', 375, 812, 50, 3, true, true),
   ios('iphone-13-pro-max', 'iPhone 13 Pro Max/14+', 428, 926, 47, 3, true, true),
   ios('iphone-12', 'iPhone 12/12 Pro', 390, 844, 47, 3, true, true),
@@ -123,7 +142,7 @@ export const DEVICES: readonly DeviceSpec[] = [
   }
 ]
 
-export const DEFAULT_DEVICE_ID = DEVICES[0]!.id
+export const DEFAULT_DEVICE_ID = 'iphone-17-pro'
 
 export const ZOOM_LEVELS: readonly number[] = [50, 75, 85, 100, 125, 150]
 export const DEFAULT_ZOOM = 100
@@ -137,12 +156,58 @@ export const SIM_STATUS_BAR_MIN_HEIGHT = 20
 export function guestViewport(device: DeviceSpec): { width: number; height: number } {
   if (device.platform === 'pc') return { width: device.width, height: device.height }
   const status = device.notch ? device.statusBarHeight : SIM_STATUS_BAR_MIN_HEIGHT
-  const home = device.homeIndicator ? SIM_HOME_INDICATOR_HEIGHT : 0
-  return { width: device.width, height: device.height - status - SIM_NAV_BAR_HEIGHT - home }
+  // The page extends behind the home-indicator safe area; only bars above the page consume height.
+  return { width: device.width, height: device.height - status - SIM_NAV_BAR_HEIGHT }
 }
 
 export function findDevice(id: string | undefined): DeviceSpec {
-  return DEVICES.find((d) => d.id === id) ?? DEVICES[0]!
+  return (
+    DEVICES.find((device) => device.id === id) ??
+    DEVICES.find((device) => device.id === DEFAULT_DEVICE_ID)!
+  )
+}
+
+/**
+ * Corner radius of the simulated screen in CSS px. Notch iPhones have display corners that
+ * are, to within a couple of points, as large as their status bar (iPhone 13: 47, 14 Pro: 55);
+ * rounded iPads use ~18; the remaining phones/tablets get a modest radius so the frame still
+ * reads as a device rather than a bare rectangle; PC is a window.
+ */
+export function deviceCornerRadius(device: DeviceSpec): number {
+  if (device.platform === 'pc') return 8
+  if (device.notch) return device.statusBarHeight
+  if (device.id === 'ipad-pro') return 18
+  return 12
+}
+
+/** Horizontal inset so status-bar clock/icons sit inside the display corner, not on the curve. */
+export function statusBarInset(device: DeviceSpec): number {
+  if (!device.notch) return 14
+  return Math.max(20, Math.round(deviceCornerRadius(device) * 0.48))
+}
+
+/**
+ * 14 Pro and later use a Dynamic Island (statusBarHeight 54+). Older notched iPhones keep
+ * the hanging tongue. Android / iPad / 8-era phones have neither.
+ */
+export function deviceHasIsland(device: DeviceSpec): boolean {
+  return device.notch && device.statusBarHeight >= 54
+}
+
+/** Coarse grouping for the simulator device menu (iPhone / Android / iPad / PC). */
+export function deviceMenuGroup(device: DeviceSpec): 'iphone' | 'android' | 'ipad' | 'pc' {
+  if (device.platform === 'pc') return 'pc'
+  if (device.platform === 'android') return 'android'
+  if (device.id.startsWith('ipad')) return 'ipad'
+  return 'iphone'
+}
+
+export const PC_SIZE_MIN = 320
+export const PC_SIZE_MAX = 2560
+
+export function clampPcSize(n: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(PC_SIZE_MAX, Math.max(PC_SIZE_MIN, Math.round(n)))
 }
 
 /**
@@ -150,6 +215,17 @@ export function findDevice(id: string | undefined): DeviceSpec {
  * `Lark/x.y.z` to decide it is running inside a Feishu container.
  */
 export const LARK_UA_VERSION = '3.44.0'
+
+/** Convert `iOS 17.0.0` to the UA forms `17_0` and `17.0`. */
+function iosUserAgentVersion(system: string): { os: string; version: string } {
+  const matched = /^iOS\s+(\d+(?:\.\d+){1,2})$/i.exec(system.trim())?.[1] ?? '14.2'
+  const parts = matched.split('.')
+  // Safari normally omits a zero patch component (`14.2.0` -> `14.2`) while retaining a
+  // meaningful patch (`10.0.1`). Keep at least major.minor so both UA tokens remain valid.
+  if (parts.length === 3 && parts[2] === '0') parts.pop()
+  const version = parts.join('.')
+  return { os: parts.join('_'), version }
+}
 
 /**
  * User agents exactly as used by the official renderer (§3): the JSSDK picks
@@ -159,8 +235,10 @@ export const LARK_UA_VERSION = '3.44.0'
 export function buildUserAgent(device: DeviceSpec, locale: 'zh_CN' | 'en_US'): string {
   const lark = `Lark/${LARK_UA_VERSION} LarkLocale/${locale}`
   switch (device.platform) {
-    case 'ios':
-      return `Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.2 Mobile/15E148 Safari/604.1 ${lark}`
+    case 'ios': {
+      const iosVersion = iosUserAgentVersion(device.system)
+      return `Mozilla/5.0 (iPhone; CPU iPhone OS ${iosVersion.os} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${iosVersion.version} Mobile/15E148 Safari/604.1 ${lark}`
+    }
     case 'android':
       return `Mozilla/5.0 (Linux; Android 10; ${device.name}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36 ${lark}`
     case 'pc':

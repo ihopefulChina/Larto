@@ -9,9 +9,18 @@ export function normalizeUrl(input: string): string | null {
   const trimmed = input.trim().slice(0, MAX_URL_LENGTH)
   if (!trimmed) return null
   // `localhost:5173` must not be mistaken for a `localhost:` scheme.
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^(about|data|blob|file):/i.test(trimmed))
-    return trimmed
-  return `http://${trimmed}`
+  const candidate =
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^(about|data|blob|file):/i.test(trimmed)
+      ? trimmed
+      : `http://${trimmed}`
+  try {
+    const parsed = new URL(candidate)
+    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.hostname)
+      return null
+    return candidate
+  } catch {
+    return null
+  }
 }
 
 /** Official default pages are hidden from the address bar. */

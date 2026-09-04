@@ -5,19 +5,38 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
-    # macOS arm64 runner: the only supported target, and electron-vite/electron download arm64 binaries.
-    runs-on: macos-latest
-    timeout-minutes: 20
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-latest
+            artifact: linux-x64
+          - name: Windows x64
+            runner: windows-latest
+            artifact: windows-x64
+          - name: macOS Apple Silicon
+            runner: macos-latest
+            artifact: macos-arm64
+          - name: macOS Intel
+            runner: macos-15-intel
+            artifact: macos-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -26,13 +45,30 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - name: Smoke test (launch app, wait for guest, capture window)
+      - name: Install Linux display dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y xvfb
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
         run: |
-          pnpm exec electron . --smoke-test=/tmp/smoke.png
-          test -s /tmp/smoke.png
-      - uses: actions/upload-artifact@v4
+          pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
+          test -s "$RUNNER_TEMP/smoke.png"
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
+          test -s "$RUNNER_TEMP/smoke.png"
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $smoke = Join-Path $env:RUNNER_TEMP 'smoke.png'
+          pnpm exec electron . "--smoke-test=$smoke"
+          if (-not (Test-Path $smoke)) { throw "Smoke screenshot was not created at $smoke" }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: smoke-screenshot
-          path: /tmp/smoke.png
+          name: smoke-${{ matrix.artifact }}
+          path: ${{ runner.temp }}/smoke.png
           if-no-files-found: ignore
+          retention-days: 7

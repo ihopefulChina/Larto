@@ -19,6 +19,8 @@ export interface AccountTenant {
   isLogin: boolean
   /** Passport user id bound to this tenant (needed by `/accounts/web/switch`). */
   userId: string
+  /** `login_credential_id` of that user; `/accounts/web/switch` wants the target's, not ours. */
+  credentialId: string
 }
 
 export interface AccountInfo {

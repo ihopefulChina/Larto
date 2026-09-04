@@ -33,17 +33,21 @@ export function AboutModal() {
       width={380}
       footer={
         <>
-          <button className="btn" onClick={() => void invoke('app:openLogFolder')}>
+          <button type="button" className="btn" onClick={() => void invoke('app:openLogFolder')}>
             {t('menu.openLogs')}
           </button>
-          <button className="btn primary" onClick={() => void invoke('app:copyText', diagnostics)}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => void invoke('app:copyText', diagnostics)}
+          >
             {t('about.copy')}
           </button>
         </>
       }
     >
       <div className="about">
-        <img src={iconUrl} alt="" />
+        <img src={iconUrl} alt="" width={96} height={96} />
         <h2>FeishuDevTools</h2>
         <div className="meta">
           {t('about.version')} {info?.version ?? '…'} · {info?.arch}

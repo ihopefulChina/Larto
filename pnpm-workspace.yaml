@@ -1,5 +1,6 @@
 packages:
   - .
+  - packages/*
 
 # pnpm >= 10 blocks dependency lifecycle scripts unless allowed here.
 # electron: downloads the runtime binary; esbuild/sharp: native binaries.

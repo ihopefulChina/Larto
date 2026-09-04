@@ -7,11 +7,17 @@ export const FeishuEnvSchema = z.enum(['feishu', 'lark'])
 
 const d = DEFAULT_SETTINGS
 
-export const ProxySettingsSchema = z.object({
-  mode: z.enum(['system', 'none', 'manual']).default(d.proxy.mode),
-  url: z.string().default(d.proxy.url),
-  bypass: z.string().default(d.proxy.bypass)
-})
+export const ProxySettingsSchema = z
+  .object({
+    mode: z.enum(['system', 'none', 'manual']).default(d.proxy.mode),
+    url: z.string().default(d.proxy.url),
+    bypass: z.string().default(d.proxy.bypass)
+  })
+  .superRefine((proxy, ctx) => {
+    if (proxy.mode === 'manual' && !proxy.url.trim()) {
+      ctx.addIssue({ code: 'custom', path: ['url'], message: 'manual proxy address is required' })
+    }
+  })
 
 export const McpSettingsSchema = z.object({
   enabled: z.boolean().default(d.mcp.enabled),
@@ -32,7 +38,15 @@ export const SettingsSchema: z.ZodType<Settings, unknown> = z.object({
   proxy: ProxySettingsSchema.default(() => ({ ...d.proxy })),
   mcp: McpSettingsSchema.default(() => ({ ...d.mcp })),
   autoCheckUpdates: z.boolean().default(d.autoCheckUpdates),
+  skippedUpdateVersion: z.string().nullable().default(null),
   mockLocation: z.object({ latitude: z.number(), longitude: z.number() }).nullable().default(null),
+  pcViewport: z
+    .object({
+      width: z.number().int().min(320).max(2560),
+      height: z.number().int().min(320).max(2560)
+    })
+    .nullable()
+    .default(null),
   windowBounds: z
     .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
     .nullable()

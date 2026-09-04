@@ -33,6 +33,7 @@ export function ConsentModal() {
     <Modal
       title={t('consent.title').replace('{appName}', info.appName)}
       width={420}
+      onClose={() => void decide(false)}
       footer={
         <>
           <button className="btn" disabled={busy} onClick={() => void decide(false)}>

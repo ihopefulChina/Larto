@@ -5,7 +5,7 @@
 
 ## 0. 目标与边界
 
-**目标**：1:1 复刻飞书开发者工具「网页调试」模块（界面 + 工作流），原生 Apple Silicon，加 MCP；v0.1.0 可投入日常 H5 开发。
+**目标**：复刻飞书开发者工具「网页调试」模块（界面 + 工作流），提供 macOS、Windows、Linux 原生包并内建 MCP；v0.1.1 建立可持续验证的跨平台发布基线。
 
 **范围内**（用户原始需求 1–6）
 
@@ -25,8 +25,9 @@
 | 3 | 名称/图标 | `build/icon.icns`, `resources/`, `scripts/make-icons.mjs` | 完成 |
 | 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为应用真实截图；Pages 已部署 https://ihopefulchina.github.io/FeishuDevTools/ |
 | 5 | GitHub、v0.1.0、无 bug | `.github/workflows/*`, 本文件 §3 | **v0.1.0 已发布**（未签名）；签名与真实飞书 UAT 仍为已知限制 |
+| 6 | 跨平台发行 | `src/main/*`, `electron-builder.yml`, `.github/workflows/*` | v0.1.1：macOS arm64/x64、Windows x64、Linux x64 |
 
-**范围外 / 不做**：小程序/网关/工作台等其它开发者工具模块；Intel/Windows/Linux 构建；账号密码自动登录；任何形式的"假登录"或伪造 open-apis 响应；把 `<webview>` 的 `contextIsolation`/`sandbox` 关掉。
+**范围外 / 不做**：小程序/网关/工作台等其它开发者工具模块；32 位系统；账号密码自动登录；任何形式的"假登录"或伪造 open-apis 响应；把 `<webview>` 的 `contextIsolation`/`sandbox` 关掉。
 
 **硬约束（违反即回退）**
 
@@ -34,9 +35,9 @@
 2. 主进程只暴露 `src/shared/ipc.ts` 里声明过的通道；新增通道必须同时改 `shared/ipc.ts`、`preload/shell.ts` 白名单、`main/ipc.ts`。
 3. MCP 只监听 `127.0.0.1`，默认端口 17331；不做鉴权以外的"远程调试"。
 4. 不提交密钥、Cookie、租户信息、截图中的个人信息。会话仅用 `safeStorage` 存于 userData。
-5. 只支持 macOS arm64（`electron-builder.yml` 只有 `arm64`），最低 macOS 13（Electron 44 要求 Ventura）。
+5. 发布矩阵固定为 macOS arm64/x64、Windows x64、Linux x64；Electron 44 不提供 Windows 32 位与 Linux armv7l 包。macOS 最低 13（Ventura）。
 
-## 1. 现状快照（更新于 2026-09-04，阶段 7）
+## 1. 现状快照（更新于 2026-09-04，阶段 8）
 
 - 代码量约 7.3k 行 TS/TSX（`src/`），全部通过 `pnpm typecheck`（三个 tsconfig，strict + exactOptionalPropertyTypes）。
 - `pnpm build` 产出 `out/main/index.js`（ESM）、`out/preload/{shell,guest}.js`（CJS，sandbox 要求）、`out/renderer/`。
@@ -46,6 +47,7 @@
 - GitHub 仓库已公开；CI（format/typecheck/test/build/smoke-test）与 Pages 已在 `main` 跑通。官网：https://ihopefulchina.github.io/FeishuDevTools/
 - 阶段 1–4 已完成（见 `docs/progress.md` 2026-09-04 条目）：窗口最小宽度随机型（官方 `deviceWidth+557` 规则）、模拟器溢出滚动、DevTools 随外观切换重建、`requestAccess` 授权确认弹窗、官网真图。
 - 阶段 7 已发布：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 （未签名 arm64 dmg/zip）。签名 / 真实飞书 UAT 仍为已知限制。
+- 阶段 8 将 v0.1.1 扩展到 macOS arm64/x64、Windows x64、Linux x64；Release workflow 在各原生 runner 构建并聚合资产、SHA-256 清单与构建来源证明。最终 CI/Release 结果以 `docs/progress.md` 最新记录为准。
 - 尚未做过：真实飞书账号登录、`tt.config` / `requestAuthCode` / `requestAccess` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
 
 ## 2. 开发环境与命令
@@ -58,13 +60,16 @@ pnpm typecheck        # 三个 tsconfig
 pnpm test             # vitest（tests/**）
 pnpm build            # 产出 out/
 pnpm e2e              # 需要先 build；MCP 驱动的端到端冒烟（本机有屏幕即可，不需要登录）
-pnpm dist:unsigned    # 本机打未签名 dmg/zip 到 dist/（验证打包与启动）
+pnpm dist:mac         # 本机打 macOS arm64+x64 dmg/zip
+pnpm dist:win         # Windows x64 安装版、便携版与 zip
+pnpm dist:linux       # Linux x64 AppImage/deb/rpm/tar.gz
+# 完整跨平台矩阵由 .github/workflows/release.yml 在各原生 runner 构建
 pnpm icons            # 由 resources/logo-source.png 重新生成 icns/png
 pnpm format           # prettier --write
 ```
 
-- 日志：`~/Library/Application Support/FeishuDevTools/logs/main.log`（菜单「帮助 → 打开日志目录」）。
-- 设置：同目录 `settings.json`；会话：`account.json`（Cookie 经 safeStorage 加密）。
+- 日志：Electron `userData/logs/main.log`（macOS `~/Library/Application Support/FeishuDevTools`；Windows `%APPDATA%/FeishuDevTools`；Linux `~/.config/FeishuDevTools`）。
+- 设置：同目录 `settings.json`；会话：有受保护的系统密钥环时写入 `account.json`（Cookie 经 safeStorage 加密），否则只保留在当前进程内存中。
 - 一次性自检：`pnpm exec electron . --smoke-test=/tmp/smoke.png`（CI 用；等 guest 附着后截图退出，非 0 表示失败）。
 - 开发时 MCP 地址：`http://127.0.0.1:17331/mcp`，健康检查 `GET /health`。
 
@@ -150,6 +155,17 @@ pnpm format           # prettier --write
 3. tag `v0.1.0` 已推送。GitHub Release 含 arm64 dmg/zip/`latest-mac.yml`：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 。`release.yml` 改为先 `--publish never` 再 `softprops/action-gh-release`（避免 dmg/zip 并行创建 Release 的 422）。
 4. 干净机器首次安装 / Gatekeeper / 登录鉴权仍待人工（阶段 5–6）。
 
+### 阶段 8 — v0.1.1 跨平台发布（1 天）
+
+1. 消除宿主平台假设：macOS 使用隐藏标题栏与应用菜单；Windows/Linux 使用原生窗口框架和对应菜单；诊断信息显示真实操作系统；MCP stdio 桥能在三个平台查找并启动已安装应用。
+2. 会话落盘继续使用 `safeStorage`。Linux 若 `getSelectedStorageBackend()` 为 `basic_text`，不得把 Cookie 写成可逆的弱保护数据；保持本次会话、提示需要系统 keyring，并在可用后再持久化。
+3. 构建 macOS arm64/x64 的 dmg+zip、Windows x64 的 NSIS 安装包/portable/zip、Linux x64 的 AppImage/deb/rpm/tar.gz。不同 target 必须使用不冲突的文件名。
+4. Release workflow 在原生 runner 构建，最终 job 一次性创建 GitHub Release；发布 `latest-mac.yml` / `latest.yml` / `latest-linux.yml`、`SHA256SUMS.txt`，并生成 GitHub artifact provenance。标签必须与根包和 MCP 包版本一致。
+5. 官网与 README 的首要任务是让开发者确认能力、安全边界并选择正确下载；系统自动识别只做推荐，始终提供完整手动下载矩阵。截图使用匿名本地示例页，不含账号、租户或内部域名。
+6. 发布前跑本文件 §5 全套、本机 macOS arm64/x64 包启动；发布后等待 CI、Release、Pages 和 npm registry 的最终状态，再记录真实结果。未签名/未公证、Windows SmartScreen、Linux keyring、真实飞书账号 UAT 均需如实披露。
+
+验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view feishu-devtools-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。
+
 ### 后续（v0.2+，非必须）
 
 - DevTools 面板宽度可拖拽（现为固定比例）；记忆宽度到 settings。
@@ -175,9 +191,10 @@ pnpm format           # prettier --write
 | `pnpm typecheck` | 三进程类型 | 10s |
 | `pnpm test` | 纯函数 | 1s |
 | `pnpm build && pnpm e2e` | 启动、仿真、JSAPI、DevTools、截图、主题、清缓存 | 15s |
-| `pnpm dist:unsigned` 后打开 `dist/mac-arm64/FeishuDevTools.app` | 打包完整性 | 2min |
+| `pnpm dist:mac` 后分别检查 arm64/x64 `.app`、dmg、zip | macOS 双架构打包完整性 | 3–6min |
+| GitHub Release matrix smoke | Windows x64 / Linux x64 原生启动与截图 | 5–15min |
 
-CI（`.github/workflows/ci.yml`）跑前四项 + `--smoke-test`。E2E 需要有显示器的 macOS runner，GitHub 的 macos-latest 可以跑但不作为必需项，避免偶发失败阻塞。
+CI（`.github/workflows/ci.yml`）在 macOS arm64/x64、Windows x64 与 Linux x64 跑静态检查、构建和原生 `--smoke-test`；Linux 使用虚拟显示器。完整 E2E 仍需有显示器，发布前至少在本机 macOS 跑一遍；Release workflow 的每个平台构建结果是跨平台资产是否可发布的事实依据。
 
 ## 6. 风险与应对
 
@@ -186,5 +203,7 @@ CI（`.github/workflows/ci.yml`）跑前四项 + `--smoke-test`。E2E 需要有�
 | passport/open-apis 接口变更 | 登录后取不到用户/租户；`config` 一直失败 | 以线上响应为准修正 `account.ts`/`openapi.ts`；研究文档记录抓包字段 |
 | DevTools 前端行为随 Electron 升级变化 | Elements 空白 / 不绘制 | 固定 Electron 主版本；`e2e` 的 DevTools 截图断言会第一时间暴露 |
 | 未签名导致自动更新不可用 | `electron-updater` 报 code signature 错误 | 阶段 6；退化为"前往下载" |
+| Windows/macOS 未签名警告 | SmartScreen / Gatekeeper 拦截 | README/官网明确说明；以 SHA256 与 provenance 供核验；正式签名后再移除提示 |
+| Linux 无系统 secret store | `safeStorage` 选择 `basic_text` | 不持久化会话 Cookie；提示安装并启用 Secret Service/KWallet |
 | macOS 权限（定位/剪贴板） | JSAPI 返回 fail | `entitlements.mac.plist` 已声明；首次调用需用户在系统设置允许 |
 | pnpm ≥10 阻止依赖构建脚本 | `electron` 二进制缺失 | `pnpm-workspace.yaml` 的 `allowBuilds` 已放行 electron/esbuild/sharp |

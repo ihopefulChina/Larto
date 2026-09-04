@@ -51,17 +51,31 @@ export function PreviewModal() {
 
   return (
     <Modal title={t('preview.title')} width={420}>
-      <div className="tabs">
-        <button className={tab === 'mobile' ? 'active' : ''} onClick={() => setTab('mobile')}>
+      <div className="tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'mobile'}
+          className={tab === 'mobile' ? 'active' : ''}
+          onClick={() => setTab('mobile')}
+        >
           {t('preview.mobile')}
         </button>
-        <button className={tab === 'pc' ? 'active' : ''} onClick={() => setTab('pc')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'pc'}
+          className={tab === 'pc' ? 'active' : ''}
+          onClick={() => setTab('pc')}
+        >
           {t('preview.pc')}
         </button>
       </div>
       {tab === 'mobile' ? (
         <>
-          <div className="qrWrap">{qr && <img src={qr.dataUrl} alt="QR" />}</div>
+          <div className="qrWrap">
+            {qr ? <img src={qr.dataUrl} alt={t('preview.qrAlt')} /> : <span className="spinner" />}
+          </div>
           <p className="hint">{t('preview.scanHint')}</p>
           <label className="field" style={{ justifyContent: 'center' }}>
             <input
@@ -77,7 +91,12 @@ export function PreviewModal() {
             </div>
           ))}
           <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <button className="btn primary" onClick={() => void copy()} disabled={!qr}>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => void copy()}
+              disabled={!qr}
+            >
               {copied ? t('preview.copied') : t('preview.copyQr')}
             </button>
           </div>
@@ -89,6 +108,7 @@ export function PreviewModal() {
           {pcMessage && <div className="warn">{pcMessage}</div>}
           <div style={{ textAlign: 'center', marginTop: 12 }}>
             <button
+              type="button"
               className="btn primary"
               disabled={account.status !== 'signedIn' || busy}
               onClick={() => void openPc()}

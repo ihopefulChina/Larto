@@ -39,8 +39,15 @@ export interface Settings {
   proxy: ProxySettings
   mcp: McpSettings
   autoCheckUpdates: boolean
+  /** "Skip this version" in the update dialog: automatic checks stay quiet about this version. */
+  skippedUpdateVersion: string | null
   /** Manual geolocation override used by the JSAPI geolocation bridge. */
   mockLocation: { latitude: number; longitude: number } | null
+  /**
+   * Fixed CSS size for the PC preset. `null` = fill the simulator column (official
+   * `calc(100% - 40px)` behaviour); the guest then uses the laid-out webview size.
+   */
+  pcViewport: { width: number; height: number } | null
   windowBounds: { x: number; y: number; width: number; height: number } | null
 }
 
@@ -50,18 +57,23 @@ export const DEFAULT_MCP_PORT = 17331
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
-  theme: 'system',
+  /** Match the dense dark workbench used by the reference developer tool; users can opt back
+   * into system/light appearance from Settings. */
+  theme: 'dark',
   language: 'system',
   env: 'feishu',
   deviceId: DEFAULT_DEVICE_ID,
   zoom: DEFAULT_ZOOM,
-  showDevTools: false,
+  /** The debugger is what people open the tool for; start with it docked. */
+  showDevTools: true,
   urlHistory: [],
   lastUrl: '',
   proxy: { mode: 'system', url: '', bypass: '<local>' },
   mcp: { enabled: true, port: DEFAULT_MCP_PORT },
   autoCheckUpdates: true,
+  skippedUpdateVersion: null,
   mockLocation: null,
+  pcViewport: null,
   windowBounds: null
 }
 
@@ -76,6 +88,7 @@ export const WritableSettingKeys = [
   'proxy',
   'mcp',
   'autoCheckUpdates',
-  'mockLocation'
+  'mockLocation',
+  'pcViewport'
 ] as const satisfies readonly (keyof Settings)[]
 export type WritableSettingKey = (typeof WritableSettingKeys)[number]

@@ -20,6 +20,7 @@ import {
 } from './openapi'
 import { consentBroker } from './consent'
 import { createLogger } from './logger'
+import { summarizeErrorForLog } from './log-summary'
 
 const log = createLogger('jsapi')
 
@@ -27,6 +28,7 @@ export interface JsapiBackendDeps {
   account: AccountService
   settings: SettingsStore
   getLang: () => ResolvedLanguage
+  requestGuestPermission: (permission: 'clipboard-read' | 'clipboard-write') => Promise<boolean>
 }
 
 const ok = (method: string, data: Record<string, unknown> = {}): JsapiBackendResponse => ({
@@ -67,7 +69,7 @@ export async function handleJsapiBackend(
         const cfg = params as unknown as JsapiConfigParams
         const cleanUrl = url.split('#')[0] ?? url
         const result = await verifyJsapiSignature(s, cleanUrl, cfg).catch((err) => {
-          log.warn('verify failed', err)
+          log.warn('verify failed', summarizeErrorForLog(err))
           return null
         })
         if (!result) return fail(method, JSAPI_ERROR.NETWORK, 'network error')
@@ -98,7 +100,11 @@ export async function handleJsapiBackend(
         if (res.autoConfirm && res.code)
           return ok(method, { code: res.code, state: res.state ?? state ?? '' })
         if (res.autoConfirm || !res.consent) {
-          log.warn('get_auth_info_inner: no code and no app_info', res.raw)
+          log.warn('get_auth_info_inner returned incomplete data', {
+            autoConfirm: res.autoConfirm,
+            hasCode: Boolean(res.code),
+            hasConsent: Boolean(res.consent)
+          })
           return fail(method, JSAPI_ERROR.ACCESS_INTERNAL, 'get_auth_info_inner returned no code')
         }
         // Official passport SDK flow: show the AuthzModal, then POST the same params to confirm_inner.
@@ -114,11 +120,15 @@ export async function handleJsapiBackend(
       }
       case 'biz.util.copyText':
       case 'setClipboardData': {
+        if (!(await deps.requestGuestPermission('clipboard-write')))
+          return fail(method, JSAPI_ERROR.USER_CANCEL, 'clipboard permission denied')
         clipboard.writeText(String(params['text'] ?? params['data'] ?? ''))
         return ok(method)
       }
       case 'biz.util.getClipboardInfo':
       case 'getClipboardData': {
+        if (!(await deps.requestGuestPermission('clipboard-read')))
+          return fail(method, JSAPI_ERROR.USER_CANCEL, 'clipboard permission denied')
         const text = clipboard.readText()
         return ok(method, { text, data: text })
       }
@@ -153,11 +163,14 @@ export async function handleJsapiBackend(
         return fail(method, JSAPI_ERROR.NOT_SUPPORTED, `not handler api ${method}`)
     }
   } catch (err) {
-    log.warn(`jsapi ${method} failed`, err)
     const code =
       typeof (err as { code?: unknown }).code === 'number'
         ? (err as { code: number }).code
         : JSAPI_ERROR.NETWORK
+    log.warn(`jsapi ${method} failed`, {
+      ...summarizeErrorForLog(err),
+      resultCode: code
+    })
     return fail(method, code, err instanceof Error ? err.message : String(err))
   }
 }

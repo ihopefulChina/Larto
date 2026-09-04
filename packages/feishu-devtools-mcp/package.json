@@ -1,0 +1,45 @@
+{
+  "name": "feishu-devtools-mcp",
+  "version": "0.1.1",
+  "description": "Cross-platform stdio bridge and one-command installer for the FeishuDevTools MCP server (Feishu/Lark H5 simulator).",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "feishu",
+    "lark",
+    "devtools",
+    "h5",
+    "simulator"
+  ],
+  "homepage": "https://ihopefulchina.github.io/FeishuDevTools/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ihopefulChina/FeishuDevTools.git",
+    "directory": "packages/feishu-devtools-mcp"
+  },
+  "bugs": "https://github.com/ihopefulChina/FeishuDevTools/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "author": {
+    "name": "ihopefulChina",
+    "url": "https://github.com/ihopefulChina"
+  },
+  "type": "module",
+  "bin": {
+    "feishu-devtools-mcp": "bin.mjs"
+  },
+  "files": [
+    "bin.mjs",
+    "src/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

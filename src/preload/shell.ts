@@ -18,11 +18,14 @@ const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
   'theme:resolve',
   'devices:list',
   'guest:attach',
+  'guest:ready',
   'guest:setDevice',
+  'guest:deviceCommandFailed',
   'guest:clearCache',
   'guest:openDevTools',
   'guest:setDevToolsBounds',
   'guest:closeDevTools',
+  'guest:snapshotDevTools',
   'account:getState',
   'account:login',
   'account:logout',
@@ -35,6 +38,7 @@ const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
   'update:check',
   'update:download',
   'update:install',
+  'update:skip',
   'update:getState',
   'mcp:getStatus'
 ])

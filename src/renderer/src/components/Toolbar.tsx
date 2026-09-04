@@ -1,46 +1,85 @@
+import { invoke } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import { useSimulator } from '@/store/simulator'
 import { AccountMenu } from './AccountMenu'
-import { UrlBar } from './UrlBar'
+import { CodeIcon, PreviewIcon, TrashIcon } from './icons'
 
 interface ToolbarProps {
-  focusSignal: number
   onClearCache: () => void
   onToggleDevTools: () => void
 }
 
-/** Top panel: drag-able title row + official three-group toolbar (§2.1). */
-export function Toolbar({ focusSignal, onClearCache, onToggleDevTools }: ToolbarProps) {
+/** Compact window-level command bar. Page navigation lives with the simulator below it. */
+export function Toolbar({ onClearCache, onToggleDevTools }: ToolbarProps) {
   const t = useT()
   const showDevTools = useApp((s) => s.settings.showDevTools)
+  const checkingUpdate = useApp((s) => s.update.status === 'checking')
   const openModal = useApp((s) => s.openModal)
-  const hasUrl = useSimulator((s) => !!s.url)
+  const hasUrl = useSimulator((s) => !!s.url && s.url !== 'about:blank')
+  const pageTitle = useSimulator((s) => s.title)
+
+  const checkForUpdates = () => {
+    openModal('update')
+    void invoke('update:check')
+  }
 
   return (
-    <div className="toolPanel">
-      <div className="toolBar-title">{t('app.windowTitle')}</div>
+    <header className="toolPanel">
+      <div className="toolBar-title" title={pageTitle || t('app.windowTitle')}>
+        {pageTitle ? `${pageTitle} - ${t('app.windowTitle')}` : t('app.windowTitle')}
+      </div>
       <div className="toolBar-content">
-        <div className="toolBar-group left">
-          <UrlBar focusSignal={focusSignal} />
-          <button className="tbtn" onClick={() => openModal('preview')} disabled={!hasUrl}>
+        <div className="toolBar-mode" aria-label={t('toolbar.webMode')}>
+          <CodeIcon aria-hidden />
+          <span>{t('toolbar.webMode')}</span>
+        </div>
+        <div className="toolBar-group toolBar-actions">
+          <button
+            type="button"
+            className="tbtn"
+            onClick={() => openModal('preview')}
+            disabled={!hasUrl}
+            title={t('toolbar.preview')}
+          >
+            <PreviewIcon aria-hidden />
             {t('toolbar.preview')}
           </button>
-          <button className="tbtn" onClick={onClearCache}>
+          <button
+            type="button"
+            className="tbtn"
+            onClick={onClearCache}
+            disabled={!hasUrl}
+            title={t('toolbar.clearCache')}
+          >
+            <TrashIcon aria-hidden />
             {t('toolbar.clearCache')}
           </button>
-        </div>
-        <div className="toolBar-group">
-          <button className="tbtn selected" disabled>
-            {t('toolbar.simulator')}
-          </button>
-          <button className={`tbtn ${showDevTools ? 'selected' : ''}`} onClick={onToggleDevTools}>
+          <button
+            type="button"
+            className={`tbtn ${showDevTools ? 'selected' : ''}`}
+            onClick={onToggleDevTools}
+            aria-pressed={showDevTools}
+            title={t('toolbar.devtools')}
+          >
+            <CodeIcon aria-hidden />
             {t('toolbar.devtools')}
           </button>
-        </div>
-        <div className="toolBar-group">
+          <span className="toolBar-divider" aria-hidden />
+          <button type="button" className="tbtn text" onClick={() => openModal('settings')}>
+            {t('settings.title')}
+          </button>
+          <button
+            type="button"
+            className="tbtn text"
+            onClick={checkForUpdates}
+            disabled={checkingUpdate}
+            aria-busy={checkingUpdate}
+          >
+            {t('toolbar.checkUpdate')}
+          </button>
           <AccountMenu />
         </div>
       </div>
-    </div>
+    </header>
   )
 }

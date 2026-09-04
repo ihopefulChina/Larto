@@ -12,6 +12,7 @@
 - 仓库此前已推到 GitHub：CI 与 Pages 在 `main` 均 success；官网 https://ihopefulchina.github.io/FeishuDevTools/ 可访问。
 - 本机 `pnpm dist:unsigned`：`dist/FeishuDevTools-0.1.0-arm64.dmg`（105 MB）与 `.zip`（113 MB）；`Info.plist` 版本 0.1.0、最低系统 13.0。
 - 打 annotated tag `v0.1.0` 并推送，触发 `release.yml` 发布 GitHub Release。
+- 第一次 Release 失败：GitHub 把未配置的 `CSC_LINK` 注成空字符串，electron-builder 把它当成证书路径（仓库根目录）报 `not a file`。`release.yml` 在调用 electron-builder 前 `unset` 空的签名/公证变量。
 
 **验证**
 
@@ -21,7 +22,7 @@
 
 **结论**
 
-- 本机未签名 arm64 包可用。GitHub Release 产物以 `release.yml` 为准（无 Apple 证书时同样未签名，公证会跳过）。
+- 本机未签名 arm64 包可用。第一次 `release.yml` 因空 `CSC_LINK` 失败，已修工作流并重打 `v0.1.0`。GitHub Release 产物以新一次 workflow 为准（无 Apple 证书时未签名，公证会跳过）。
 
 **遗留**
 

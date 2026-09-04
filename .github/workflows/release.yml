@@ -33,16 +33,25 @@ jobs:
       - name: Build and publish (electron-builder)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Developer ID Application certificate (.p12, base64) + password. Optional: without them
-          # the build is unsigned and Gatekeeper asks for "Open Anyway" on first launch.
+          # Optional Developer ID + notarisation. Missing secrets still inject "" into the
+          # environment; electron-builder treats CSC_LINK="" as a file path (the repo root)
+          # and fails with "not a file". Unset empties below so unsigned builds work.
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
-          # Notarisation (requires signing). Optional.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm exec electron-builder --mac --arm64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        run: |
+          if [ -z "${CSC_LINK}" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          else
+            export CSC_IDENTITY_AUTO_DISCOVERY=true
+          fi
+          if [ -z "${APPLE_ID}" ]; then
+            unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          fi
+          pnpm exec electron-builder --mac --arm64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64

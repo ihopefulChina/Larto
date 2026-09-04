@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { findDevice } from '../src/shared/devices'
 
@@ -38,8 +39,7 @@ describe('sizeForDevice', () => {
 })
 
 describe('trusted shell URL', () => {
-  const shellFile =
-    '/Applications/FeishuDevTools.app/Contents/Resources/app.asar/out/renderer/index.html'
+  const shellFile = resolve('fixtures', 'app.asar', 'out', 'renderer', 'index.html')
 
   it('allows only the packaged renderer file when no dev server is configured', () => {
     expect(isTrustedShellUrl(pathToFileURL(shellFile).href, undefined, shellFile)).toBe(true)

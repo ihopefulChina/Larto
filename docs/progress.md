@@ -10,11 +10,13 @@
 - 修复 Windows runner 的全库 Prettier 假失败：新增 `.gitattributes` 将文本工作树统一为 LF，不放宽 Prettier 规则，二进制图片仍由 Git 自动识别为 `-text`。
 - 修复 Ubuntu runner 的 Electron smoke 启动失败：在源码 smoke 和打包后 `linux-unpacked` smoke 前，验证 `chrome-sandbox` 是工作区内的普通文件，再设置为 `root:root 4755` 并断言数值权限。依旧禁止 `--no-sandbox`，不用 root 启动应用；PR 不对可修改的工作区二进制设 SUID，完整 Linux smoke 在 main push 上执行。
 - 远程 Intel smoke 暴露官方欢迎页的公网依赖：应用与设备仿真已启动，但加载飞书 CDN 超时导致假失败。CI 和 Release 的四平台 smoke 改用隔离 userData 中的本地 `data:` 页，正常用户的默认首页不变。
+- Windows 单测不再把 macOS `/Applications/...` 字面路径当作跨平台 fixture；改用当前平台的绝对路径 round-trip，保持生产代码对打包入口的精确匹配，不放宽 shell 导航安全边界。
 
 **验证**
 
 - macOS 26.6.2 用 `NSWorkspace.icon(forFile:)` 实际渲染：0.1.0 安装包精确复现「灰底大图标 + 居中小图标」；纯 ICNS 的 0.1.1 候选包为满尺寸图标、无灰底。重打 arm64 app 后确认版本 0.1.1、`CFBundleIconFile=icon.icns`、无 `CFBundleIconName`/`Assets.car`，且 `codesign --verify --deep --strict` 通过（ad-hoc）；已启动该候选包供试用。
 - `git ls-files --eol` 显示文本为 `i/lf w/lf attr/text=auto eol=lf`，现有 PNG/ICNS/WebP 仍为 `-text`。`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17471 pnpm e2e` 全部通过：Vitest 15 文件 / 78 项、Node Test 23/23，E2E 含 18 个 MCP 工具与 stdio 往返。使用与远程相同的隔离配置运行本地 `data:` smoke，6 秒内完成 guest/DevTools 附着、生成非空截图并返回 0。
+- `pnpm exec vitest run tests/window.test.ts`：4/4 通过；随后再次运行 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17481 pnpm e2e`，全部通过（Vitest 15 文件 / 78 项、Node Test 23/23、E2E 24/24）。远端 Windows 仍以新 commit 的原生 runner 结果为准。
 
 **结论 / 遗留**
 

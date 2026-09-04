@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FDT_SMOKE_URL: data:text/html,%3Ctitle%3EFeishuDevTools%20Smoke%3C%2Ftitle%3E
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -75,7 +78,7 @@ jobs:
           FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
         run: |
           mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
           file dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools | grep -q arm64
           dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
           test -s "$RUNNER_TEMP/packaged-smoke.png"
@@ -162,7 +165,7 @@ jobs:
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'packaged-smoke.png'
           New-Item -ItemType Directory -Path $env:FDT_USER_DATA -Force | Out-Null
-          '{"mcp":{"enabled":false},"autoCheckUpdates":false}' | Set-Content (Join-Path $env:FDT_USER_DATA 'settings.json') -Encoding utf8NoBOM
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" (Join-Path $env:FDT_USER_DATA 'settings.json')
           $process = Start-Process -FilePath '.\dist\win-unpacked\FeishuDevTools.exe' -ArgumentList '--disable-gpu', "--smoke-test=$smoke" -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Packaged app exited with $($process.ExitCode)" }
           if (-not (Test-Path $smoke) -or (Get-Item $smoke).Length -le 0) { throw "Smoke screenshot is missing or empty at $smoke" }
@@ -209,7 +212,7 @@ jobs:
           FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
         run: |
           mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
           file dist/linux-unpacked/feishu-dev-tools | grep -q x86-64
           LINUX_SANDBOX=dist/linux-unpacked/chrome-sandbox
           test -f "$LINUX_SANDBOX" && test ! -L "$LINUX_SANDBOX"

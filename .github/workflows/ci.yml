@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FDT_SMOKE_URL: data:text/html,%3Ctitle%3EFeishuDevTools%20Smoke%3C%2Ftitle%3E
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -59,19 +62,31 @@ jobs:
           test "$(stat -c '%u:%g:%a' "$CHROME_SANDBOX")" = "0:0:4755"
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}/fdt-smoke-profile
         run: |
+          mkdir -p "$FDT_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
           pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
           test -s "$RUNNER_TEMP/smoke.png"
       - name: Smoke test (Linux)
         if: runner.os == 'Linux' && github.event_name == 'push'
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}/fdt-smoke-profile
         run: |
+          mkdir -p "$FDT_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
           xvfb-run -a pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
           test -s "$RUNNER_TEMP/smoke.png"
       - name: Smoke test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          FDT_USER_DATA: ${{ runner.temp }}\fdt-smoke-profile
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'smoke.png'
+          New-Item -ItemType Directory -Path $env:FDT_USER_DATA -Force | Out-Null
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" (Join-Path $env:FDT_USER_DATA 'settings.json')
           pnpm exec electron . "--smoke-test=$smoke"
           if (-not (Test-Path $smoke)) { throw "Smoke screenshot was not created at $smoke" }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

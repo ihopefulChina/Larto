@@ -117,7 +117,7 @@ jobs:
           FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
         run: |
           mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
           shopt -s nullglob
           archives=(release-macos/FeishuDevTools-*-mac-x64.zip)
           [ "${#archives[@]}" -eq 1 ] || { echo "Expected exactly one macOS x64 ZIP"; exit 1; }

@@ -211,6 +211,13 @@ jobs:
           mkdir -p "$FDT_USER_DATA"
           node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false}))" "$FDT_USER_DATA/settings.json"
           file dist/linux-unpacked/feishu-dev-tools | grep -q x86-64
+          LINUX_SANDBOX=dist/linux-unpacked/chrome-sandbox
+          test -f "$LINUX_SANDBOX" && test ! -L "$LINUX_SANDBOX"
+          LINUX_SANDBOX=$(realpath "$LINUX_SANDBOX")
+          case "$LINUX_SANDBOX" in "$GITHUB_WORKSPACE"/*) ;; *) exit 1 ;; esac
+          sudo chown root:root "$LINUX_SANDBOX"
+          sudo chmod 4755 "$LINUX_SANDBOX"
+          test "$(stat -c '%u:%g:%a' "$LINUX_SANDBOX")" = "0:0:4755"
           xvfb-run -a dist/linux-unpacked/feishu-dev-tools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
           test -s "$RUNNER_TEMP/packaged-smoke.png"
       - run: node scripts/verify-release-assets.mjs dist linux

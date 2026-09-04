@@ -46,15 +46,24 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - name: Install Linux display dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y xvfb
+        if: runner.os == 'Linux' && github.event_name == 'push'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb
+          CHROME_SANDBOX=$(node -p "require('node:path').join(require('node:path').dirname(require.resolve('electron/package.json')), 'dist/chrome-sandbox')")
+          test -f "$CHROME_SANDBOX" && test ! -L "$CHROME_SANDBOX"
+          CHROME_SANDBOX=$(realpath "$CHROME_SANDBOX")
+          case "$CHROME_SANDBOX" in "$GITHUB_WORKSPACE"/*) ;; *) exit 1 ;; esac
+          sudo chown root:root "$CHROME_SANDBOX"
+          sudo chmod 4755 "$CHROME_SANDBOX"
+          test "$(stat -c '%u:%g:%a' "$CHROME_SANDBOX")" = "0:0:4755"
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
         run: |
           pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
           test -s "$RUNNER_TEMP/smoke.png"
       - name: Smoke test (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && github.event_name == 'push'
         run: |
           xvfb-run -a pnpm exec electron . --smoke-test="$RUNNER_TEMP/smoke.png"
           test -s "$RUNNER_TEMP/smoke.png"

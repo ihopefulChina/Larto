@@ -2,6 +2,24 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-04 — v0.1.1 图标复核与跨平台 CI 收口
+
+**做了什么**
+
+- 核对用户截图、已安装应用与当前候选包：`/Applications/FeishuDevTools.app` 仍是 0.1.0，旧 ICNS 会被 macOS 26 缩进灰色系统底板；0.1.1 的现有 ICNS 已按标准 squircle 重生成。本轮不引入只有 Xcode 26 能重现的静态 `Assets.car`，保持 macOS 13–15 回退路径单一。
+- 修复 Windows runner 的全库 Prettier 假失败：新增 `.gitattributes` 将文本工作树统一为 LF，不放宽 Prettier 规则，二进制图片仍由 Git 自动识别为 `-text`。
+- 修复 Ubuntu runner 的 Electron smoke 启动失败：在源码 smoke 和打包后 `linux-unpacked` smoke 前，验证 `chrome-sandbox` 是工作区内的普通文件，再设置为 `root:root 4755` 并断言数值权限。依旧禁止 `--no-sandbox`，不用 root 启动应用；PR 不对可修改的工作区二进制设 SUID，完整 Linux smoke 在 main push 上执行。
+
+**验证**
+
+- macOS 26.6.2 用 `NSWorkspace.icon(forFile:)` 实际渲染：0.1.0 安装包精确复现「灰底大图标 + 居中小图标」；纯 ICNS 的 0.1.1 候选包为满尺寸图标、无灰底。重打 arm64 app 后确认版本 0.1.1、`CFBundleIconFile=icon.icns`、无 `CFBundleIconName`/`Assets.car`，且 `codesign --verify --deep --strict` 通过（ad-hoc）；已启动该候选包供试用。
+- `git ls-files --eol` 显示文本为 `i/lf w/lf attr/text=auto eol=lf`，现有 PNG/ICNS/WebP 仍为 `-text`。`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17471 pnpm e2e` 全部通过：Vitest 15 文件 / 78 项、Node Test 23/23，E2E 含 18 个 MCP 工具与 stdio 往返。
+
+**结论 / 遗留**
+
+- 图标问题是试用时误启动旧安装包，0.1.1 候选资产已满足当前视觉验收；发布时不能混入 0.1.0 包。
+- 本条记录时 Windows LF 与 Linux sandbox 修复尚待最终 commit 的远程原生 CI 验证；四平台全绿前不创建 tag/Release。AppImage/DEB/RPM/tar.gz 的真实安装 UAT 仍不能由 `linux-unpacked` smoke 代替。
+
 ## 2026-09-04 — v0.1.1 跨平台发布候选与公开资料收口
 
 **做了什么**

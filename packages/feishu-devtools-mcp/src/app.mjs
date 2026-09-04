@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
-import { join, win32 } from 'node:path'
+import { posix, win32 } from 'node:path'
 
 export const DEFAULT_PORT = 17331
 export const BUNDLE_ID = 'app.ihopeful.FeishuDevTools'
@@ -55,7 +55,7 @@ export function launchCandidates({
     candidates.push({ command: `${APP_EXECUTABLE}.exe`, args: [] })
   } else if (platform === 'linux') {
     candidates.push(
-      { command: join(home, '.local', 'bin', 'feishu-dev-tools'), args: [] },
+      { command: posix.join(home, '.local', 'bin', 'feishu-dev-tools'), args: [] },
       { command: '/usr/local/bin/feishu-dev-tools', args: [] },
       { command: '/usr/bin/feishu-dev-tools', args: [] },
       { command: '/opt/FeishuDevTools/feishu-dev-tools', args: [] },

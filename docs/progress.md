@@ -13,12 +13,13 @@
 - Windows 单测不再把 macOS `/Applications/...` 字面路径当作跨平台 fixture；改用当前平台的绝对路径 round-trip，保持生产代码对打包入口的精确匹配，不放宽 shell 导航安全边界。
 - Release 的 macOS Intel 打包后 smoke 补齐隔离配置中的 `lastUrl`，与 arm64、Windows、Linux 一致使用本地 `data:` 页，不再在正式发布矩阵里重新引入公网依赖。
 - Ubuntu 源码 smoke 已完成安全沙箱、guest 仿真与 DevTools 附着，但 Xvfb 的 GPU 截图路径偶发 `UnknownVizError`；该步骤补 `--disable-gpu`，与既有 Linux 打包后 smoke 保持一致，不改变应用默认启动参数。
+- MCP 包的跨平台路径分支不再借用运行测试机器的默认 `node:path.join`：macOS/Linux 显式用 `posix`、Windows 继续用 `win32`，确保 Windows 上也能可靠校验和生成各平台应用候选及 Claude Desktop 配置路径。
 
 **验证**
 
 - macOS 26.6.2 用 `NSWorkspace.icon(forFile:)` 实际渲染：0.1.0 安装包精确复现「灰底大图标 + 居中小图标」；纯 ICNS 的 0.1.1 候选包为满尺寸图标、无灰底。重打 arm64 app 后确认版本 0.1.1、`CFBundleIconFile=icon.icns`、无 `CFBundleIconName`/`Assets.car`，且 `codesign --verify --deep --strict` 通过（ad-hoc）；已启动该候选包供试用。
 - `git ls-files --eol` 显示文本为 `i/lf w/lf attr/text=auto eol=lf`，现有 PNG/ICNS/WebP 仍为 `-text`。`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17471 pnpm e2e` 全部通过：Vitest 15 文件 / 78 项、Node Test 23/23，E2E 含 18 个 MCP 工具与 stdio 往返。使用与远程相同的隔离配置运行本地 `data:` smoke，6 秒内完成 guest/DevTools 附着、生成非空截图并返回 0。
-- `pnpm exec vitest run tests/window.test.ts`：4/4 通过；随后再次运行 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17481 pnpm e2e`，全部通过（Vitest 15 文件 / 78 项、Node Test 23/23、E2E 24/24）。远端 Windows 仍以新 commit 的原生 runner 结果为准。
+- `pnpm exec vitest run tests/window.test.ts`：4/4 通过；MCP 路径修复后又运行 `node --test packages/feishu-devtools-mcp/test/*.test.mjs`（20/20）以及 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17482 pnpm e2e`，全部通过（Vitest 15 文件 / 78 项、Node Test 23/23、E2E 24/24）。远端 Windows 仍以新 commit 的原生 runner 结果为准。
 
 **结论 / 遗留**
 

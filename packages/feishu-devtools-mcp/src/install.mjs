@@ -12,7 +12,7 @@ import {
   writeFileSync
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, dirname, join, resolve, win32 } from 'node:path'
+import { basename, dirname, join, posix, resolve, win32 } from 'node:path'
 import { DEFAULT_PORT } from './app.mjs'
 
 export const SERVER_NAME = 'feishu-devtools'
@@ -51,13 +51,13 @@ export function claudeDesktopConfigPath({
   env = process.env
 } = {}) {
   if (platform === 'darwin')
-    return join(home, 'Library/Application Support/Claude/claude_desktop_config.json')
+    return posix.join(home, 'Library/Application Support/Claude/claude_desktop_config.json')
   if (platform === 'win32') {
     const appData = env.APPDATA || win32.join(home, 'AppData', 'Roaming')
     return win32.join(appData, 'Claude', 'claude_desktop_config.json')
   }
-  const configHome = env.XDG_CONFIG_HOME || join(home, '.config')
-  return join(configHome, 'Claude', 'claude_desktop_config.json')
+  const configHome = env.XDG_CONFIG_HOME || posix.join(home, '.config')
+  return posix.join(configHome, 'Claude', 'claude_desktop_config.json')
 }
 
 /** Merge `mcpServers[SERVER_NAME]` into a JSON config file, creating it when missing. */

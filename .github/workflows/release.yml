@@ -51,12 +51,25 @@ jobs:
           if [ -z "${APPLE_ID}" ]; then
             unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
           fi
-          pnpm exec electron-builder --mac --arm64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+          # Publish separately: dmg + zip race to POST /releases and the loser gets
+          # 422 tag_name already_exists (electron-builder GitHub publisher).
+          pnpm exec electron-builder --mac --arm64 --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
           path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.yml
-            dist/*.blockmap
+            dist/FeishuDevTools-*.dmg
+            dist/FeishuDevTools-*.zip
+            dist/FeishuDevTools-*.blockmap
+            dist/latest-mac.yml
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FeishuDevTools-*.dmg
+            dist/FeishuDevTools-*.zip
+            dist/FeishuDevTools-*.blockmap
+            dist/latest-mac.yml
+          fail_on_unmatched_files: true
+          generate_release_notes: true

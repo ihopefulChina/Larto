@@ -24,7 +24,7 @@
 | 2 | MCP | `src/main/mcp.ts`（Streamable HTTP，仅回环） | 完成，E2E 就是通过 MCP 驱动的 |
 | 3 | 名称/图标 | `build/icon.icns`, `resources/`, `scripts/make-icons.mjs` | 完成 |
 | 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为应用真实截图；Pages 已部署 https://ihopefulchina.github.io/FeishuDevTools/ |
-| 5 | GitHub、v0.1.0、无 bug | `.github/workflows/*`, 本文件 §3 | 仓库/CI/Pages 完成；**v0.1.0 走 §3 阶段 7**（签名与真实飞书 UAT 仍为已知限制） |
+| 5 | GitHub、v0.1.0、无 bug | `.github/workflows/*`, 本文件 §3 | **v0.1.0 已发布**（未签名）；签名与真实飞书 UAT 仍为已知限制 |
 
 **范围外 / 不做**：小程序/网关/工作台等其它开发者工具模块；Intel/Windows/Linux 构建；账号密码自动登录；任何形式的"假登录"或伪造 open-apis 响应；把 `<webview>` 的 `contextIsolation`/`sandbox` 关掉。
 
@@ -45,7 +45,7 @@
   - `pnpm e2e`：`scripts/e2e.mjs` 启动应用，通过 MCP 依次验证：启动/健康检查、iPhone 13 仿真（390×733，dpr 3，screen 390×844）、Lark UA、JSAPI 回调 `:ok`、JSAPI 日志、Android 机型切换、缩放不改变 CSS 视口、DevTools 停靠 + 截图、关闭、窗口截图、主题切换、清缓存。
 - GitHub 仓库已公开；CI（format/typecheck/test/build/smoke-test）与 Pages 已在 `main` 跑通。官网：https://ihopefulchina.github.io/FeishuDevTools/
 - 阶段 1–4 已完成（见 `docs/progress.md` 2026-09-04 条目）：窗口最小宽度随机型（官方 `deviceWidth+557` 规则）、模拟器溢出滚动、DevTools 随外观切换重建、`requestAccess` 授权确认弹窗、官网真图。
-- 阶段 7：`package.json` version = `0.1.0`；`CHANGELOG.md` 与 README 截图已补。签名 / 真实飞书 UAT 作为已知限制随 v0.1.0 发布。
+- 阶段 7 已发布：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 （未签名 arm64 dmg/zip）。签名 / 真实飞书 UAT 仍为已知限制。
 - 尚未做过：真实飞书账号登录、`tt.config` / `requestAuthCode` / `requestAccess` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
 
 ## 2. 开发环境与命令
@@ -143,12 +143,12 @@ pnpm format           # prettier --write
 
 验收：rc→rc 自动更新一次成功；`spctl -a -vv FeishuDevTools.app` 显示 accepted（签名时）。
 
-### 阶段 7 — v0.1.0 正式发布（0.5 天）— 文档与本机打包完成 2026-09-04
+### 阶段 7 — v0.1.0 正式发布（0.5 天）— 已发布 2026-09-04
 
 1. 阶段 1–4 通过；阶段 5（真实飞书 UAT）与阶段 6（签名/公证/自动更新）**作为已知限制**写进 CHANGELOG / README / `progress.md`，不阻塞首发。
 2. 已更新 `CHANGELOG.md` 与 README 截图；`package.json` version = `0.1.0`。最低系统版本与 Electron 44 对齐为 macOS 13。
-3. `git tag v0.1.0 && git push origin v0.1.0` → `release.yml` 产出 arm64 dmg/zip/`latest-mac.yml` 并发布；网站下载按钮通过 GitHub API 指向最新 arm64 dmg。
-4. 发布后在一台干净的 Apple Silicon Mac 上首次安装验证：启动、登录、加载 H5、DevTools、预览、更新检查（登录/鉴权仍待 UAT）。
+3. tag `v0.1.0` 已推送。GitHub Release 含 arm64 dmg/zip/`latest-mac.yml`：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 。`release.yml` 改为先 `--publish never` 再 `softprops/action-gh-release`（避免 dmg/zip 并行创建 Release 的 422）。
+4. 干净机器首次安装 / Gatekeeper / 登录鉴权仍待人工（阶段 5–6）。
 
 ### 后续（v0.2+，非必须）
 

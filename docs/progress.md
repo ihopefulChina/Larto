@@ -2,6 +2,24 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — 博客改名发布，本机换成 Larto
+
+**做了什么**
+
+- 博客文章 `post/feishu-devtools-h5-debugging` 全文改为 Larto（permalink 未改）；封面换成同构图的 Larto 字标，工作台截图换成标题为 Web - Larto 的实机图。Gridea 已渲染；GitHub Pages 仓库 `ihopefulchina.github.io` 已包含该版本。
+- Larto 源码已推到 `ihopefulChina/Larto`（含官网截图）。本机打了 arm64 包，将 `/Applications` 旧应用移入废纸篓后安装 `Larto.app`（Bundle ID `app.ihopeful.Larto` 0.1.1）。官方「飞书开发者工具」未动。
+- Codex MCP 从表 `feishu-devtools`（`npx feishu-devtools-mcp@latest`）改为 `larto`，命令指向仓库内 `packages/larto-mcp/bin.mjs`；原配置备份在 `~/.codex/config.toml.bak-*`。
+
+**验证**
+
+- `/health` 返回 `app=Larto`、`version=0.1.1`、`guest.attached=true`。userData 在 `~/Library/Application Support/Larto`，设置已从旧目录迁过来。
+- 博客 live HTML：`Larto` 31 处，旧产品名 0；封面 PNG `content-length=912805`。官网 `https://ihopefulchina.github.io/Larto/` HTTP 200。
+
+**结论 / 遗留**
+
+- `larto-mcp` 尚未发布到 npm；本机 Codex 走本地 bin。Codex 需重启后才会加载新 server。
+- 未打新的 GitHub Release（v0.1.1 资产文件名仍是旧前缀）。真实飞书登录 / JSAPI / 签名仍待 UAT。
+
 ## 2026-09-07 — 产品更名为 Larto
 
 **做了什么**

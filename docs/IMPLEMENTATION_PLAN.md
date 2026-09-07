@@ -1,4 +1,4 @@
-# FeishuDevTools 实施计划（接力手册）
+# Larto 实施计划（接力手册）
 
 > 面向接力的人或 AI。读完本文件 + `docs/ARCHITECTURE.md` + `docs/progress.md`，不看聊天记录也能继续。
 > 所有阶段都以「可验证的验收标准」结束；未经真实飞书环境验证的项一律标为 **UAT 待做**，不要在文档里写成已完成。
@@ -23,7 +23,7 @@
 | 1j | 系统菜单（帮助/设置/关于/检查更新…） | `src/main/menu.ts` + 各 modal | 完成 |
 | 2 | MCP | `src/main/mcp.ts`（Streamable HTTP，仅回环） | 完成，E2E 就是通过 MCP 驱动的 |
 | 3 | 名称/图标 | `build/icon.icns`, `resources/`, `scripts/make-icons.mjs` | 完成 |
-| 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为应用真实截图；Pages 已部署 https://ihopefulchina.github.io/FeishuDevTools/ |
+| 4 | 官网（Apple 风、暗色切换） | `website/`（纯静态，无构建） + `pages.yml` | 完成；hero 为应用真实截图；Pages 已部署 https://ihopefulchina.github.io/Larto/ |
 | 5 | GitHub、v0.1.0、无 bug | `.github/workflows/*`, 本文件 §3 | **v0.1.0 已发布**（未签名）；签名与真实飞书 UAT 仍为已知限制 |
 | 6 | 跨平台发行 | `src/main/*`, `electron-builder.yml`, `.github/workflows/*` | v0.1.1：macOS arm64/x64、Windows x64、Linux x64 |
 
@@ -44,9 +44,9 @@
 - 自动化验证（本机全部通过，见 `docs/progress.md`）：
   - `pnpm test`：`tests/shared.test.ts` 7 个用例（URL 归一化、设备/UA、JSAPI 错误格式、i18n）+ `tests/openapi.test.ts` 4 个用例（`requestAccess` 授权载荷解析、verify 错误码映射）。`vitest.config.ts` 提供 `@shared` 别名，可直接测试不依赖 `electron` 的主进程模块。
   - `pnpm e2e`：`scripts/e2e.mjs` 启动应用，通过 MCP 依次验证：启动/健康检查、iPhone 13 仿真（390×733，dpr 3，screen 390×844）、Lark UA、JSAPI 回调 `:ok`、JSAPI 日志、Android 机型切换、缩放不改变 CSS 视口、DevTools 停靠 + 截图、关闭、窗口截图、主题切换、清缓存。
-- GitHub 仓库已公开；CI（format/typecheck/test/build/smoke-test）与 Pages 已在 `main` 跑通。官网：https://ihopefulchina.github.io/FeishuDevTools/
+- GitHub 仓库已公开；CI（format/typecheck/test/build/smoke-test）与 Pages 已在 `main` 跑通。官网：https://ihopefulchina.github.io/Larto/
 - 阶段 1–4 已完成（见 `docs/progress.md` 2026-09-04 条目）：窗口最小宽度随机型（官方 `deviceWidth+557` 规则）、模拟器溢出滚动、DevTools 随外观切换重建、`requestAccess` 授权确认弹窗、官网真图。
-- 阶段 7 已发布：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 （未签名 arm64 dmg/zip）。签名 / 真实飞书 UAT 仍为已知限制。
+- 阶段 7 已发布：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0 （未签名 arm64 dmg/zip）。签名 / 真实飞书 UAT 仍为已知限制。
 - 阶段 8 将 v0.1.1 扩展到 macOS arm64/x64、Windows x64、Linux x64；Release workflow 在各原生 runner 构建并聚合资产、SHA-256 清单与构建来源证明。最终 CI/Release 结果以 `docs/progress.md` 最新记录为准。
 - 尚未做过：真实飞书账号登录、`tt.config` / `requestAuthCode` / `requestAccess` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
 
@@ -68,7 +68,7 @@ pnpm icons            # 由 resources/logo-source.png 重新生成 icns/png
 pnpm format           # prettier --write
 ```
 
-- 日志：Electron `userData/logs/main.log`（macOS `~/Library/Application Support/FeishuDevTools`；Windows `%APPDATA%/FeishuDevTools`；Linux `~/.config/FeishuDevTools`）。
+- 日志：Electron `userData/logs/main.log`（macOS `~/Library/Application Support/Larto`；Windows `%APPDATA%/Larto`；Linux `~/.config/Larto`）。
 - 设置：同目录 `settings.json`；会话：有受保护的系统密钥环时写入 `account.json`（Cookie 经 safeStorage 加密），否则只保留在当前进程内存中。
 - 一次性自检：`pnpm exec electron . --smoke-test=/tmp/smoke.png`（CI 用；等 guest 附着后截图退出，非 0 表示失败）。
 - 开发时 MCP 地址：`http://127.0.0.1:17331/mcp`，健康检查 `GET /health`。
@@ -81,7 +81,7 @@ pnpm format           # prettier --write
 
 目标：对照 `docs/RESEARCH_OFFICIAL_TOOL.md` §2、§3 逐项核对 UI。
 
-结果：iPhone/Android/iPad/iPad Pro/PC 六种机型、50%–150% 缩放、深/浅主题、DevTools 开关截图复核（`/tmp/fdt-e2e/p1-*.png`，未入库）。修正：窗口最小宽度随机型（`window.ts#fitWindowToDevice`，官方规则 `deviceWidth + 70 + 387 + 100`，按显示器工作区裁剪，窗口过窄时自动加宽）；模拟器内容溢出时用 `margin: auto` 居中而非 `justify-content: center`（避免左侧被裁切）；缩放后的机身用 `.gadgetBox` 包裹成缩放后的实际尺寸，滚动/居中按视觉尺寸计算；滚动条改为悬停显示。剩余人工核对项如下，供后续再校：
+结果：iPhone/Android/iPad/iPad Pro/PC 六种机型、50%–150% 缩放、深/浅主题、DevTools 开关截图复核（`/tmp/larto-e2e/p1-*.png`，未入库）。修正：窗口最小宽度随机型（`window.ts#fitWindowToDevice`，官方规则 `deviceWidth + 70 + 387 + 100`，按显示器工作区裁剪，窗口过窄时自动加宽）；模拟器内容溢出时用 `margin: auto` 居中而非 `justify-content: center`（避免左侧被裁切）；缩放后的机身用 `.gadgetBox` 包裹成缩放后的实际尺寸，滚动/居中按视觉尺寸计算；滚动条改为悬停显示。剩余人工核对项如下，供后续再校：
 
 1. 运行 `pnpm dev`，与官方工具（`/Applications/飞书开发者工具.app`，如仍可运行）并排比对：工具栏高度 82px、标题栏 38px、模拟器工具条 28px、按钮态色 `#51565d`、地址栏 hover/focus、历史下拉、机型/缩放下拉。
 2. 检查亮色主题下 `styles/app.css` 的 token（官方仅有暗色，亮色是按同一结构推导的），确保对比度 ≥ 4.5:1。
@@ -119,7 +119,7 @@ pnpm format           # prettier --write
 ### 阶段 4 — 官网真图与文案（0.5 天）— 已完成 2026-09-04
 
 1. 已做：应用加载本地示例 H5（审批列表，虚构数据，无账号信息），iPhone 13 + 停靠 DevTools，用 MCP `screenshot` 的 `window` 与 `devtools` 两张按 `get_state().devtools.bounds` 合成（DevTools 顶部 Chromium 的「切换语言」信息条已裁掉），暗/亮各一张，存为 `website/public/hero-{dark,light}.webp`（≈130 KB/张，3162×1690）。`index.html` 的 `.shot` 现为两张 `<img>`，按 `data-theme` 显示其一；CSS 产品图及其 token 已删除。
-2. 仓库已推送；`pages.yml` 部署成功，官网 https://ihopefulchina.github.io/FeishuDevTools/ 可访问。Lighthouse 未跑（待有空再测，不阻塞发版）。
+2. 仓库已推送；`pages.yml` 部署成功，官网 https://ihopefulchina.github.io/Larto/ 可访问。Lighthouse 未跑（待有空再测，不阻塞发版）。
 3. 重新截图：复用 `docs/progress.md` 2026-09-04 条目里描述的流程（本地 http 服务 + MCP），禁止包含账号信息。
 
 验收：Pages 部署成功。Lighthouse 性能/可访问性 ≥ 90 仍待补测。
@@ -146,13 +146,13 @@ pnpm format           # prettier --write
 3. 安装 rc.1；把 version 改为 `0.1.0-rc.2` 再发一次；在 rc.1 里「检查更新」→ 出现更新对话框 → 下载进度 → 「重启安装」→ 重启后版本为 rc.2。
 4. 若 `electron-updater` 报签名校验错误，说明包未签名：macOS 上自动更新**必须**签名，此时只能保留"提示前往下载"路径（`UpdateDialog` 已有 GitHub Release 链接兜底）。
 
-验收：rc→rc 自动更新一次成功；`spctl -a -vv FeishuDevTools.app` 显示 accepted（签名时）。
+验收：rc→rc 自动更新一次成功；`spctl -a -vv Larto.app` 显示 accepted（签名时）。
 
 ### 阶段 7 — v0.1.0 正式发布（0.5 天）— 已发布 2026-09-04
 
 1. 阶段 1–4 通过；阶段 5（真实飞书 UAT）与阶段 6（签名/公证/自动更新）**作为已知限制**写进 CHANGELOG / README / `progress.md`，不阻塞首发。
 2. 已更新 `CHANGELOG.md` 与 README 截图；`package.json` version = `0.1.0`。最低系统版本与 Electron 44 对齐为 macOS 13。
-3. tag `v0.1.0` 已推送。GitHub Release 含 arm64 dmg/zip/`latest-mac.yml`：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 。`release.yml` 改为先 `--publish never` 再 `softprops/action-gh-release`（避免 dmg/zip 并行创建 Release 的 422）。
+3. tag `v0.1.0` 已推送。GitHub Release 含 arm64 dmg/zip/`latest-mac.yml`：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0 。`release.yml` 改为先 `--publish never` 再 `softprops/action-gh-release`（避免 dmg/zip 并行创建 Release 的 422）。
 4. 干净机器首次安装 / Gatekeeper / 登录鉴权仍待人工（阶段 5–6）。
 
 ### 阶段 8 — v0.1.1 跨平台发布（1 天）
@@ -164,7 +164,7 @@ pnpm format           # prettier --write
 5. 官网与 README 的首要任务是让开发者确认能力、安全边界并选择正确下载；系统自动识别只做推荐，始终提供完整手动下载矩阵。截图使用匿名本地示例页，不含账号、租户或内部域名。
 6. 发布前跑本文件 §5 全套、本机 macOS arm64/x64 包启动；发布后等待 CI、Release、Pages 和 npm registry 的最终状态，再记录真实结果。未签名/未公证、Windows SmartScreen、Linux keyring、真实飞书账号 UAT 均需如实披露。
 
-验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view feishu-devtools-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。
+验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view larto-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。
 
 ### 后续（v0.2+，非必须）
 

@@ -9,7 +9,7 @@
  *                                        ◀── webview.send(JSAPI_CHANNEL, HostToGuest) ───────────┘
  *                                                                shell renderer ── ipc 'jsapi:backend' ──▶ main
  */
-export const JSAPI_CHANNEL = 'fdt:jsapi'
+export const JSAPI_CHANNEL = 'larto:jsapi'
 
 /** How an invocation reached the preload; determines the callback style. */
 export type BridgeFlavor = 'ios' | 'pc' | 'android'

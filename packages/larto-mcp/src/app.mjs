@@ -3,9 +3,9 @@ import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
 
 export const DEFAULT_PORT = 17331
-export const BUNDLE_ID = 'app.ihopeful.FeishuDevTools'
-export const DOWNLOAD_URL = 'https://github.com/ihopefulChina/FeishuDevTools/releases/latest'
-export const APP_EXECUTABLE = 'FeishuDevTools'
+export const BUNDLE_ID = 'app.ihopeful.Larto'
+export const DOWNLOAD_URL = 'https://github.com/ihopefulChina/Larto/releases/latest'
+export const APP_EXECUTABLE = 'Larto'
 
 export function endpoint(port) {
   return `http://127.0.0.1:${port}/mcp`
@@ -35,7 +35,7 @@ export function launchCandidates({
   home = homedir()
 } = {}) {
   const candidates = []
-  const override = env.FEISHU_DEVTOOLS_PATH?.trim()
+  const override = env.LARTO_PATH?.trim()
   if (override) candidates.push({ command: override, args: [] })
 
   if (platform === 'darwin') {
@@ -55,11 +55,11 @@ export function launchCandidates({
     candidates.push({ command: `${APP_EXECUTABLE}.exe`, args: [] })
   } else if (platform === 'linux') {
     candidates.push(
-      { command: posix.join(home, '.local', 'bin', 'feishu-dev-tools'), args: [] },
-      { command: '/usr/local/bin/feishu-dev-tools', args: [] },
-      { command: '/usr/bin/feishu-dev-tools', args: [] },
-      { command: '/opt/FeishuDevTools/feishu-dev-tools', args: [] },
-      { command: 'feishu-dev-tools', args: [] },
+      { command: posix.join(home, '.local', 'bin', 'larto'), args: [] },
+      { command: '/usr/local/bin/larto', args: [] },
+      { command: '/usr/bin/larto', args: [] },
+      { command: '/opt/Larto/larto', args: [] },
+      { command: 'larto', args: [] },
       { command: APP_EXECUTABLE, args: [] }
     )
   }
@@ -109,9 +109,7 @@ export async function launchApp(options = {}) {
   }
   throw (
     lastError ??
-    new Error(
-      `FeishuDevTools auto-launch is unsupported on ${options.platform ?? process.platform}`
-    )
+    new Error(`Larto auto-launch is unsupported on ${options.platform ?? process.platform}`)
   )
 }
 
@@ -123,14 +121,14 @@ export async function launchApp(options = {}) {
 export async function ensureApp({ port, launch = true, timeoutMs = 45_000, log = () => {} }) {
   let h = await health(port)
   if (!h.ok) {
-    if (!launch) throw new Error(`FeishuDevTools is not running on 127.0.0.1:${port}.`)
-    log('FeishuDevTools is not running; launching the installed app…')
+    if (!launch) throw new Error(`Larto is not running on 127.0.0.1:${port}.`)
+    log('Larto is not running; launching the installed app…')
     try {
       await launchApp()
     } catch {
       throw new Error(
-        `FeishuDevTools is not installed or could not be started. Download it from ${DOWNLOAD_URL}` +
-          ' or set FEISHU_DEVTOOLS_PATH to the executable.'
+        `Larto is not installed or could not be started. Download it from ${DOWNLOAD_URL}` +
+          ' or set LARTO_PATH to the executable.'
       )
     }
   }
@@ -139,8 +137,8 @@ export async function ensureApp({ port, launch = true, timeoutMs = 45_000, log =
     if (Date.now() > deadline) {
       throw new Error(
         h.ok
-          ? `FeishuDevTools is running but the simulator did not attach within ${timeoutMs / 1000}s.`
-          : `FeishuDevTools did not start listening on 127.0.0.1:${port} within ${timeoutMs / 1000}s. ` +
+          ? `Larto is running but the simulator did not attach within ${timeoutMs / 1000}s.`
+          : `Larto did not start listening on 127.0.0.1:${port} within ${timeoutMs / 1000}s. ` +
               'Check that the MCP server is enabled in Settings and the port matches.'
       )
     }

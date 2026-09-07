@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent, type ReactNode } from 'react'
-import { GITHUB_URL } from '@shared/constants'
+import { APP_NAME, GITHUB_URL } from '@shared/constants'
 import type { I18nKey } from '@shared/i18n'
 import { invoke } from '@/lib/bridge'
 import { isMarkup, sanitizeReleaseNotes } from '@/lib/release-notes'
@@ -20,7 +20,7 @@ export function UpdateDialog() {
   const info = useApp((s) => s.info)
   const autoCheck = useApp((s) => s.settings.autoCheckUpdates)
   const close = () => useApp.getState().openModal(null)
-  const app = info?.name ?? 'FeishuDevTools'
+  const app = info?.name ?? APP_NAME
   const vars = (extra: Record<string, string> = {}) => ({
     app,
     cur: info?.version ?? '',

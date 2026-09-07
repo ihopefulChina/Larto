@@ -1,4 +1,4 @@
-import { GITHUB_URL, WEBSITE_URL } from '@shared/constants'
+import { APP_NAME, GITHUB_URL, WEBSITE_URL } from '@shared/constants'
 import { invoke } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import iconUrl from '@/assets/icon.png'
@@ -10,7 +10,7 @@ export function AboutModal() {
   const mcp = useApp((s) => s.mcp)
   const diagnostics = info
     ? [
-        `FeishuDevTools ${info.version} (${info.arch}${info.isPackaged ? '' : ', dev'})`,
+        `${APP_NAME} ${info.version} (${info.arch}${info.isPackaged ? '' : ', dev'})`,
         `Electron ${info.electron} / Chromium ${info.chrome} / Node ${info.node}`,
         `MCP: ${mcp.running ? mcp.url : 'off'}`,
         `Logs: ${info.logPath}`
@@ -48,7 +48,7 @@ export function AboutModal() {
     >
       <div className="about">
         <img src={iconUrl} alt="" width={96} height={96} />
-        <h2>FeishuDevTools</h2>
+        <h2>{APP_NAME}</h2>
         <div className="meta">
           {t('about.version')} {info?.version ?? '…'} · {info?.arch}
           <br />

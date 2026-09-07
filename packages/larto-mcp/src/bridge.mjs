@@ -104,7 +104,7 @@ export function runBridge({
         failPending(
           controller.signal.aborted
             ? timeoutMessage
-            : `FeishuDevTools is not reachable at ${url} (${err.message ?? err}). Is the app running?`
+            : `Larto is not reachable at ${url} (${err.message ?? err}). Is the app running?`
         )
         return
       }

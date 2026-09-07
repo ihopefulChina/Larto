@@ -97,7 +97,7 @@ export function Modal({
       >
         {chrome === 'default' && (
           <div className="modal-head">
-            <span id="fdt-modal-title">{title}</span>
+            <span id="larto-modal-title">{title}</span>
             <button
               type="button"
               className="tbtn icon"

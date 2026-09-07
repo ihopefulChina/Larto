@@ -16,4 +16,4 @@ build/icon.iconset
 coverage
 .pnpm-store
 *.tsbuildinfo
-packages/feishu-devtools-mcp/*.tgz
+packages/larto-mcp/*.tgz

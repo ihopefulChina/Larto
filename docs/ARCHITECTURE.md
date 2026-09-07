@@ -28,7 +28,7 @@ Electron 44 · electron-vite 5 · React 19 · TypeScript 5.9（strict）· zusta
 └──────────────────────────────────────────────────────────────────┘
           ▲ ipcRenderer.invoke / webContents.send（白名单）
 ┌──────── preload/shell.ts (CJS, sandbox) ────────┐
-│ contextBridge.exposeInMainWorld('fdt', {invoke,on}) │
+│ contextBridge.exposeInMainWorld('larto', {invoke,on}) │
 └─────────────────────────────────────────────────┘
           ▲
 ┌──────────────────── renderer (React) ───────────────────┐
@@ -38,7 +38,7 @@ Electron 44 · electron-vite 5 · React 19 · TypeScript 5.9（strict）· zusta
 │ jsapi/host.ts       监听 <webview> ipc-message，路由 main/shell/mock，记日志 │
 │ components/Simulator.tsx  <webview partition="persist:h5-guest" preload=guest> │
 └─────────────────────────────────────────────────────────┘
-          ▲ ipcRenderer.sendToHost / webview.send（channel fdt:jsapi）
+          ▲ ipcRenderer.sendToHost / webview.send（channel larto:jsapi）
 ┌──────── preload/guest.ts (CJS, sandbox, contextIsolation) ────────┐
 │ 在主世界注入 WebViewJavascriptBridge / __LarkPCSDK__ / LkWebViewJavascriptBridge │
 └──────────────────────────────────────────────────────────────────┘
@@ -68,16 +68,16 @@ Toolbar「调试器」→ `settings.showDevTools` → 渲染 `DevToolsPane`（�
 
 **主题**：DevTools 前端只在加载时读取 `prefers-color-scheme`，之后不跟随 `nativeTheme` 变化，因此 `devtools-dock.ts` 监听 `nativeTheme#updated`，深浅色变化时销毁并重建 view（等 `devtools-closed` 后再打开，否则 Elements 面板为空）。深色时 `THEME_CSS` 把 `--sys-color-cdt-base-container` 等表面/分割线 token 改成 app.css 的深色配色（#1f2329 / #2b2f36 / #373c43），语法高亮等语义色不动；浅色沿用 Chromium 原生白。
 
-**选择元素**：移动机型开着 `Emulation.setTouchEmulationEnabled` 时，浏览器把鼠标移动/点击转成触摸手势，DevTools 的 inspect overlay 收不到 hover，因而不高亮、点不中（Chrome 自带的 device mode 也是在 inspect 期间关掉触摸模拟）。`INSPECT_HOOK_JS` 包一层 `InspectorFrontendHost.sendMessageToBackend`，看到 `Overlay.setInspectMode` 就 `console.info('[fdt] inspect:on|off')`；`devtools-dock.ts` 在前端 `console-message` 里识别并 emit `inspect-mode` → `guestManager.setInspecting()` 临时关闭触摸模拟（`setTouchEmulationEnabled` / `setEmitTouchEventsForMouse`），选完或关掉 DevTools 后恢复。
+**选择元素**：移动机型开着 `Emulation.setTouchEmulationEnabled` 时，浏览器把鼠标移动/点击转成触摸手势，DevTools 的 inspect overlay 收不到 hover，因而不高亮、点不中（Chrome 自带的 device mode 也是在 inspect 期间关掉触摸模拟）。`INSPECT_HOOK_JS` 包一层 `InspectorFrontendHost.sendMessageToBackend`，看到 `Overlay.setInspectMode` 就 `console.info('[larto] inspect:on|off')`；`devtools-dock.ts` 在前端 `console-message` 里识别并 emit `inspect-mode` → `guestManager.setInspecting()` 临时关闭触摸模拟（`setTouchEmulationEnabled` / `setEmitTouchEventsForMouse`），选完或关掉 DevTools 后恢复。
 
 ### 2.4 JSAPI 调用
 
-页面 `WebViewJavascriptBridge.callHandler(method, params, cb)` → preload 生成 `callbackId`，`sendToHost('fdt:jsapi', {type:'invoke', ...})` → `jsapi/host.ts`：`classifyJsapi(method)`
+页面 `WebViewJavascriptBridge.callHandler(method, params, cb)` → preload 生成 `callbackId`，`sendToHost('larto:jsapi', {type:'invoke', ...})` → `jsapi/host.ts`：`classifyJsapi(method)`
 - `main`：`invoke('jsapi:backend', ...)` → `jsapi-backend.ts`（`config` → `openapi.verifyJsapiSignature`，需要登录；未登录返回 `99991691`）。`requestAccess` 先 `POST /authen/v1/get_auth_info_inner`：`auto_confirm && code` 直接返回；否则 `consent.ts#ConsentBroker.ask()` 发事件 `jsapi:consent {id, info}` 让 shell 渲染 `ConsentModal`（与官方 passport `AuthzModal` 同款），用户点「授权」→ `jsapi:consentDecision {id, accept}` → `POST /authen/v1/confirm_inner`（同一份参数）取 `code`；取消/Esc/180 s 超时/窗口关闭 → `20047`。
 - `shell`：写入 `useSimulator` 状态 → `JsapiOverlays`/`NavBar` 渲染，用户操作后回结果。
 - `mock`：`jsapi-mocks.ts` 固定值（与官方一致）。
 
-结果经 `webview.send('fdt:jsapi', {type:'result', callbackId, data})` 回 preload → 调 cb。每次调用 `invoke('jsapi:log', entry)` 进入主进程环形缓冲（MCP `get_jsapi_log`）。
+结果经 `webview.send('larto:jsapi', {type:'result', callbackId, data})` 回 preload → 调 cb。每次调用 `invoke('jsapi:log', entry)` 进入主进程环形缓冲（MCP `get_jsapi_log`）。
 
 ### 2.5 登录
 
@@ -87,7 +87,7 @@ passport 所有接口的响应体都是信封 `{ code, message, data }`（`http.
 
 ### 2.6 更新
 
-启动后（`autoCheckUpdates`，`check({manual:false})`）与菜单「检查更新」（`manual:true`）→ `updater.ts`：先判断当前包能否原地更新，再由 `autoUpdater.checkForUpdates()` 驱动状态机 `idle/checking/available/notAvailable/unsupported/downloading/downloaded/error`，通过 `update:state` 事件推给 `UpdateDialog`。macOS app、Windows NSIS 与 Linux AppImage 支持应用内更新；Windows portable 及 Linux DEB/RPM/tar.gz 明确显示需手动替换，开发构建也不会误连正式更新通道。更新弹窗采用 Sparkle 式布局：图标 + 版本行 + 经白名单清洗的 Release notes + 「自动检查」复选框。重叠的自动/手动检查只共享一个 updater 操作，并保留手动可见语义；五秒启动定时器会重读实时设置，已有可用版本或正在下载/已下载时不会再检查覆盖状态。「安装」会先同步进入 `downloading` 再调用 `downloadUpdate()`，防止连点绕过状态锁；`downloaded` 后「安装并重新启动」→ `quitAndInstall()`，`error` 时改为「前往下载页」。`update:skip` 让静默检查跳过指定版本，手动检查仍报告。Feed 来自 `electron-builder.yml` 的 GitHub provider；开发环境可用 `FDT_UPDATE_FEED=http://127.0.0.1:<port>/` 走本地假 feed。
+启动后（`autoCheckUpdates`，`check({manual:false})`）与菜单「检查更新」（`manual:true`）→ `updater.ts`：先判断当前包能否原地更新，再由 `autoUpdater.checkForUpdates()` 驱动状态机 `idle/checking/available/notAvailable/unsupported/downloading/downloaded/error`，通过 `update:state` 事件推给 `UpdateDialog`。macOS app、Windows NSIS 与 Linux AppImage 支持应用内更新；Windows portable 及 Linux DEB/RPM/tar.gz 明确显示需手动替换，开发构建也不会误连正式更新通道。更新弹窗采用 Sparkle 式布局：图标 + 版本行 + 经白名单清洗的 Release notes + 「自动检查」复选框。重叠的自动/手动检查只共享一个 updater 操作，并保留手动可见语义；五秒启动定时器会重读实时设置，已有可用版本或正在下载/已下载时不会再检查覆盖状态。「安装」会先同步进入 `downloading` 再调用 `downloadUpdate()`，防止连点绕过状态锁；`downloaded` 后「安装并重新启动」→ `quitAndInstall()`，`error` 时改为「前往下载页」。`update:skip` 让静默检查跳过指定版本，手动检查仍报告。Feed 来自 `electron-builder.yml` 的 GitHub provider；开发环境可用 `LARTO_UPDATE_FEED=http://127.0.0.1:<port>/` 走本地假 feed。
 
 ### 2.7 网络代理
 
@@ -99,7 +99,7 @@ passport 所有接口的响应体都是信封 `{ code, message, data }`（`http.
 
 `navigate` 走 `shell:command` → `navigateTo()` → `simulatorActions.loadUrl()`（写入地址栏历史）。渲染层 `<webview>` 元素拿到 guest id 会比主进程 `did-attach-webview` 晚一拍：Electron 把 `did-attach` 作为普通消息派发，可能先于元素自己 create-and-attach 调用的回包到达，此时 `getWebContentsId()` 抛错。因此 `Simulator.tsx#attachGuest` 失败后每 20ms 重试（`dom-ready` 仍是兜底），`loadUrl()` 在还没有 webview 时把 URL 记为 `pendingUrl`；attach 完成后用 `takePendingUrl()` 取出，并由 `loadUrlAndWait()` 等到导航完成或失败后才发 `guest:ready`。这样 `/health` 就绪后立刻 `navigate` 不会被静默吞掉，紧接着的 `set_device` 也不会取消启动导航并把页面留在 `about:blank`。
 
-**stdio 桥（`packages/feishu-devtools-mcp`，npm）**：面向只支持 stdio 的客户端与“由 AI 拉起应用”的场景。`bin.mjs` 启动时 `ensureApp()`：`GET /health` 不通则按系统尝试启动已安装应用——macOS 用 bundle id，Windows 查 LocalAppData/Program Files 与 PATH，Linux 查常见 bin/opt 路径与 PATH；非标准或 portable 位置可用 `FEISHU_DEVTOOLS_PATH` 明确指定。随后轮询到 `guest.attached`（45 s 超时，`--no-launch` 关闭），再把 stdin JSON-RPC 转发到 `/mcp`，将 SSE/JSON 响应逐条写回 stdout（诊断只走 stderr）。桥跟踪每个请求 id：SSE 中断、空/非 JSON/未完成响应与超时都会为尚未完成的请求返回一次 `-32000`，通知仍保持静默。`install <cursor|claude-code|claude-desktop|codex>` 合并写入对应客户端配置，统一注册 `npx --yes feishu-devtools-mcp@latest`。桥不缓存、不持有凭证；registry 入口只有在 npm 实际发布并可查询后才可用。
+**stdio 桥（`packages/larto-mcp`，npm）**：面向只支持 stdio 的客户端与“由 AI 拉起应用”的场景。`bin.mjs` 启动时 `ensureApp()`：`GET /health` 不通则按系统尝试启动已安装应用——macOS 用 bundle id，Windows 查 LocalAppData/Program Files 与 PATH，Linux 查常见 bin/opt 路径与 PATH；非标准或 portable 位置可用 `LARTO_PATH` 明确指定。随后轮询到 `guest.attached`（45 s 超时，`--no-launch` 关闭），再把 stdin JSON-RPC 转发到 `/mcp`，将 SSE/JSON 响应逐条写回 stdout（诊断只走 stderr）。桥跟踪每个请求 id：SSE 中断、空/非 JSON/未完成响应与超时都会为尚未完成的请求返回一次 `-32000`，通知仍保持静默。`install <cursor|claude-code|claude-desktop|codex>` 合并写入对应客户端配置，统一注册 `npx --yes larto-mcp@latest`。桥不缓存、不持有凭证；registry 入口只有在 npm 实际发布并可查询后才可用。
 
 ## 3. 安全模型
 
@@ -111,10 +111,10 @@ passport 所有接口的响应体都是信封 `{ code, message, data }`（`http.
 
 ## 4. 存储与路径
 
-平台 userData 目录（macOS `~/Library/Application Support/FeishuDevTools`、Windows `%APPDATA%/FeishuDevTools`、Linux `~/.config/FeishuDevTools`）：
+平台 userData 目录（macOS `~/Library/Application Support/Larto`、Windows `%APPDATA%/Larto`、Linux `~/.config/Larto`）：
 - `settings.json`：`Settings`（`shared/settings.ts`），version 字段用于迁移。
 - `account.json`：仅在系统提供受保护的 `safeStorage` 后端时存在；`sessionEnc` / `sessionListEnc` 是加密后的 base64。Linux `basic_text`/未知后端只使用内存，不写会话文件。
-- 环境变量 `FDT_USER_DATA=<dir>` 可把 userData / sessionData 整体指到别处（`scripts/e2e.mjs` 用临时目录，避免测试污染真实设置）。
+- 环境变量 `LARTO_USER_DATA=<dir>` 可把 userData / sessionData 整体指到别处（`scripts/e2e.mjs` 用临时目录，避免测试污染真实设置）。
 - `logs/main.log`：超过 5MB 轮转为 `main.log.1`。
 - `Partitions/h5-guest/`：H5 会话 `persist:h5-guest`（清缓存会 `clearStorageData` + `clearCache`）。
 - 登录子窗口使用非持久分区 `login-<timestamp>`，关闭即丢弃。

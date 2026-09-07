@@ -1,7 +1,7 @@
 {
-  "name": "feishu-devtools-mcp",
+  "name": "larto-mcp",
   "version": "0.1.1",
-  "description": "Cross-platform stdio bridge and one-command installer for the FeishuDevTools MCP server (Feishu/Lark H5 simulator).",
+  "description": "Cross-platform stdio bridge and one-command installer for the Larto MCP server (Feishu/Lark H5 simulator).",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -11,13 +11,13 @@
     "h5",
     "simulator"
   ],
-  "homepage": "https://ihopefulchina.github.io/FeishuDevTools/",
+  "homepage": "https://ihopefulchina.github.io/Larto/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ihopefulChina/FeishuDevTools.git",
-    "directory": "packages/feishu-devtools-mcp"
+    "url": "git+https://github.com/ihopefulChina/Larto.git",
+    "directory": "packages/larto-mcp"
   },
-  "bugs": "https://github.com/ihopefulChina/FeishuDevTools/issues",
+  "bugs": "https://github.com/ihopefulChina/Larto/issues",
   "license": "MIT",
   "publishConfig": {
     "access": "public",
@@ -29,7 +29,7 @@
   },
   "type": "module",
   "bin": {
-    "feishu-devtools-mcp": "bin.mjs"
+    "larto-mcp": "bin.mjs"
   },
   "files": [
     "bin.mjs",

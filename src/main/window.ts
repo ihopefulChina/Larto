@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, screen, shell } from 'electron'
+import { APP_NAME } from '@shared/constants'
 import { findDevice, type DeviceSpec } from '@shared/devices'
 import type { IpcEventChannel, IpcEvents } from '@shared/ipc'
 import type { SettingsStore } from './store'
@@ -135,7 +136,7 @@ export function createMainWindow(settings: SettingsStore): BrowserWindow {
     minWidth: DEFAULT_WINDOW.minWidth,
     minHeight: DEFAULT_WINDOW.minHeight,
     show: false,
-    title: 'FeishuDevTools',
+    title: APP_NAME,
     backgroundColor: windowBackgroundColor(dark),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/shell.cjs'),

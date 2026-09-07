@@ -18,7 +18,7 @@
 ## 验证
 
 - 先跑最窄的相关验证，提交前跑全套：`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`。
-- E2E 需要本机有显示器；截图输出在 `/tmp/fdt-e2e/`，不要提交。
+- E2E 需要本机有显示器；截图输出在 `/tmp/larto-e2e/`，不要提交。
 - 静态检查/单平台构建通过 ≠ 跨平台原生启动、真实飞书 UAT、签名或发布通过；未做过的项在文档里明确写「待 UAT」。
 - 报告时列出：已运行的检查、结果、未运行项。
 

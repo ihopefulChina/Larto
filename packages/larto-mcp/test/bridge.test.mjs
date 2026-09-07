@@ -64,7 +64,7 @@ test('SseParser yields complete data payloads across chunk boundaries', () => {
 })
 
 test('auto-launch targets the packaged application on every supported platform', () => {
-  assert.equal(BUNDLE_ID, 'app.ihopeful.FeishuDevTools')
+  assert.equal(BUNDLE_ID, 'app.ihopeful.Larto')
   assert.deepEqual(launchCandidates({ platform: 'darwin', env: {}, home: '/Users/test' }), [
     { command: 'open', args: ['-g', '-b', BUNDLE_ID] }
   ])
@@ -73,17 +73,14 @@ test('auto-launch targets the packaged application on every supported platform',
     env: { LOCALAPPDATA: 'C:\\Users\\test\\AppData\\Local' },
     home: 'C:\\Users\\test'
   })
-  assert.equal(
-    windows[0].command,
-    'C:\\Users\\test\\AppData\\Local\\Programs\\FeishuDevTools\\FeishuDevTools.exe'
-  )
-  assert.equal(windows.at(-1).command, 'FeishuDevTools.exe')
+  assert.equal(windows[0].command, 'C:\\Users\\test\\AppData\\Local\\Programs\\Larto\\Larto.exe')
+  assert.equal(windows.at(-1).command, 'Larto.exe')
   const linux = launchCandidates({ platform: 'linux', env: {}, home: '/home/test' })
   assert.deepEqual(linux[0], {
-    command: '/home/test/.local/bin/feishu-dev-tools',
+    command: '/home/test/.local/bin/larto',
     args: []
   })
-  assert.equal(linux.at(-1).command, 'FeishuDevTools')
+  assert.equal(linux.at(-1).command, 'Larto')
 })
 
 test('auto-launch tries the next installation candidate without invoking a shell', async () => {
@@ -134,11 +131,11 @@ test('Claude Desktop config paths follow native platform conventions', () => {
 test('serverEntry only adds --port when it differs from the default', () => {
   assert.deepEqual(serverEntry({ platform: 'darwin' }), {
     command: 'npx',
-    args: ['--yes', 'feishu-devtools-mcp@latest']
+    args: ['--yes', 'larto-mcp@latest']
   })
   assert.deepEqual(serverEntry({ port: 18000, platform: 'darwin' }), {
     command: 'npx',
-    args: ['--yes', 'feishu-devtools-mcp@latest', '--port', '18000']
+    args: ['--yes', 'larto-mcp@latest', '--port', '18000']
   })
   assert.deepEqual(
     serverEntry({
@@ -147,7 +144,7 @@ test('serverEntry only adds --port when it differs from the default', () => {
     }),
     {
       command: 'C:\\Windows\\System32\\cmd.exe',
-      args: ['/d', '/s', '/c', 'npx', '--yes', 'feishu-devtools-mcp@latest']
+      args: ['/d', '/s', '/c', 'npx', '--yes', 'larto-mcp@latest']
     }
   )
 })
@@ -183,21 +180,21 @@ test('--project fails instead of being silently ignored by unsupported clients',
 test('mergeJsonConfig keeps other servers and creates the file when missing', () => {
   const entry = serverEntry({ platform: 'darwin' })
   const fresh = JSON.parse(mergeJsonConfig('', entry))
-  assert.deepEqual(fresh, { mcpServers: { 'feishu-devtools': entry } })
+  assert.deepEqual(fresh, { mcpServers: { larto: entry } })
   const existing = JSON.stringify({
-    mcpServers: { other: { url: 'http://x' }, 'feishu-devtools': { command: 'old' } },
+    mcpServers: { other: { url: 'http://x' }, larto: { command: 'old' } },
     theme: 'dark'
   })
   const merged = JSON.parse(mergeJsonConfig(existing, entry))
   assert.deepEqual(merged, {
-    mcpServers: { other: { url: 'http://x' }, 'feishu-devtools': entry },
+    mcpServers: { other: { url: 'http://x' }, larto: entry },
     theme: 'dark'
   })
   assert.throws(() => mergeJsonConfig('[]', entry))
 })
 
 test('installer preserves JSON formatting and keeps an exact backup before atomic replacement', async (t) => {
-  const home = mkdtempSync(join(tmpdir(), 'fdt-mcp-install-'))
+  const home = mkdtempSync(join(tmpdir(), 'larto-mcp-install-'))
   t.after(() => rmSync(home, { recursive: true, force: true }))
   const path = join(home, '.cursor', 'mcp.json')
   const original =
@@ -218,7 +215,7 @@ test('installer preserves JSON formatting and keeps an exact backup before atomi
     theme: 'dark',
     mcpServers: {
       other: { url: 'http://127.0.0.1:9000' },
-      'feishu-devtools': serverEntry({ platform: 'linux', env: {} })
+      larto: serverEntry({ platform: 'linux', env: {} })
     }
   })
   assert.equal(
@@ -234,7 +231,7 @@ test('installer preserves JSON formatting and keeps an exact backup before atomi
 })
 
 test('installer preserves a UTF-8 BOM in JSON configuration', async (t) => {
-  const home = mkdtempSync(join(tmpdir(), 'fdt-mcp-install-bom-'))
+  const home = mkdtempSync(join(tmpdir(), 'larto-mcp-install-bom-'))
   t.after(() => rmSync(home, { recursive: true, force: true }))
   const path = join(home, '.cursor', 'mcp.json')
   mkdirSync(dirname(path), { recursive: true })
@@ -246,7 +243,7 @@ test('installer preserves a UTF-8 BOM in JSON configuration', async (t) => {
   assert.deepEqual(JSON.parse(updated.slice(1)), {
     theme: 'dark',
     mcpServers: {
-      'feishu-devtools': serverEntry({ platform: 'win32', env: { ComSpec: 'cmd.exe' } })
+      larto: serverEntry({ platform: 'win32', env: { ComSpec: 'cmd.exe' } })
     }
   })
 })
@@ -255,7 +252,7 @@ test(
   'installer updates a symbolic-link target without replacing the link',
   { skip: process.platform === 'win32' },
   async (t) => {
-    const home = mkdtempSync(join(tmpdir(), 'fdt-mcp-install-link-'))
+    const home = mkdtempSync(join(tmpdir(), 'larto-mcp-install-link-'))
     t.after(() => rmSync(home, { recursive: true, force: true }))
     const managedDir = join(home, 'managed')
     const target = join(managedDir, 'cursor.json')
@@ -270,7 +267,7 @@ test(
     assert.deepEqual(JSON.parse(readFileSync(target, 'utf8')), {
       theme: 'dark',
       mcpServers: {
-        'feishu-devtools': serverEntry({ platform: 'linux', env: {} })
+        larto: serverEntry({ platform: 'linux', env: {} })
       }
     })
     assert.equal(readFileSync(`${target}.bak`, 'utf8'), '{"theme":"dark"}\n')
@@ -288,33 +285,33 @@ test('mergeCodexToml appends or replaces the server table without touching the r
   const appended = mergeCodexToml('model = "gpt-5"\n', entry)
   assert.equal(
     appended,
-    'model = "gpt-5"\n\n[mcp_servers.feishu-devtools]\ncommand = "npx"\nargs = ["--yes", "feishu-devtools-mcp@latest", "--port", "18000"]\n'
+    'model = "gpt-5"\n\n[mcp_servers.larto]\ncommand = "npx"\nargs = ["--yes", "larto-mcp@latest", "--port", "18000"]\n'
   )
   const replaced = mergeCodexToml(
-    '[mcp_servers.feishu-devtools]\ncommand = "old"\nargs = []\n\n[mcp_servers.other]\ncommand = "x"\n',
+    '[mcp_servers.larto]\ncommand = "old"\nargs = []\n\n[mcp_servers.other]\ncommand = "x"\n',
     serverEntry({ platform: 'darwin' })
   )
   assert.equal(
     replaced,
-    '[mcp_servers.feishu-devtools]\ncommand = "npx"\nargs = ["--yes", "feishu-devtools-mcp@latest"]\n\n[mcp_servers.other]\ncommand = "x"\n'
+    '[mcp_servers.larto]\ncommand = "npx"\nargs = ["--yes", "larto-mcp@latest"]\n\n[mcp_servers.other]\ncommand = "x"\n'
   )
-  assert.match(mergeCodexToml('', entry), /^\[mcp_servers\.feishu-devtools\]\n/)
+  assert.match(mergeCodexToml('', entry), /^\[mcp_servers\.larto\]\n/)
 })
 
 test('mergeCodexToml ignores commented examples and replaces equivalent quoted tables', () => {
   const entry = serverEntry({ platform: 'darwin' })
   for (const header of [
-    '[mcp_servers."feishu-devtools"]',
-    '["mcp_servers".feishu-devtools]',
-    "['mcp_servers'.'feishu-devtools']",
-    '[ mcp_servers . "feishu-devtools" ]'
+    '[mcp_servers."larto"]',
+    '["mcp_servers".larto]',
+    "['mcp_servers'.'larto']",
+    '[ mcp_servers . "larto" ]'
   ]) {
     const merged = mergeCodexToml(
-      `# [mcp_servers.feishu-devtools]\n# command = "example"\n\n${header} # active\ncommand = "old"\nargs = []\n\n[mcp_servers.other]\ncommand = "x"\n`,
+      `# [mcp_servers.larto]\n# command = "example"\n\n${header} # active\ncommand = "old"\nargs = []\n\n[mcp_servers.other]\ncommand = "x"\n`,
       entry
     )
-    assert.equal((merged.match(/^\[mcp_servers\.feishu-devtools\]$/gm) ?? []).length, 1)
-    assert.match(merged, /^# \[mcp_servers\.feishu-devtools\]$/m)
+    assert.equal((merged.match(/^\[mcp_servers\.larto\]$/gm) ?? []).length, 1)
+    assert.match(merged, /^# \[mcp_servers\.larto\]$/m)
     assert.doesNotMatch(merged, /command = "old"/)
     assert.match(merged, /\n\n\[mcp_servers\.other\]\ncommand = "x"\n$/)
   }
@@ -322,16 +319,16 @@ test('mergeCodexToml ignores commented examples and replaces equivalent quoted t
 
 test('mergeCodexToml does not treat a commented table as active configuration', () => {
   const merged = mergeCodexToml(
-    '# [mcp_servers.feishu-devtools]\n# command = "example"\n',
+    '# [mcp_servers.larto]\n# command = "example"\n',
     serverEntry({ platform: 'darwin' })
   )
-  assert.match(merged, /^# \[mcp_servers\.feishu-devtools\]$/m)
-  assert.equal((merged.match(/^\[mcp_servers\.feishu-devtools\]$/gm) ?? []).length, 1)
+  assert.match(merged, /^# \[mcp_servers\.larto\]$/m)
+  assert.equal((merged.match(/^\[mcp_servers\.larto\]$/gm) ?? []).length, 1)
 })
 
 test('mergeCodexToml preserves CRLF in the surrounding config', () => {
   const merged = mergeCodexToml(
-    'model = "gpt-5"\r\n\r\n[mcp_servers.feishu-devtools]\r\ncommand = "old"\r\nargs = []\r\n\r\n[mcp_servers.other]\r\ncommand = "x"\r\n',
+    'model = "gpt-5"\r\n\r\n[mcp_servers.larto]\r\ncommand = "old"\r\nargs = []\r\n\r\n[mcp_servers.other]\r\ncommand = "x"\r\n',
     serverEntry({ platform: 'darwin' })
   )
   assert.equal(merged.replaceAll('\r\n', '').includes('\n'), false)
@@ -340,11 +337,11 @@ test('mergeCodexToml preserves CRLF in the surrounding config', () => {
 
 test('mergeCodexToml preserves a UTF-8 BOM without duplicating the target table', () => {
   const merged = mergeCodexToml(
-    '\uFEFF[mcp_servers.feishu-devtools]\r\ncommand = "old"\r\nargs = []\r\n',
+    '\uFEFF[mcp_servers.larto]\r\ncommand = "old"\r\nargs = []\r\n',
     serverEntry({ platform: 'win32', env: { ComSpec: 'cmd.exe' } })
   )
   assert.equal(merged.startsWith('\uFEFF'), true)
-  assert.equal((merged.match(/\[mcp_servers\.feishu-devtools\]/g) ?? []).length, 1)
+  assert.equal((merged.match(/\[mcp_servers\.larto\]/g) ?? []).length, 1)
   assert.doesNotMatch(merged, /command = "old"/)
   assert.equal(merged.slice(1).replaceAll('\r\n', '').includes('\n'), false)
 })

@@ -1,4 +1,5 @@
 import { app, session } from 'electron'
+import { APP_NAME } from '@shared/constants'
 import { createLogger } from './logger'
 import { summarizeErrorForLog } from './log-summary'
 
@@ -37,7 +38,7 @@ export async function requestJson<T = unknown>(
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 15000)
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'User-Agent': `opdev-ide/${app.getVersion()} FeishuDevTools`,
+    'User-Agent': `opdev-ide/${app.getVersion()} ${APP_NAME}`,
     ...opts.headers
   }
   if (opts.cookie) headers['Cookie'] = opts.cookie

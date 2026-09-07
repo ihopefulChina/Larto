@@ -566,7 +566,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
     scope: 'all' | 'touch' = 'all',
     viewport = this.viewport
   ): Promise<void> {
-    if (process.env['FDT_NO_EMULATION']) return
+    if (process.env['LARTO_NO_EMULATION']) return
     try {
       const dbg = contents.debugger
       if (!dbg.isAttached()) {

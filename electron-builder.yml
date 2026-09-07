@@ -5,8 +5,8 @@
 # Without them the bundle is ad-hoc signed by scripts/after-pack.mjs (Gatekeeper then shows the
 # recoverable "unidentified developer" prompt instead of "damaged"). Windows artifacts remain
 # unsigned until a Windows code-signing certificate is configured.
-appId: app.ihopeful.FeishuDevTools
-productName: FeishuDevTools
+appId: app.ihopeful.Larto
+productName: Larto
 copyright: Copyright © 2026 ihopefulChina
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 directories:
@@ -40,9 +40,9 @@ mac:
   minimumSystemVersion: '13.0'
   notarize: true
   extendInfo:
-    NSCameraUsageDescription: FeishuDevTools 需要访问摄像头以调试使用相机的网页应用。
-    NSMicrophoneUsageDescription: FeishuDevTools 需要访问麦克风以调试使用音频的网页应用。
-    NSLocationWhenInUseUsageDescription: FeishuDevTools 需要位置信息以模拟 JSAPI 定位能力。
+    NSCameraUsageDescription: Larto 需要访问摄像头以调试使用相机的网页应用。
+    NSMicrophoneUsageDescription: Larto 需要访问麦克风以调试使用音频的网页应用。
+    NSLocationWhenInUseUsageDescription: Larto 需要位置信息以模拟 JSAPI 定位能力。
 win:
   artifactName: ${productName}-${version}-windows-${arch}.${ext}
   icon: build/icon.png
@@ -66,6 +66,7 @@ portable:
   artifactName: ${productName}-${version}-windows-${arch}-portable.${ext}
   requestExecutionLevel: user
 linux:
+  executableName: larto
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
   icon: build/icon.png
   category: Development
@@ -104,5 +105,5 @@ dmg:
 publish:
   provider: github
   owner: ihopefulChina
-  repo: FeishuDevTools
+  repo: Larto
   releaseType: release

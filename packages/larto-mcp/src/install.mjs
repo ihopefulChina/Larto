@@ -15,7 +15,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, posix, resolve, win32 } from 'node:path'
 import { DEFAULT_PORT } from './app.mjs'
 
-export const SERVER_NAME = 'feishu-devtools'
+export const SERVER_NAME = 'larto'
 export const CLIENTS = ['cursor', 'claude-code', 'claude-desktop', 'codex']
 
 function commandShell(env) {
@@ -33,13 +33,13 @@ export function cliInvocation(
     : { command, args }
 }
 
-/** The registry-backed stdio entry every client gets: `npx --yes feishu-devtools-mcp@latest`. */
+/** The registry-backed stdio entry every client gets: `npx --yes larto-mcp@latest`. */
 export function serverEntry({
   port = DEFAULT_PORT,
   platform = process.platform,
   env = process.env
 } = {}) {
-  const npxArgs = ['--yes', 'feishu-devtools-mcp@latest']
+  const npxArgs = ['--yes', 'larto-mcp@latest']
   if (port !== DEFAULT_PORT) npxArgs.push('--port', String(port))
   return cliInvocation('npx', npxArgs, { platform, env })
 }
@@ -81,7 +81,7 @@ export function mergeJsonConfig(text, entry) {
   return bom + JSON.stringify(config, null, indentation).replace(/\n/g, eol) + trailingEol
 }
 
-/** Append (or replace) the `[mcp_servers.feishu-devtools]` table in a Codex `config.toml`. */
+/** Append (or replace) the `[mcp_servers.larto]` table in a Codex `config.toml`. */
 export function mergeCodexToml(text, entry) {
   const source = text ?? ''
   const bom = source.startsWith('\uFEFF') ? '\uFEFF' : ''

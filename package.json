@@ -1,19 +1,19 @@
 {
-  "name": "feishu-dev-tools",
-  "productName": "FeishuDevTools",
-  "desktopName": "FeishuDevTools.desktop",
+  "name": "larto",
+  "productName": "Larto",
+  "desktopName": "Larto.desktop",
   "version": "0.1.1",
   "description": "Cross-platform web-app debugger for Feishu/Lark H5 development: device simulator, docked Chromium DevTools, real Feishu QR login, official JSAPI bridge, and MCP server for AI agents.",
   "author": {
     "name": "ihopefulChina",
     "url": "https://github.com/ihopefulChina"
   },
-  "homepage": "https://github.com/ihopefulChina/FeishuDevTools",
+  "homepage": "https://github.com/ihopefulChina/Larto",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ihopefulChina/FeishuDevTools.git"
+    "url": "https://github.com/ihopefulChina/Larto.git"
   },
-  "bugs": "https://github.com/ihopefulChina/FeishuDevTools/issues",
+  "bugs": "https://github.com/ihopefulChina/Larto/issues",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -28,7 +28,7 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.preload.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "vitest run --passWithNoTests && node --test scripts/*.test.mjs packages/feishu-devtools-mcp/test/*.test.mjs",
+    "test": "vitest run --passWithNoTests && node --test scripts/*.test.mjs packages/larto-mcp/test/*.test.mjs",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

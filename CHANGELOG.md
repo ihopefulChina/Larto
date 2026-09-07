@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- 产品更名为 **Larto**。应用显示名、GitHub 仓库、官网、Bundle ID（`app.ihopeful.Larto`）、Linux 可执行文件（`larto`）、MCP 服务名（`larto`）与 npm 包（`larto-mcp`）全部切换。
+- 首次启动时，若新的 userData 目录还没有设置或会话，会从旧产品目录复制已有资料。
+
 ## [0.1.1] — 2026-09-04
 
 跨平台发布版本。将网页调试工作台扩展到 macOS 双架构、Windows x64 与 Linux x64，并把下载、校验、MCP 发布和安全披露纳入同一条可追溯的发版链路。
@@ -13,7 +20,7 @@
 - Linux x64 提供 AppImage、DEB、RPM 与 tar.gz。
 - Release 汇总生成 `SHA256SUMS.txt`，所有资产文件名明确标注平台与架构。
 - Release 在 macOS Apple Silicon / Intel、Windows 与 Linux 原生 runner 上启动打包后的应用并验证非空截图，再允许聚合发布；产物同时生成 GitHub artifact attestation。
-- `feishu-devtools-mcp@0.1.1` 作为公开 npm stdio 桥发布；支持 Cursor、Claude Code、Claude Desktop 与 Codex 一键注册，并能跨平台拉起已安装的应用。
+- 公开 npm stdio 桥，支持 Cursor、Claude Code、Claude Desktop 与 Codex 一键注册，并能跨平台拉起已安装的应用。
 - 跨平台 CI / Release 矩阵在对应原生 runner 上验证、构建并汇总发布资产。
 
 ### 修复
@@ -35,7 +42,7 @@
 ### 变更
 
 - 默认外观改为深色、默认设备改为 iPhone 17 Pro；默认窗口按设备完整高度计算。
-- 应用 Bundle ID 统一为 `app.ihopeful.FeishuDevTools`。
+- 应用 Bundle ID 统一为 `app.ihopeful.Larto`。
 - 工具栏、设置、检查更新、设备与缩放控制重新整理为更接近开发者工具的信息密度与层级。
 - README 与官网重写为跨平台发布文档；新增自动平台识别、手动下载矩阵、安全边界、签名状态、SHA-256 校验与 UAT 状态说明。
 - 官网的六张明暗主题产品图改为由匿名本地诊断页与临时 profile 可重复生成，避免账号、租户或内部地址进入公开截图。
@@ -61,7 +68,7 @@
 - 深色 / 浅色 / 跟随系统；中英文界面；地址栏历史（10 条）；清缓存；系统菜单。
 - MCP（`http://127.0.0.1:17331/mcp`，仅回环）：导航、机型、缩放、主题、DevTools、截图、DOM / 控制台 / JSAPI 日志等。
 - 自动更新（GitHub Releases）。未签名构建无法走 macOS 自动安装，会退化为打开下载页。
-- 官网：https://ihopefulchina.github.io/FeishuDevTools/
+- 官网：https://ihopefulchina.github.io/Larto/
 
 ### 2026-09-04 重新打包（版本号不变）
 
@@ -81,21 +88,21 @@
 - 深色主题下模拟器机身、状态栏、导航栏和 Home 指示条仍为白色 → 改为跟随主题的 `--sim-*` 色板；网页内容自身配色不变，无背景的页面仍在白色画布上渲染（与官方 `#iframeContainer webview` 一致）。
 - 地址栏不再随窗口拉伸：输入框固定 320px（与官方 `.urlbox .select { width: 320px }` 一致），整体约 386px（含历史箭头），「预览 / 清缓存」紧随其后。
 - 工具条「预览 / 清缓存 / 模拟器 / 调试器 / 登录」改为 14px 图标 + 文案的描边按钮（高仍 28px）；地址栏内刷新/历史保持无边框。
-- 新增待首次发布的 npm 包 `feishu-devtools-mcp`：stdio ↔ 本地 MCP 服务器的桥，应用未运行时自动拉起并等待就绪；发布后以 `npx --yes feishu-devtools-mcp@latest install <cursor|claude-code|claude-desktop|codex>` 一条命令写入客户端配置。
+- 新增待首次发布的 npm 包 `larto-mcp`：stdio ↔ 本地 MCP 服务器的桥，应用未运行时自动拉起并等待就绪；发布后以 `npx --yes larto-mcp@latest install <cursor|claude-code|claude-desktop|codex>` 一条命令写入客户端配置。
 - 官网与 README 重写：跟随系统外观、真实截图（模拟器 / DevTools 分栏）、MCP 与 npm 桥的接入说明、Gatekeeper 与登录数据的常见问题。
 - 刘海机型状态栏时间 / 信号贴在圆角上：水平内边距改为随圆角半径计算（14 Pro 约 26px）。
 - 机型列表在官方 20 组之外增加 iPhone 15 / 16 / 17 / Air。
 - PC 预设默认仍随窗口伸缩（官方 `calc(100% - 40px)`）；右下角可直接拖动调整 viewport，工具条也可指定宽高，或点「适应窗口」回到随窗口。
 - 14 Pro 及更新机型的状态栏改为灵动岛（居中胶囊），时间 / 信号与岛垂直对齐；iPhone 13 仍为刘海。登录后头像不再套工具条描边芯片。机型菜单按 iPhone / Android / iPad / PC 分组。
 - 启动时在 `app.ready` 之前解密登录会话会抛错并把已登录用户打成未登录；现在等 ready 后再读 Keychain。
-- 应用 Bundle ID 改为 `app.ihopeful.FeishuDevTools`；登录资料请求避免默认 Session Cookie 覆盖扫码会话，过期头像保持原色并用描边提示。
+- 应用 Bundle ID 改为 `app.ihopeful.Larto`；登录资料请求避免默认 Session Cookie 覆盖扫码会话，过期头像保持原色并用描边提示。
 - 设置与检查更新界面统一为深色分组卡片；地址栏和模拟定位 placeholder 降低视觉噪音，设备/缩放控制收成紧凑胶囊；iPhone Home Indicator 改为覆盖层，不再产生独立有色安全区。
 
 ### 已知限制
 
 - 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 鉴权、PC 预览推送：代码已实现，**尚未用真实账号验收**。
-- 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
+- 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
-[0.1.1]: https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.1
-[0.1.0]: https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0
+[0.1.1]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.1
+[0.1.0]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0

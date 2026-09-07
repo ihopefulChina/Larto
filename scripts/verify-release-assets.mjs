@@ -12,7 +12,7 @@ const platform = process.argv[3] ?? 'all'
 const { version } = JSON.parse(
   await readFile(resolve(import.meta.dirname, '../package.json'), 'utf8')
 )
-const prefix = `FeishuDevTools-${version}`
+const prefix = `Larto-${version}`
 
 const expected = {
   mac: [
@@ -71,7 +71,7 @@ for (const [metadata, filenames] of Object.entries(metadataChecks)) {
 // change cannot silently weaken the guest webview isolation promised by this project.
 if ((platform === 'linux' || platform === 'all') && process.platform === 'linux') {
   const appImage = resolve(directory, `${prefix}-linux-x64.AppImage`)
-  const scratch = await mkdtemp(resolve(tmpdir(), 'fdt-appimage-verify-'))
+  const scratch = await mkdtemp(resolve(tmpdir(), 'larto-appimage-verify-'))
   try {
     await chmod(appImage, 0o755)
     await execFileAsync(appImage, ['--appimage-extract', '*.desktop'], { cwd: scratch })

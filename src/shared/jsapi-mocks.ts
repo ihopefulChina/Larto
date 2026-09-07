@@ -43,13 +43,13 @@ export const JSAPI_MOCKS: Record<string, MockResponder> = {
     statusBarHeight: 0,
     safeArea: { left: 0, right: 900, top: 0, bottom: 866, width: 900, height: 866 }
   }),
-  getDeviceID: ok({ deviceId: 'fdt-simulator-device' }),
+  getDeviceID: ok({ deviceId: 'larto-simulator-device' }),
   getNetworkType: ok({ networkType: 'wifi', networkAvailable: true }),
   getConnectedWifi: ok({
-    wifi: { SSID: 'FeishuDevTools', BSSID: '00:00:00:00:00:00', secure: true, signalStrength: 100 }
+    wifi: { SSID: 'Larto', BSSID: '00:00:00:00:00:00', secure: true, signalStrength: 100 }
   }),
   'device.connection.getConnectedWifi': ok({
-    ssid: 'FeishuDevTools',
+    ssid: 'Larto',
     bssid: '00:00:00:00:00:00',
     macIp: '192.168.1.2'
   }),

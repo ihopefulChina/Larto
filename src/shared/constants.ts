@@ -1,9 +1,10 @@
 import type { FeishuEnv } from './settings'
 
-export const APP_NAME = 'FeishuDevTools'
-export const GITHUB_REPO = 'ihopefulChina/FeishuDevTools'
+export const APP_NAME = 'Larto'
+export const APP_ID = 'app.ihopeful.Larto'
+export const GITHUB_REPO = 'ihopefulChina/Larto'
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`
-export const WEBSITE_URL = 'https://ihopefulchina.github.io/FeishuDevTools/'
+export const WEBSITE_URL = 'https://ihopefulchina.github.io/Larto/'
 export const FEISHU_H5_DOCS_URL =
   'https://open.feishu.cn/document/client-docs/h5/development-guide/h5-development-guide'
 export const OFFICIAL_TOOL_DOCS_URL =

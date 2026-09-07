@@ -10,6 +10,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
 import { app } from 'electron'
+import { APP_NAME } from '@shared/constants'
 import { DEVICES, ZOOM_LEVELS } from '@shared/devices'
 import type { JsapiLogEntry, ShellCommand } from '@shared/ipc'
 import { ThemeModeSchema } from './settings-schema'
@@ -174,7 +175,7 @@ export class McpService {
       res.end(
         JSON.stringify({
           ok: true,
-          app: 'FeishuDevTools',
+          app: APP_NAME,
           version: app.getVersion(),
           guest: guestManager.state
         })
@@ -208,7 +209,7 @@ export class McpService {
   }
 
   private createServer(): McpServer {
-    const server = new McpServer({ name: 'feishu-dev-tools', version: app.getVersion() })
+    const server = new McpServer({ name: APP_NAME.toLowerCase(), version: app.getVersion() })
     const text = (value: unknown) => ({
       content: [
         {
@@ -263,7 +264,7 @@ export class McpService {
       {
         title: 'Focus window',
         description:
-          'Bring the FeishuDevTools window to the front (screenshots of the DevTools panel need an unoccluded window).'
+          'Bring the Larto window to the front (screenshots of the DevTools panel need an unoccluded window).'
       },
       async () => {
         const win = getMainWindow()
@@ -391,7 +392,7 @@ export class McpService {
       {
         title: 'Screenshot',
         description:
-          'Capture a PNG of the page viewport (default), of the FeishuDevTools shell window (toolbar + simulator frame), or of the docked DevTools panel.',
+          'Capture a PNG of the page viewport (default), of the Larto shell window (toolbar + simulator frame), or of the docked DevTools panel.',
         inputSchema: { target: z.enum(['page', 'window', 'devtools']).optional() }
       },
       async ({ target }) => {

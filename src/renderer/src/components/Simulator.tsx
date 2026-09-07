@@ -24,7 +24,7 @@ import { StatusBar } from './StatusBar'
 import { UrlBar } from './UrlBar'
 
 /** Any truthy value works: main replaces it with the real guest preload in `will-attach-webview`. */
-const PRELOAD_PLACEHOLDER = 'file:///fdt-guest-preload.cjs'
+const PRELOAD_PLACEHOLDER = 'file:///larto-guest-preload.cjs'
 
 export function Simulator({ focusSignal }: { focusSignal: number }) {
   const settings = useApp((s) => s.settings)

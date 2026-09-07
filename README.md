@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="website/public/icon-512.png" width="112" alt="FeishuDevTools 图标" />
+  <img src="website/public/icon-512.png" width="112" alt="Larto 图标" />
 </p>
-<h1 align="center">FeishuDevTools</h1>
+<h1 align="center">Larto</h1>
 <p align="center">
   跨平台飞书 / Lark H5 调试工作台<br />
   macOS Apple Silicon / Intel · Windows x64 · Linux x64 · 本机 MCP
 </p>
 <p align="center">
-  <a href="https://ihopefulchina.github.io/FeishuDevTools/">官网与下载</a> ·
-  <a href="https://github.com/ihopefulChina/FeishuDevTools/releases/latest">GitHub Releases</a> ·
-  <a href="https://www.npmjs.com/package/feishu-devtools-mcp">MCP npm 包</a> ·
+  <a href="https://ihopefulchina.github.io/Larto/">官网与下载</a> ·
+  <a href="https://github.com/ihopefulChina/Larto/releases/latest">GitHub Releases</a> ·
+  <a href="https://www.npmjs.com/package/larto-mcp">MCP npm 包</a> ·
   <a href="CHANGELOG.md">变更记录</a> ·
   <a href="SECURITY.md">安全政策</a> ·
   <a href="docs/ARCHITECTURE.md">架构</a>
@@ -18,14 +18,14 @@
 <p align="center">
   <picture>
     <source srcset="website/public/hero-dark.webp" media="(prefers-color-scheme: dark)" />
-    <img src="website/public/hero-light.webp" width="920" alt="FeishuDevTools：iPhone 17 Pro 模拟器与停靠的 Chromium DevTools" />
+    <img src="website/public/hero-light.webp" width="920" alt="Larto：iPhone 17 Pro 模拟器与停靠的 Chromium DevTools" />
   </picture>
 </p>
 
-FeishuDevTools 专注复现官方开发者工具的「网页调试」工作流：在同一窗口运行设备模拟器与完整 Chromium DevTools，通过飞书扫码登录验证真实 JSAPI 鉴权，并让 Cursor、Claude、Codex 等 AI 客户端通过 MCP 操作调试器。
+Larto 专注复现官方开发者工具的「网页调试」工作流：在同一窗口运行设备模拟器与完整 Chromium DevTools，通过飞书扫码登录验证真实 JSAPI 鉴权，并让 Cursor、Claude、Codex 等 AI 客户端通过 MCP 操作调试器。
 
 > [!IMPORTANT]
-> FeishuDevTools 是独立开源项目，不是飞书官方产品。当前只覆盖飞书 / Lark H5；小程序、网关、工作台、代码编辑器和上传能力不在范围内。
+> Larto 是独立开源项目，不是飞书官方产品。当前只覆盖飞书 / Lark H5；小程序、网关、工作台、代码编辑器和上传能力不在范围内。
 
 ## 能力
 
@@ -46,21 +46,21 @@ FeishuDevTools 专注复现官方开发者工具的「网页调试」工作流�
 
 | 平台 | 架构 | 包格式 | 文件名 |
 | --- | --- | --- | --- |
-| macOS 13+ | Apple Silicon / arm64 | DMG、ZIP | `FeishuDevTools-0.1.1-mac-arm64.{dmg,zip}` |
-| macOS 13+ | Intel / x64 | DMG、ZIP | `FeishuDevTools-0.1.1-mac-x64.{dmg,zip}` |
-| Windows 10/11 | x64 | NSIS 安装版、便携版、ZIP | `FeishuDevTools-0.1.1-windows-x64-setup.exe`、`…-portable.exe`、`…-x64.zip` |
-| Linux | x64 | AppImage、DEB、RPM、tar.gz | `FeishuDevTools-0.1.1-linux-x64.{AppImage,deb,rpm,tar.gz}` |
+| macOS 13+ | Apple Silicon / arm64 | DMG、ZIP | `Larto-0.1.1-mac-arm64.{dmg,zip}` |
+| macOS 13+ | Intel / x64 | DMG、ZIP | `Larto-0.1.1-mac-x64.{dmg,zip}` |
+| Windows 10/11 | x64 | NSIS 安装版、便携版、ZIP | `Larto-0.1.1-windows-x64-setup.exe`、`…-portable.exe`、`…-x64.zip` |
+| Linux | x64 | AppImage、DEB、RPM、tar.gz | `Larto-0.1.1-linux-x64.{AppImage,deb,rpm,tar.gz}` |
 
 ### macOS
 
 1. M1 / M2 / M3 / M4 等芯片下载 `mac-arm64.dmg`；Intel Mac 下载 `mac-x64.dmg`。
-2. 打开 DMG，将 FeishuDevTools 拖入「应用程序」。
+2. 打开 DMG，将 Larto 拖入「应用程序」。
 3. 当前 DMG / ZIP 内的 `.app` 仅做 ad-hoc 签名且未经 Apple 公证；下载容器本身没有 Developer ID 签名。首次打开若被拦截，右键应用选择「打开」，或在「系统设置 → 隐私与安全性」确认放行。
 
 如果仍显示「已损坏」，确认文件来自本项目 Release 且 SHA-256 一致后，再执行：
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app
+xattr -dr com.apple.quarantine /Applications/Larto.app
 ```
 
 ### Windows
@@ -73,7 +73,7 @@ xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app
 
 ### Linux
 
-- AppImage：`chmod +x FeishuDevTools-0.1.1-linux-x64.AppImage` 后运行。它不会回退到无沙箱模式：打包检查会拒绝带 `--no-sandbox` 的桌面入口，应用检测到该参数、Electron 实际开关或 `ELECTRON_DISABLE_SANDBOX` 环境变量也会直接退出。若系统无法提供 Chromium 沙箱，请修复 user namespace 支持或改用其它包格式，不要绕过该保护。
+- AppImage：`chmod +x Larto-0.1.1-linux-x64.AppImage` 后运行。它不会回退到无沙箱模式：打包检查会拒绝带 `--no-sandbox` 的桌面入口，应用检测到该参数、Electron 实际开关或 `ELECTRON_DISABLE_SANDBOX` 环境变量也会直接退出。若系统无法提供 Chromium 沙箱，请修复 user namespace 支持或改用其它包格式，不要绕过该保护。
 - Debian / Ubuntu 系使用 `.deb`，Fedora / RHEL 系使用 `.rpm`；其它发行版可选 `.tar.gz`。
 - 登录会话使用 Electron `safeStorage`。建议桌面环境安装并解锁兼容 Secret Service 的密钥环；后端为 `basic_text`、`unknown` 或没有可用的受保护 keyring 时，应用拒绝持久化新的登录 Cookie：凭证不写入磁盘，只在当前应用进程内有效，退出后需要重新登录。
 
@@ -82,14 +82,14 @@ xattr -dr com.apple.quarantine /Applications/FeishuDevTools.app
 macOS / Linux：
 
 ```bash
-shasum -a 256 ./FeishuDevTools-0.1.1-mac-arm64.dmg
-# Linux 示例：sha256sum ./FeishuDevTools-0.1.1-linux-x64.AppImage
+shasum -a 256 ./Larto-0.1.1-mac-arm64.dmg
+# Linux 示例：sha256sum ./Larto-0.1.1-linux-x64.AppImage
 ```
 
 Windows PowerShell：
 
 ```powershell
-Get-FileHash .\FeishuDevTools-0.1.1-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Larto-0.1.1-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 将输出与 `SHA256SUMS.txt` 中**同名文件**的哈希比对。清单覆盖全部平台，只下载一个安装包时不要直接对整份清单运行 `-c`，否则其它未下载文件会被报告为缺失。
@@ -103,7 +103,7 @@ Get-FileHash .\FeishuDevTools-0.1.1-windows-x64-setup.exe -Algorithm SHA256
 ```jsonc
 {
   "mcpServers": {
-    "feishu-devtools": {
+    "larto": {
       "url": "http://127.0.0.1:17331/mcp"
     }
   }
@@ -113,13 +113,13 @@ Get-FileHash .\FeishuDevTools-0.1.1-windows-x64-setup.exe -Algorithm SHA256
 需要 stdio、自动拉起应用或一键写入客户端配置时，使用 npm 包：
 
 ```bash
-npx --yes feishu-devtools-mcp@0.1.1 install cursor
-npx --yes feishu-devtools-mcp@0.1.1 install claude-code
-npx --yes feishu-devtools-mcp@0.1.1 install claude-desktop
-npx --yes feishu-devtools-mcp@0.1.1 install codex
+npx --yes larto-mcp@0.1.1 install cursor
+npx --yes larto-mcp@0.1.1 install claude-code
+npx --yes larto-mcp@0.1.1 install claude-desktop
+npx --yes larto-mcp@0.1.1 install codex
 ```
 
-安装器只合并 `feishu-devtools` 条目；修改已有 JSON/TOML 前会在目标文件旁保留 `.bak`，并以同目录原子替换写入。由 dotfiles 管理的符号链接会保留，写入其真实目标。
+安装器只合并 `larto` 条目；修改已有 JSON/TOML 前会在目标文件旁保留 `.bak`，并以同目录原子替换写入。由 dotfiles 管理的符号链接会保留，写入其真实目标。
 
 如果 npm registry 尚未同步 0.1.1，可先使用上面的 HTTP 地址；不要改用来源不明的同名包。
 
@@ -164,7 +164,7 @@ pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm e2e            # 需要本机显示器；截图输出到 /tmp/fdt-e2e/
+pnpm e2e            # 需要本机显示器；截图输出到 /tmp/larto-e2e/
 pnpm screenshots    # 匿名临时 profile 重建明暗主题的 6 张官网截图
 ```
 
@@ -182,7 +182,7 @@ pnpm dist:linux     # Linux x64，AppImage + DEB + RPM + tar.gz
 - `src/preload`：shell IPC 白名单与 guest JSAPI 桥。
 - `src/renderer`：React 工具界面与设备模拟器。
 - `src/shared`：IPC 契约、设备与设置类型。
-- `packages/feishu-devtools-mcp`：npm stdio 桥与客户端安装命令。
+- `packages/larto-mcp`：npm stdio 桥与客户端安装命令。
 - `website`：无框架静态官网。
 - `scripts/capture-site-screenshots.mjs`：从当前构建可重复生成匿名官网截图，不依赖个人账号数据。
 - `docs`：官方工具研究、架构、计划与进度。
@@ -191,7 +191,7 @@ pnpm dist:linux     # Linux x64，AppImage + DEB + RPM + tar.gz
 
 ## 发布
 
-1. 同步根包与 `feishu-devtools-mcp` 版本，更新 `CHANGELOG.md`。
+1. 同步根包与 `larto-mcp` 版本，更新 `CHANGELOG.md`。
 2. 本地运行 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`。
 3. 创建并推送与版本匹配的 `vX.Y.Z` tag。
 4. `release.yml` 在 macOS、Windows、Linux 原生 runner 上构建对应资产，汇总 `SHA256SUMS.txt`，发布 GitHub Release，并发布同版本 MCP npm 包。
@@ -214,4 +214,4 @@ pnpm dist:linux     # Linux x64，AppImage + DEB + RPM + tar.gz
 
 [MIT License](LICENSE)。
 
-FeishuDevTools 与飞书 / 字节跳动无关；「飞书」「Lark」是其所有者的商标。界面与交互以官方开发者工具为行为参考，未使用其代码或资源。
+Larto 与飞书 / 字节跳动无关；「飞书」「Lark」是其所有者的商标。界面与交互以官方开发者工具为行为参考，未使用其代码或资源。

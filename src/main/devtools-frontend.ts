@@ -5,7 +5,7 @@
  */
 
 /** Marker printed by the frontend hook; matched by DevToolsDock. */
-export const INSPECT_MARK = '[fdt] inspect:'
+export const INSPECT_MARK = '[larto] inspect:'
 
 /**
  * Wraps `InspectorFrontendHost.sendMessageToBackend` so we learn when the user enters or leaves
@@ -14,8 +14,8 @@ export const INSPECT_MARK = '[fdt] inspect:'
  */
 export const INSPECT_HOOK_JS = `(() => {
   const host = globalThis.InspectorFrontendHost;
-  if (!host || globalThis.__fdtInspectHook) return;
-  globalThis.__fdtInspectHook = true;
+  if (!host || globalThis.__lartoInspectHook) return;
+  globalThis.__lartoInspectHook = true;
   const send = host.sendMessageToBackend;
   host.sendMessageToBackend = function (message) {
     try {

@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcArgs, IpcEventChannel, IpcEvents, IpcRequestChannel, IpcResult } from '@shared/ipc'
 
 /**
- * Shell renderer bridge. Exposes a tiny typed surface (`window.fdt`) — the renderer
+ * Shell renderer bridge. Exposes a tiny typed surface (`window.larto`) — the renderer
  * never touches ipcRenderer directly. Channel names are validated against the shared contract.
  */
 const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
@@ -74,4 +74,4 @@ const bridge: ShellBridge = {
   platform: process.platform
 }
 
-contextBridge.exposeInMainWorld('fdt', bridge)
+contextBridge.exposeInMainWorld('larto', bridge)

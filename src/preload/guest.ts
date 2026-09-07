@@ -33,7 +33,7 @@ function inMainWorld(func: (...args: never[]) => unknown, args: unknown[]): void
   try {
     contextBridge.executeInMainWorld({ func: func as (...a: unknown[]) => unknown, args })
   } catch (err) {
-    console.warn('[FeishuDevTools] main world call failed', err)
+    console.warn('[Larto] main world call failed', err)
   }
 }
 

@@ -3,12 +3,12 @@
  * End-to-end smoke test driven through the app's own MCP server.
  * Requires `pnpm build` first. Launches Electron, serves a tiny JSAPI test page,
  * then exercises navigation, emulation, DevTools docking, evaluate and console capture, and
- * finally runs one MCP session through the stdio bridge in packages/feishu-devtools-mcp.
+ * finally runs one MCP session through the stdio bridge in packages/larto-mcp.
  *
  *   pnpm build && pnpm e2e
  *
  * Exit code 0 = all assertions passed. Screenshots land in the OS temp directory under
- * `fdt-e2e/`.
+ * `larto-e2e/`.
  */
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:http'
@@ -21,9 +21,9 @@ import { fileURLToPath } from 'node:url'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)
 const ELECTRON_PATH = require('electron')
-const PORT = Number(process.env.FDT_MCP_PORT ?? 17331)
+const PORT = Number(process.env.LARTO_MCP_PORT ?? 17331)
 const MCP = `http://127.0.0.1:${PORT}/mcp`
-const OUT = resolve(tmpdir(), 'fdt-e2e')
+const OUT = resolve(tmpdir(), 'larto-e2e')
 mkdirSync(OUT, { recursive: true })
 // Scratch userData: the run must not leave its device/zoom/history in the real settings.json.
 const USER_DATA = mkdtempSync(resolve(OUT, 'userdata-'))
@@ -34,7 +34,7 @@ const MCP_PACKAGE_DIR = mkdtempSync(resolve(OUT, 'mcp-package-'))
 let MCP_PACKAGE_ENTRY
 try {
   execFileSync('npm', ['pack', '--silent', '--pack-destination', MCP_PACKAGE_DIR], {
-    cwd: resolve(ROOT, 'packages/feishu-devtools-mcp'),
+    cwd: resolve(ROOT, 'packages/larto-mcp'),
     stdio: 'pipe'
   })
   const mcpPackage = resolve(
@@ -59,7 +59,7 @@ try {
   )
   // Execute the installed package entry with Node instead of relying on the platform-specific
   // `.bin` shim (`.cmd` on Windows, a symlink on Unix).
-  MCP_PACKAGE_ENTRY = resolve(mcpPackageInstall, 'node_modules/feishu-devtools-mcp/bin.mjs')
+  MCP_PACKAGE_ENTRY = resolve(mcpPackageInstall, 'node_modules/larto-mcp/bin.mjs')
 } catch (err) {
   rmSync(USER_DATA, { recursive: true, force: true })
   rmSync(MCP_PACKAGE_DIR, { recursive: true, force: true })
@@ -67,10 +67,10 @@ try {
 }
 
 const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>fdt e2e</title></head><body style="font-family:-apple-system;padding:16px"><h3 id="h">JSAPI bridge test</h3>
+<title>larto e2e</title></head><body style="font-family:-apple-system;padding:16px"><h3 id="h">JSAPI bridge test</h3>
 <pre id="log" style="font-size:12px;white-space:pre-wrap;word-break:break-all"></pre>
 <script>
-window.__fdtPageRequestId = __FDT_PAGE_REQUEST_ID__
+window.__lartoPageRequestId = __LARTO_PAGE_REQUEST_ID__
 const log = (m) => { document.getElementById('log').textContent += m + '\\n'; console.info('[e2e] ' + m) }
 log('ua=' + navigator.userAgent)
 log('inner=' + innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio +
@@ -91,7 +91,7 @@ const srv = createServer((req, res) => {
   const requestId = isTestPage ? ++pageRequests : 0
   const send = () => {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-    res.end(page.replace('__FDT_PAGE_REQUEST_ID__', String(requestId)))
+    res.end(page.replace('__LARTO_PAGE_REQUEST_ID__', String(requestId)))
   }
   if (isTestPage) {
     if (nextPageDelayMs > 0) {
@@ -116,22 +116,20 @@ writeFileSync(
 // A previous instance would win the single-instance lock and answer our MCP calls instead.
 try {
   await fetch(`http://127.0.0.1:${PORT}/health`)
-  console.error(
-    `another FeishuDevTools instance is already serving MCP on port ${PORT}; quit it first`
-  )
+  console.error(`another Larto instance is already serving MCP on port ${PORT}; quit it first`)
   process.exit(2)
 } catch {
   /* port free */
 }
 
-const env = { ...process.env, FDT_USER_DATA: USER_DATA }
+const env = { ...process.env, LARTO_USER_DATA: USER_DATA }
 delete env.ELECTRON_RUN_AS_NODE
 const app = spawn(ELECTRON_PATH, ['.'], {
   cwd: ROOT,
   env,
   stdio: ['ignore', 'pipe', 'pipe']
 })
-if (process.env.FDT_E2E_VERBOSE) app.stdout.on('data', (d) => process.stdout.write('[app] ' + d))
+if (process.env.LARTO_E2E_VERBOSE) app.stdout.on('data', (d) => process.stdout.write('[app] ' + d))
 app.stderr.on('data', (d) => {
   const s = String(d)
   if (/\[(WARN|ERROR)\]/.test(s)) process.stdout.write('[app] ' + s)
@@ -182,7 +180,7 @@ async function runBridge() {
     }
   })
   proc.stderr.on('data', (d) => {
-    if (!/connected to FeishuDevTools/.test(String(d))) process.stdout.write('[bridge] ' + d)
+    if (!/connected to Larto/.test(String(d))) process.stdout.write('[bridge] ' + d)
   })
   const send = (m) => proc.stdin.write(JSON.stringify(m) + '\n')
   const waitId = async (id, ms = 15000) => {
@@ -197,7 +195,7 @@ async function runBridge() {
     params: {
       protocolVersion: '2025-03-26',
       capabilities: {},
-      clientInfo: { name: 'fdt-e2e', version: '0' }
+      clientInfo: { name: 'larto-e2e', version: '0' }
     }
   })
   const init = await waitId(1)
@@ -321,7 +319,7 @@ try {
   // page that the second command loaded and acknowledged.
   await sleep(800)
   const committedRapidRequest = Number(
-    text(await tool('evaluate', { expression: 'window.__fdtPageRequestId' }))
+    text(await tool('evaluate', { expression: 'window.__lartoPageRequestId' }))
   )
   const rapidState = json(await tool('get_state'))
   check(
@@ -434,15 +432,15 @@ try {
   await sleep(1000)
   check(
     'clear_cache keeps page alive',
-    /fdt e2e|Bridge OK/.test(text(await tool('evaluate', { expression: 'document.title' })))
+    /larto e2e|Bridge OK/.test(text(await tool('evaluate', { expression: 'document.title' })))
   )
 
-  // packages/feishu-devtools-mcp: the stdio bridge must expose the same server to stdio-only
+  // packages/larto-mcp: the stdio bridge must expose the same server to stdio-only
   // clients. Drive a full initialize → tools/list → tools/call round trip through it.
   const bridge = await runBridge()
   check(
     'stdio bridge: initialize answered by the app server',
-    bridge.init?.result?.serverInfo?.name === 'feishu-dev-tools',
+    bridge.init?.result?.serverInfo?.name === 'larto',
     JSON.stringify(bridge.init?.result?.serverInfo ?? bridge.init?.error)
   )
   const bridgeTools = bridge.list?.result?.tools?.map((t) => t.name) ?? []
@@ -468,7 +466,7 @@ try {
   app.kill('SIGTERM')
   srv.close()
   await sleep(300)
-  if (process.env.FDT_E2E_KEEP_USER_DATA) console.log(`kept E2E userData: ${USER_DATA}`)
+  if (process.env.LARTO_E2E_KEEP_USER_DATA) console.log(`kept E2E userData: ${USER_DATA}`)
   else rmSync(USER_DATA, { recursive: true, force: true })
   rmSync(MCP_PACKAGE_DIR, { recursive: true, force: true })
 }

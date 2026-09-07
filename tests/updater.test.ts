@@ -51,14 +51,14 @@ describe('UpdaterService.check', () => {
       resolveUpdateCapability({
         platform: 'win32',
         isPackaged: true,
-        portableExecutable: 'FeishuDevTools.exe'
+        portableExecutable: 'Larto.exe'
       })
     ).toEqual({ enabled: false, unsupportedReason: 'windowsPortable' })
     expect(
       resolveUpdateCapability({
         platform: 'linux',
         isPackaged: true,
-        appImage: '/tmp/FeishuDevTools.AppImage'
+        appImage: '/tmp/Larto.AppImage'
       }).enabled
     ).toBe(true)
     expect(resolveUpdateCapability({ platform: 'linux', isPackaged: true })).toMatchObject({

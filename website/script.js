@@ -1,7 +1,7 @@
 ;(function () {
   'use strict'
 
-  var REPO = 'ihopefulChina/FeishuDevTools'
+  var REPO = 'ihopefulChina/Larto'
   var SITE_VERSION = '0.1.1'
   var RELEASES_URL = 'https://github.com/' + REPO + '/releases/tag/v' + SITE_VERSION
   var assetPatterns = {
@@ -183,7 +183,7 @@
 
     document.querySelectorAll('[data-release-summary]').forEach(function (element) {
       element.textContent =
-        'FeishuDevTools ' + version + (published ? ' · ' + published + ' 发布' : '') + ' · SHA-256'
+        'Larto ' + version + (published ? ' · ' + published + ' 发布' : '') + ' · SHA-256'
     })
     document.querySelectorAll('[data-release-name]').forEach(function (element) {
       element.textContent = 'FEISHUDEVTOOLS / ' + version

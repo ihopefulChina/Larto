@@ -11,7 +11,7 @@ const { DEFAULT_SETTINGS } = await import('../src/shared/settings')
 
 let dir: string
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'fdt-store-'))
+  dir = mkdtempSync(join(tmpdir(), 'larto-store-'))
 })
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })

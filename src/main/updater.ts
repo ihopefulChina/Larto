@@ -59,7 +59,7 @@ export function resolveUpdateCapability(runtime: UpdateRuntime): UpdateCapabilit
  * Sparkle semantics on top: a version the user chose to "skip" stays silent for automatic
  * (startup) checks but is still reported by a manual "Check for Updates…".
  *
- * Testing hook (dev builds only): `FDT_UPDATE_FEED=http://127.0.0.1:<port>/` points the updater
+ * Testing hook (dev builds only): `LARTO_UPDATE_FEED=http://127.0.0.1:<port>/` points the updater
  * at a generic feed so the whole dialog can be exercised without a GitHub release.
  */
 export class UpdaterService extends EventEmitter<UpdaterEvents> {
@@ -77,7 +77,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
     runtime: UpdateRuntime = {
       platform: process.platform,
       isPackaged: app.isPackaged,
-      ...(process.env.FDT_UPDATE_FEED ? { testFeed: process.env.FDT_UPDATE_FEED } : {}),
+      ...(process.env.LARTO_UPDATE_FEED ? { testFeed: process.env.LARTO_UPDATE_FEED } : {}),
       ...(process.env.APPIMAGE ? { appImage: process.env.APPIMAGE } : {}),
       ...(process.env.PORTABLE_EXECUTABLE_FILE
         ? { portableExecutable: process.env.PORTABLE_EXECUTABLE_FILE }
@@ -102,7 +102,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
       const cfg = join(app.getPath('userData'), 'dev-app-update.yml')
       writeFileSync(
         cfg,
-        `provider: generic\nurl: ${testFeed}\nupdaterCacheDirName: feishu-dev-tools-updater-dev\n`
+        `provider: generic\nurl: ${testFeed}\nupdaterCacheDirName: larto-updater-dev\n`
       )
       autoUpdater.updateConfigPath = cfg
       autoUpdater.forceDevUpdateConfig = true

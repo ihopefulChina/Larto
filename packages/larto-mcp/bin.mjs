@@ -5,30 +5,30 @@ import { runBridge } from './src/bridge.mjs'
 import { CLIENTS, SERVER_NAME, install, serverEntry } from './src/install.mjs'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
-const log = (msg) => process.stderr.write(`[feishu-devtools-mcp] ${msg}\n`)
+const log = (msg) => process.stderr.write(`[larto-mcp] ${msg}\n`)
 
-const HELP = `feishu-devtools-mcp ${pkg.version}
-stdio bridge to the MCP server inside FeishuDevTools (http://127.0.0.1:${DEFAULT_PORT}/mcp).
+const HELP = `larto-mcp ${pkg.version}
+stdio bridge to the MCP server inside Larto (http://127.0.0.1:${DEFAULT_PORT}/mcp).
 
 Usage
-  feishu-devtools-mcp [--port <n>] [--no-launch]     run as an MCP stdio server
-  feishu-devtools-mcp install <client> [--project] [--port <n>]
+  larto-mcp [--port <n>] [--no-launch]     run as an MCP stdio server
+  larto-mcp install <client> [--project] [--port <n>]
                                                      register with a client (${CLIENTS.join(', ')})
-  feishu-devtools-mcp print [--port <n>]             print the JSON config entry instead of writing it
+  larto-mcp print [--port <n>]             print the JSON config entry instead of writing it
 
 Options
-  --port <n>     MCP port configured in FeishuDevTools → Settings (default ${DEFAULT_PORT})
-  --no-launch    fail instead of starting FeishuDevTools when it is not running
+  --port <n>     MCP port configured in Larto → Settings (default ${DEFAULT_PORT})
+  --no-launch    fail instead of starting Larto when it is not running
   --project      use project scope (Cursor and Claude Code only)
   -h, --help     show this help
   -v, --version  print the version
 
-FeishuDevTools itself: ${DOWNLOAD_URL}
+Larto itself: ${DOWNLOAD_URL}
 `
 
 function parse(argv) {
   const opts = {
-    port: Number(process.env.FDT_MCP_PORT) || DEFAULT_PORT,
+    port: Number(process.env.LARTO_MCP_PORT) || DEFAULT_PORT,
     launch: true,
     project: false
   }
@@ -76,7 +76,7 @@ async function main() {
 
   // Default: act as a stdio MCP server for the client that spawned us.
   const health = await ensureApp({ port: opts.port, launch: opts.launch, log })
-  log(`connected to FeishuDevTools ${health.version} at ${endpoint(opts.port)}`)
+  log(`connected to Larto ${health.version} at ${endpoint(opts.port)}`)
   await runBridge({ url: endpoint(opts.port), log })
 }
 

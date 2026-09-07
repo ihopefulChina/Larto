@@ -1,6 +1,6 @@
 # Security Policy
 
-FeishuDevTools is a pre-1.0 community project that handles authenticated Feishu/Lark sessions and
+Larto is a pre-1.0 community project that handles authenticated Feishu/Lark sessions and
 can execute debugging actions inside the page currently loaded in its simulator. Please read the
 boundaries below before using it with a real account.
 
@@ -13,7 +13,7 @@ boundaries below before using it with a real account.
 
 ## Report a vulnerability
 
-Use [GitHub Private Vulnerability Reporting](https://github.com/ihopefulChina/FeishuDevTools/security/advisories/new).
+Use [GitHub Private Vulnerability Reporting](https://github.com/ihopefulChina/Larto/security/advisories/new).
 Please include the affected version and operating system, impact, minimal reproduction steps, and
 any mitigation you have already tested.
 
@@ -55,15 +55,15 @@ coordinate disclosure after the issue has been reproduced and a fix is available
 ## Verify a release
 
 Download artifacts only from this repository's
-[GitHub Releases](https://github.com/ihopefulChina/FeishuDevTools/releases). The 0.1.1 release
+[GitHub Releases](https://github.com/ihopefulChina/Larto/releases). The 0.1.1 release
 workflow is configured to publish `SHA256SUMS.txt` and GitHub artifact attestations. Before trusting
 a download, confirm that the workflow succeeded, the checksum file is present, and attestation
 verification succeeds.
 
 ```bash
-sha256sum FeishuDevTools-0.1.1-linux-x64.AppImage
-gh attestation verify FeishuDevTools-0.1.1-mac-arm64.dmg \
-  --repo ihopefulChina/FeishuDevTools
+sha256sum Larto-0.1.1-linux-x64.AppImage
+gh attestation verify Larto-0.1.1-mac-arm64.dmg \
+  --repo ihopefulChina/Larto
 ```
 
 Compare the first command's output with the same filename in `SHA256SUMS.txt`. The manifest lists

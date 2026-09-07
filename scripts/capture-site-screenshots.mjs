@@ -106,7 +106,7 @@ const pageUrl = `http://localhost:${pagePort}/device-check`
 
 const mcpPort = await freePort()
 const debugPort = await freePort()
-const scratch = mkdtempSync(resolve(tmpdir(), 'fdt-site-capture-'))
+const scratch = mkdtempSync(resolve(tmpdir(), 'larto-site-capture-'))
 mkdirSync(PUBLIC, { recursive: true })
 writeFileSync(
   resolve(scratch, 'settings.json'),
@@ -123,7 +123,7 @@ writeFileSync(
   })
 )
 
-const env = { ...process.env, FDT_USER_DATA: scratch }
+const env = { ...process.env, LARTO_USER_DATA: scratch }
 delete env.ELECTRON_RUN_AS_NODE
 const app = spawn(ELECTRON_PATH, [`--remote-debugging-port=${debugPort}`, '.'], {
   cwd: ROOT,
@@ -180,7 +180,7 @@ async function waitForApp() {
     } catch {}
     await sleep(250)
   }
-  throw new Error('FeishuDevTools did not become ready')
+  throw new Error('Larto did not become ready')
 }
 
 async function dismissDevToolsLanguageNotice() {

@@ -1,5 +1,8 @@
+import { cpSync, existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { app, BrowserWindow, dialog } from 'electron'
+import { APP_ID, APP_NAME } from '@shared/constants'
 import { resolveLanguage } from '@shared/i18n'
 import type { ShellCommand } from '@shared/ipc'
 import {
@@ -22,22 +25,24 @@ import { applyThemeMode, onThemeUpdated, resolveTheme, windowBackgroundColor } f
 import { UpdaterService } from './updater'
 import { createMainWindow, fitWindowToDevice, getMainWindow, sendToRenderer } from './window'
 
-app.setName('FeishuDevTools')
-if (process.platform === 'win32') app.setAppUserModelId('app.ihopeful.FeishuDevTools')
+app.setName(APP_NAME)
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
 
 // Tests (scripts/e2e.mjs, --smoke-test runs) point this at a scratch directory so they never
 // touch the real settings/account/session of an installed copy. Must precede the instance lock.
-const userDataOverride = process.env['FDT_USER_DATA']
+const userDataOverride = process.env['LARTO_USER_DATA']
 if (userDataOverride) {
   app.setPath('userData', userDataOverride)
   app.setPath('sessionData', userDataOverride)
+} else {
+  migrateLegacyUserData()
 }
 
 // Single instance: a second launch focuses the existing window.
 if (hasSandboxOptOut(process.argv, process.env, app.commandLine)) {
   dialog.showErrorBox(
-    'FeishuDevTools refused an unsafe launch',
-    'A Chromium sandbox opt-out was detected. Remove --no-sandbox or ELECTRON_DISABLE_SANDBOX, install user-namespace support, or use another package format; FeishuDevTools will not open in this mode.'
+    `${APP_NAME} refused an unsafe launch`,
+    `A Chromium sandbox opt-out was detected. Remove --no-sandbox or ELECTRON_DISABLE_SANDBOX, install user-namespace support, or use another package format; ${APP_NAME} will not open in this mode.`
   )
   app.exit(1)
 } else if (!app.requestSingleInstanceLock()) {
@@ -127,7 +132,7 @@ async function bootstrap(): Promise<void> {
     const info = getAppInfo()
     const s = settings.get()
     return [
-      `FeishuDevTools ${info.version} (${info.arch}, packaged=${info.isPackaged})`,
+      `${APP_NAME} ${info.version} (${info.arch}, packaged=${info.isPackaged})`,
       `Electron ${info.electron} / Chrome ${info.chrome} / Node ${info.node}`,
       `OS ${info.platform} ${process.getSystemVersion()}`,
       `device=${s.deviceId} zoom=${s.zoom} theme=${s.theme} lang=${getLang()} env=${s.env}`,
@@ -283,5 +288,18 @@ async function bootstrap(): Promise<void> {
     guestManager.once('attached', () =>
       setTimeout(() => finish(true, `guest url=${guestManager.state.url}`), 4000)
     )
+  }
+}
+
+function migrateLegacyUserData(): void {
+  const next = app.getPath('userData')
+  if (existsSync(join(next, 'settings.json')) || existsSync(join(next, 'account.json'))) return
+  // Previous product directory; copy once so a rename does not drop settings or login.
+  const legacy = join(dirname(next), 'FeishuDevTools')
+  if (!existsSync(legacy)) return
+  try {
+    cpSync(legacy, next, { recursive: true, force: false })
+  } catch {
+    // A fresh profile is preferable to blocking launch.
   }
 }

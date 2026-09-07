@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  FDT_SMOKE_URL: data:text/html,%3Ctitle%3EFeishuDevTools%20Smoke%3C%2Ftitle%3E
+  LARTO_SMOKE_URL: data:text/html,%3Ctitle%3ELarto%20Smoke%3C%2Ftitle%3E
 
 concurrency:
   group: release-${{ github.ref }}
@@ -33,7 +33,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           ROOT_VERSION=$(node -p "require('./package.json').version")
-          MCP_VERSION=$(node -p "require('./packages/feishu-devtools-mcp/package.json').version")
+          MCP_VERSION=$(node -p "require('./packages/larto-mcp/package.json').version")
           TAG_VERSION=${GITHUB_REF_NAME#v}
           [ "$ROOT_VERSION" = "$TAG_VERSION" ] || { echo "package.json is $ROOT_VERSION but tag is $TAG_VERSION"; exit 1; }
           [ "$MCP_VERSION" = "$TAG_VERSION" ] || { echo "MCP package is $MCP_VERSION but tag is $TAG_VERSION"; exit 1; }
@@ -75,12 +75,12 @@ jobs:
           pnpm exec electron-builder --mac --arm64 --x64 --publish never
       - name: Smoke test packaged macOS arm64 app
         env:
-          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+          LARTO_USER_DATA: ${{ runner.temp }}/larto-packaged-smoke-profile
         run: |
-          mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
-          file dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools | grep -q arm64
-          dist/mac-arm64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          mkdir -p "$LARTO_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.LARTO_SMOKE_URL}))" "$LARTO_USER_DATA/settings.json"
+          file dist/mac-arm64/Larto.app/Contents/MacOS/Larto | grep -q arm64
+          dist/mac-arm64/Larto.app/Contents/MacOS/Larto --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
           test -s "$RUNNER_TEMP/packaged-smoke.png"
       - run: node scripts/verify-release-assets.mjs dist mac
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -94,10 +94,10 @@ jobs:
         with:
           name: release-macos
           path: |
-            dist/FeishuDevTools-*-mac-*.dmg
-            dist/FeishuDevTools-*-mac-*.dmg.blockmap
-            dist/FeishuDevTools-*-mac-*.zip
-            dist/FeishuDevTools-*-mac-*.zip.blockmap
+            dist/Larto-*-mac-*.dmg
+            dist/Larto-*-mac-*.dmg.blockmap
+            dist/Larto-*-mac-*.zip
+            dist/Larto-*-mac-*.zip.blockmap
             dist/latest-mac.yml
           if-no-files-found: error
           retention-days: 7
@@ -114,16 +114,16 @@ jobs:
           path: release-macos
       - name: Smoke test packaged macOS x64 app
         env:
-          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+          LARTO_USER_DATA: ${{ runner.temp }}/larto-packaged-smoke-profile
         run: |
-          mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
+          mkdir -p "$LARTO_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.LARTO_SMOKE_URL}))" "$LARTO_USER_DATA/settings.json"
           shopt -s nullglob
-          archives=(release-macos/FeishuDevTools-*-mac-x64.zip)
+          archives=(release-macos/Larto-*-mac-x64.zip)
           [ "${#archives[@]}" -eq 1 ] || { echo "Expected exactly one macOS x64 ZIP"; exit 1; }
-          ditto -x -k "${archives[0]}" "$RUNNER_TEMP/fdt-macos-x64"
-          file "$RUNNER_TEMP/fdt-macos-x64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools" | grep -q x86_64
-          "$RUNNER_TEMP/fdt-macos-x64/FeishuDevTools.app/Contents/MacOS/FeishuDevTools" --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          ditto -x -k "${archives[0]}" "$RUNNER_TEMP/larto-macos-x64"
+          file "$RUNNER_TEMP/larto-macos-x64/Larto.app/Contents/MacOS/Larto" | grep -q x86_64
+          "$RUNNER_TEMP/larto-macos-x64/Larto.app/Contents/MacOS/Larto" --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
           test -s "$RUNNER_TEMP/packaged-smoke.png"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -161,12 +161,12 @@ jobs:
       - name: Smoke test packaged Windows x64 app
         shell: pwsh
         env:
-          FDT_USER_DATA: ${{ runner.temp }}\fdt-packaged-smoke-profile
+          LARTO_USER_DATA: ${{ runner.temp }}\larto-packaged-smoke-profile
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'packaged-smoke.png'
-          New-Item -ItemType Directory -Path $env:FDT_USER_DATA -Force | Out-Null
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" (Join-Path $env:FDT_USER_DATA 'settings.json')
-          $process = Start-Process -FilePath '.\dist\win-unpacked\FeishuDevTools.exe' -ArgumentList '--disable-gpu', "--smoke-test=$smoke" -Wait -PassThru
+          New-Item -ItemType Directory -Path $env:LARTO_USER_DATA -Force | Out-Null
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.LARTO_SMOKE_URL}))" (Join-Path $env:LARTO_USER_DATA 'settings.json')
+          $process = Start-Process -FilePath '.\dist\win-unpacked\Larto.exe' -ArgumentList '--disable-gpu', "--smoke-test=$smoke" -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Packaged app exited with $($process.ExitCode)" }
           if (-not (Test-Path $smoke) -or (Get-Item $smoke).Length -le 0) { throw "Smoke screenshot is missing or empty at $smoke" }
       - run: node scripts/verify-release-assets.mjs dist windows
@@ -181,9 +181,9 @@ jobs:
         with:
           name: release-windows
           path: |
-            dist/FeishuDevTools-*-windows-*.exe
-            dist/FeishuDevTools-*-windows-*.exe.blockmap
-            dist/FeishuDevTools-*-windows-*.zip
+            dist/Larto-*-windows-*.exe
+            dist/Larto-*-windows-*.exe.blockmap
+            dist/Larto-*-windows-*.zip
             dist/latest.yml
           if-no-files-found: error
           retention-days: 7
@@ -209,11 +209,11 @@ jobs:
       - run: pnpm exec electron-builder --linux --x64 --publish never
       - name: Smoke test packaged Linux x64 app
         env:
-          FDT_USER_DATA: ${{ runner.temp }}/fdt-packaged-smoke-profile
+          LARTO_USER_DATA: ${{ runner.temp }}/larto-packaged-smoke-profile
         run: |
-          mkdir -p "$FDT_USER_DATA"
-          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.FDT_SMOKE_URL}))" "$FDT_USER_DATA/settings.json"
-          file dist/linux-unpacked/feishu-dev-tools | grep -q x86-64
+          mkdir -p "$LARTO_USER_DATA"
+          node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({mcp:{enabled:false},autoCheckUpdates:false,lastUrl:process.env.LARTO_SMOKE_URL}))" "$LARTO_USER_DATA/settings.json"
+          file dist/linux-unpacked/larto | grep -q x86-64
           LINUX_SANDBOX=dist/linux-unpacked/chrome-sandbox
           test -f "$LINUX_SANDBOX" && test ! -L "$LINUX_SANDBOX"
           LINUX_SANDBOX=$(realpath "$LINUX_SANDBOX")
@@ -221,7 +221,7 @@ jobs:
           sudo chown root:root "$LINUX_SANDBOX"
           sudo chmod 4755 "$LINUX_SANDBOX"
           test "$(stat -c '%u:%g:%a' "$LINUX_SANDBOX")" = "0:0:4755"
-          xvfb-run -a dist/linux-unpacked/feishu-dev-tools --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
+          xvfb-run -a dist/linux-unpacked/larto --disable-gpu --smoke-test="$RUNNER_TEMP/packaged-smoke.png"
           test -s "$RUNNER_TEMP/packaged-smoke.png"
       - run: node scripts/verify-release-assets.mjs dist linux
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -235,10 +235,10 @@ jobs:
         with:
           name: release-linux
           path: |
-            dist/FeishuDevTools-*-linux-*.AppImage
-            dist/FeishuDevTools-*-linux-*.deb
-            dist/FeishuDevTools-*-linux-*.rpm
-            dist/FeishuDevTools-*-linux-*.tar.gz
+            dist/Larto-*-linux-*.AppImage
+            dist/Larto-*-linux-*.deb
+            dist/Larto-*-linux-*.rpm
+            dist/Larto-*-linux-*.tar.gz
             dist/latest-linux.yml
           if-no-files-found: error
           retention-days: 7
@@ -275,7 +275,7 @@ jobs:
       - name: Upload the complete asset set to a draft Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: FeishuDevTools ${{ github.ref_name }}
+          name: Larto ${{ github.ref_name }}
           body_path: ${{ runner.temp }}/release-notes.md
           files: release-assets/*
           fail_on_unmatched_files: true
@@ -296,7 +296,7 @@ jobs:
       id-token: write
     defaults:
       run:
-        working-directory: packages/feishu-devtools-mcp
+        working-directory: packages/larto-mcp
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

@@ -3,7 +3,7 @@ import type { MenuItemConstructorOptions } from 'electron'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 
 vi.mock('electron', () => ({
-  app: { name: 'FeishuDevTools' },
+  app: { name: 'Larto' },
   clipboard: { writeText: vi.fn() },
   dialog: { showMessageBox: vi.fn() },
   Menu: { buildFromTemplate: vi.fn(), setApplicationMenu: vi.fn() },
@@ -52,7 +52,7 @@ describe('native application menu', () => {
         expect.arrayContaining(['services', 'hide', 'hideOthers', 'unhide'])
       )
       const help = menu.at(-1)
-      expect(items(help?.submenu)[0]?.label).toBe('About FeishuDevTools')
+      expect(items(help?.submenu)[0]?.label).toBe('About Larto')
     }
   })
 

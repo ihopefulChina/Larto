@@ -2,21 +2,43 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — 产品更名为 Larto
+
+**做了什么**
+
+- 将软件品牌从原名称全面改为 **Larto**：应用显示名、窗口标题、i18n、关于/更新对话框、Bundle ID `app.ihopeful.Larto`、Linux 可执行文件 `larto`、GitHub / Pages / electron-builder 发布仓库名 `ihopefulChina/Larto`、MCP 服务名 `larto`、npm 包 `packages/larto-mcp`（bin `larto-mcp`）、环境变量 `LARTO_*` / `LARTO_PATH`、shell 桥 `window.larto`、JSAPI 通道 `larto:jsapi`。
+- 官方飞书 / Lark 平台词、开放平台 URL、以及调研文档里的官方包名 `@bdeefe/feishu-devtools-core` 未改。首次启动若新 userData 还没有 `settings.json` / `account.json`，会从旧产品目录复制一次，避免改名丢设置和登录态。
+- `CHANGELOG.md` 增加 Unreleased 说明。
+
+**验证**
+
+- `prettier --check`、三个 `tsc --noEmit`、Vitest 15 文件 / 78 项、`node --test` 23/23、`electron-vite build` 全部通过。
+- `LARTO_MCP_PORT=17491 node scripts/e2e.mjs`：24/24 通过，stdio bridge `serverInfo.name === "larto"`。
+- 未跑 `pnpm format` / `pnpm typecheck` / `pnpm test` 包装命令：本机 `pnpm` 在执行脚本前尝试校验 lockfile 时因代理 URL 解析失败退出；已用对应本地二进制跑完同等检查。
+- 未打跨平台安装包、未发布 npm。已用 `gh repo rename Larto` 把 GitHub 仓库改为 `ihopefulChina/Larto`，并把 `origin` 改为 `git@github.com:ihopefulChina/Larto.git`。
+
+**结论 / 遗留**
+
+- 源码、文档与 GitHub 仓库名已是 Larto；本机克隆目录仍是 `FeishuDevTools`，关闭占用后可自行改名为 `Larto`。Pages 地址为 `https://ihopefulchina.github.io/Larto/`（旧路径通常会重定向）。
+- 新 npm 包 `larto-mcp` 尚未发布；Trusted Publisher 需改到新仓库与新包名。已安装客户端里的旧 MCP 配置键不会自动迁移。
+- 已发布的 v0.1.1 GitHub 资产文件名仍是旧前缀，要到下一次 Release 才会变成 `Larto-…`。macOS 已安装的 `/Applications` 旧 .app 不会自动改名。
+- 真实飞书登录 / JSAPI 鉴权 / 签名公证仍待 UAT。
+
 ## 2026-09-04 — v0.1.1 npm、Release 与本机安装
 
 **做了什么**
 
-- 首次公开发布 `feishu-devtools-mcp@0.1.1`，并把 `ihopefulChina/FeishuDevTools` 的 `.github/workflows/release.yml` 配置为 npm Trusted Publisher；Codex 用户配置只新增 `[mcp_servers.feishu-devtools]`，运行命令为 `npx --yes feishu-devtools-mcp@latest`，原配置完整备份到 `config.toml.bak`。
+- 首次公开发布 `larto-mcp@0.1.1`，并把 `ihopefulChina/Larto` 的 `.github/workflows/release.yml` 配置为 npm Trusted Publisher；Codex 用户配置只新增 `[mcp_servers.larto]`，运行命令为 `npx --yes larto-mcp@latest`，原配置完整备份到 `config.toml.bak`。
 - 创建并推送注释 tag `v0.1.1`。Release 工作流重新在原生 runner 生成 macOS arm64/x64、Windows x64、Linux x64 包，完成打包后启动 smoke、19 项发布资产校验、SHA-256 清单和 GitHub artifact attestation，再将含 20 个附件的 Release 从草稿原子公开。
-- 将本机 `/Applications/FeishuDevTools.app` 的旧 0.1.0 移入废纸篓后安装 0.1.1 arm64，并刷新 LaunchServices/Dock 图标缓存；用户设置目录未删除。旧开发实例不响应正常退出且忽略 `SIGTERM`，确认其精确 PID/可执行路径后仅终止该实例，再执行替换。
+- 将本机 `/Applications/Larto.app` 的旧 0.1.0 移入废纸篓后安装 0.1.1 arm64，并刷新 LaunchServices/Dock 图标缓存；用户设置目录未删除。旧开发实例不响应正常退出且忽略 `SIGTERM`，确认其精确 PID/可执行路径后仅终止该实例，再执行替换。
 - 正式 tag 流程的 `publish-mcp` 在包已存在时暴露顺序缺陷：内容检查先执行 `npm publish --dry-run`，npm 11 将不可覆盖的既有版本判为失败，使后续“已发布则跳过”无法运行。内容检查改为不访问 registry 的 `npm pack --dry-run --ignore-scripts`；实际发布步骤仍先查询精确版本，存在即保持不变。
 
 **验证**
 
-- `npm view feishu-devtools-mcp@0.1.1` 返回 `latest=0.1.1`、发布 integrity/shasum；`npx --yes feishu-devtools-mcp@0.1.1 --version` 返回 0.1.1。Trusted Publisher 创建成功，限定仓库、`release.yml` 和 publish 权限。
+- `npm view larto-mcp@0.1.1` 返回 `latest=0.1.1`、发布 integrity/shasum；`npx --yes larto-mcp@0.1.1 --version` 返回 0.1.1。Trusted Publisher 创建成功，限定仓库、`release.yml` 和 publish 权限。
 - 手动 Release 门禁 `33871463954` 全平台成功；正式 tag run `33873672040` 的 validate、macOS arm64/x64、Windows、Linux 与 `publish-release` 全部成功。公开 Release 为非草稿、非预发布，20 个附件均为 uploaded；attestation 为 19 个发布主体并进入 Sigstore/Rekor。
-- 从公开 Release 重新下载 `SHA256SUMS.txt` 与 arm64 DMG：清单恰含 19 项，DMG 的 SHA-256 匹配，`hdiutil verify` 通过，`gh attestation verify --repo ihopefulChina/FeishuDevTools` 返回成功。
-- 本机安装版版本 0.1.1、Bundle ID `app.ihopeful.FeishuDevTools`、arm64、最低 macOS 13；新图标 SHA-256 为 `fd02dc5e0c4d5f4d0596890e31defa2fef148527831aefdece4a4595e973e128`，`codesign --verify --deep --strict` 与 `/health` 200 通过，当前从 `/Applications` 启动。Codex `config.toml` 与备份均为有效 TOML、权限 0600；结构化比对确认除新增 MCP 表外其余配置未变。
+- 从公开 Release 重新下载 `SHA256SUMS.txt` 与 arm64 DMG：清单恰含 19 项，DMG 的 SHA-256 匹配，`hdiutil verify` 通过，`gh attestation verify --repo ihopefulChina/Larto` 返回成功。
+- 本机安装版版本 0.1.1、Bundle ID `app.ihopeful.Larto`、arm64、最低 macOS 13；新图标 SHA-256 为 `fd02dc5e0c4d5f4d0596890e31defa2fef148527831aefdece4a4595e973e128`，`codesign --verify --deep --strict` 与 `/health` 200 通过，当前从 `/Applications` 启动。Codex `config.toml` 与备份均为有效 TOML、权限 0600；结构化比对确认除新增 MCP 表外其余配置未变。
 - 工作流修复运行 MCP Node Test 20/20、`npm pack --dry-run --ignore-scripts`、定向 Prettier 与 `git diff --check`，全部通过。
 
 **结论 / 遗留**
@@ -29,7 +51,7 @@
 
 **做了什么**
 
-- 核对用户截图、已安装应用与当前候选包：`/Applications/FeishuDevTools.app` 仍是 0.1.0，旧 ICNS 会被 macOS 26 缩进灰色系统底板；0.1.1 的现有 ICNS 已按标准 squircle 重生成。本轮不引入只有 Xcode 26 能重现的静态 `Assets.car`，保持 macOS 13–15 回退路径单一。
+- 核对用户截图、已安装应用与当前候选包：`/Applications/Larto.app` 仍是 0.1.0，旧 ICNS 会被 macOS 26 缩进灰色系统底板；0.1.1 的现有 ICNS 已按标准 squircle 重生成。本轮不引入只有 Xcode 26 能重现的静态 `Assets.car`，保持 macOS 13–15 回退路径单一。
 - 修复 Windows runner 的全库 Prettier 假失败：新增 `.gitattributes` 将文本工作树统一为 LF，不放宽 Prettier 规则，二进制图片仍由 Git 自动识别为 `-text`。
 - 修复 Ubuntu runner 的 Electron smoke 启动失败：在源码 smoke 和打包后 `linux-unpacked` smoke 前，验证 `chrome-sandbox` 是工作区内的普通文件，再设置为 `root:root 4755` 并断言数值权限。依旧禁止 `--no-sandbox`，不用 root 启动应用；PR 不对可修改的工作区二进制设 SUID，完整 Linux smoke 在 main push 上执行。
 - 远程 Intel smoke 暴露官方欢迎页的公网依赖：应用与设备仿真已启动，但加载飞书 CDN 超时导致假失败。CI 和 Release 的四平台 smoke 改用隔离 userData 中的本地 `data:` 页，正常用户的默认首页不变。
@@ -41,8 +63,8 @@
 **验证**
 
 - macOS 26.6.2 用 `NSWorkspace.icon(forFile:)` 实际渲染：0.1.0 安装包精确复现「灰底大图标 + 居中小图标」；纯 ICNS 的 0.1.1 候选包为满尺寸图标、无灰底。重打 arm64 app 后确认版本 0.1.1、`CFBundleIconFile=icon.icns`、无 `CFBundleIconName`/`Assets.car`，且 `codesign --verify --deep --strict` 通过（ad-hoc）；已启动该候选包供试用。
-- `git ls-files --eol` 显示文本为 `i/lf w/lf attr/text=auto eol=lf`，现有 PNG/ICNS/WebP 仍为 `-text`。`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17471 pnpm e2e` 全部通过：Vitest 15 文件 / 78 项、Node Test 23/23，E2E 含 18 个 MCP 工具与 stdio 往返。使用与远程相同的隔离配置运行本地 `data:` smoke，6 秒内完成 guest/DevTools 附着、生成非空截图并返回 0。
-- `pnpm exec vitest run tests/window.test.ts`：4/4 通过；MCP 路径修复后又运行 `node --test packages/feishu-devtools-mcp/test/*.test.mjs`（20/20）以及 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && FDT_MCP_PORT=17482 pnpm e2e`，全部通过（Vitest 15 文件 / 78 项、Node Test 23/23、E2E 24/24）。远端 Windows 仍以新 commit 的原生 runner 结果为准。
+- `git ls-files --eol` 显示文本为 `i/lf w/lf attr/text=auto eol=lf`，现有 PNG/ICNS/WebP 仍为 `-text`。`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && LARTO_MCP_PORT=17471 pnpm e2e` 全部通过：Vitest 15 文件 / 78 项、Node Test 23/23，E2E 含 18 个 MCP 工具与 stdio 往返。使用与远程相同的隔离配置运行本地 `data:` smoke，6 秒内完成 guest/DevTools 附着、生成非空截图并返回 0。
+- `pnpm exec vitest run tests/window.test.ts`：4/4 通过；MCP 路径修复后又运行 `node --test packages/larto-mcp/test/*.test.mjs`（20/20）以及 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && LARTO_MCP_PORT=17482 pnpm e2e`，全部通过（Vitest 15 文件 / 78 项、Node Test 23/23、E2E 24/24）。远端 Windows 仍以新 commit 的原生 runner 结果为准。
 
 **结论 / 遗留**
 
@@ -54,7 +76,7 @@
 **做了什么**
 
 - 将发布目标扩展为 macOS arm64/x64（DMG、ZIP）、Windows x64（NSIS、portable、ZIP）与 Linux x64（AppImage、DEB、RPM、tar.gz）；CI/Release 使用对应原生 runner 构建和启动 unpacked app，聚合前校验 19 个目标资产，再生成 SHA-256 清单与 GitHub artifact attestation。应用、MCP、更新元数据与 Release 统一为 0.1.1。
-- 新增公开 npm 包 `feishu-devtools-mcp`：stdio 桥、跨平台应用发现与拉起、Cursor / Claude Code / Claude Desktop / Codex 安装命令。安装器只合并自身条目，以同目录临时文件 + rename 原子替换，覆盖前保留 `.bak`；保留 JSON/TOML 换行与缩进、文件权限、符号链接及 UTF-8 BOM，无变化不重写。
+- 新增公开 npm 包 `larto-mcp`：stdio 桥、跨平台应用发现与拉起、Cursor / Claude Code / Claude Desktop / Codex 安装命令。安装器只合并自身条目，以同目录临时文件 + rename 原子替换，覆盖前保留 `.bak`；保留 JSON/TOML 换行与缩进、文件权限、符号链接及 UTF-8 BOM，无变化不重写。
 - README、官网、CHANGELOG 与 SECURITY 重写为可核验的跨平台发布资料：明确下载矩阵、系统要求、校验命令、MCP 边界、真实 UAT 状态和签名限制；官网换为六张匿名诊断页实机截图，未包含账号、租户或内部地址。仓库启用 GitHub 私密漏洞报告。
 - 继续收口发布前缺陷：MCP 监听生命周期串行化；设置原子写盘成功后才更新内存/广播；登录、HTTP 与 JSAPI 异常日志只保留错误类型、错误码、状态码和主机等安全摘要。特权 shell 的开发态导航同时校验协议和 origin，并拦截重定向；CI 专用 smoke 截图完成后确定性退出，避免原生 helper teardown 造成假超时。
 - 保留本轮工作台与试用修复：默认深色/iPhone 17 Pro、PC viewport 拖拽、透明移动端底部安全区、低噪声地址栏/placeholder、设置/更新二级界面、登录 Cookie/头像、更新与设备切换竞态。产品仍只做官方「网页调试」范围，没有加入小程序编译、编辑器或上传。
@@ -62,7 +84,7 @@
 **验证**
 
 - 最终源码运行 `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`：全部通过；Vitest 15 文件 / 78 项，Node Test 23/23。E2E 覆盖首次 iPhone 17 Pro 仿真、650ms 慢页面与连续切机 latest-only、PC resize、DevTools、主题、缓存、npm tarball 安装后的 18 个 MCP 工具与 stdio 往返。
-- `pnpm dist:unsigned` 生成最终 macOS 双架构候选；`verify-release-assets` 校验 9 个 macOS 资产，Mach-O 分别为 arm64/x86_64，两个 `.app` 的 Bundle ID 均为 `app.ihopeful.FeishuDevTools`、版本均为 0.1.1。两份 `.app` 通过 `codesign --verify --deep --strict`（ad-hoc），两份 DMG 通过 `hdiutil verify`。
+- `pnpm dist:unsigned` 生成最终 macOS 双架构候选；`verify-release-assets` 校验 9 个 macOS 资产，Mach-O 分别为 arm64/x86_64，两个 `.app` 的 Bundle ID 均为 `app.ihopeful.Larto`、版本均为 0.1.1。两份 `.app` 通过 `codesign --verify --deep --strict`（ad-hoc），两份 DMG 通过 `hdiutil verify`。
 - 最终 arm64 包与 x64 包（Rosetta）均真实启动、完成 guest/DevTools 附着、生成非空截图并返回 0；arm64 16s，x64 冷启动 115s。此前发现的截图后退出等待已改为 CI smoke 确定性结束并在这轮验证。
 - 独立只读终审未发现剩余 P0/P1 代码缺陷；发现的配置写入、MCP 并发、日志脱敏、开发态 `blob:`/redirect 边界均已在最终候选补齐并新增回归测试。
 
@@ -76,26 +98,26 @@
 
 **做了什么**
 
-- 应用 Bundle ID 改为 `app.ihopeful.FeishuDevTools`；MCP stdio 包的自动拉起目标同步更新。
+- 应用 Bundle ID 改为 `app.ihopeful.Larto`；MCP stdio 包的自动拉起目标同步更新。
 - 新增独立 iPhone 17 Pro（402×874、DPR 3、iOS 26）并设为首启默认；默认主题保持深色，窗口继续按完整机身高度计算。Home Indicator 改为网页上方的透明覆盖层，guest viewport 不再为底部额外扣一段高度或绘制独立背景。
 - PC 模式新增右下角拖拽手柄：拖动过程实时预览 CDP viewport，latest-only 单飞队列避免乱序，松手后只持久化一次；拖动时固定左上角保证手柄 1:1 跟手，结束后恢复居中。支持 Esc 取消、方向键微调、宽高输入与「适应窗口」。PC 不再显示无效的移动端缩放下拉。
 - 登录资料请求继续走 Electron Session 代理，但加 `credentials: 'omit'`，防止 default Session 的同名 Cookie 覆盖扫码临时分区取得并显式传入的 `session/session_list`；补回归测试。过期账号头像保留原色，仅用琥珀描边提示状态。
 - 深色工作台按微信开发者工具式层级继续收口：外部模拟器画布、机身与控件跟随深色；被调试 H5 仍按自身颜色渲染，透明页面使用浏览器白色画布，避免篡改页面后出现黑字黑底。地址栏改为低对比表面；设备/缩放模块收成紧凑胶囊。
 - 设置页改为分组卡片；MCP、更新、代理、模拟定位分别成组，深色 placeholder 使用独立 token 且经纬度有可辨识示例。检查更新弹窗统一表面、间距、按钮层级与模糊遮罩。修复前端层样式误把过期头像灰阶化的问题。
-- `feishu-devtools-mcp` 补 package-local MIT LICENSE 与公开发布配置；安装器/文档生成 `npx --yes feishu-devtools-mcp@latest`。E2E 先 `npm pack`、安装生成的 tarball，再运行安装后的 bin 做真实 stdio 往返；准备阶段失败也清理临时目录。
+- `larto-mcp` 补 package-local MIT LICENSE 与公开发布配置；安装器/文档生成 `npx --yes larto-mcp@latest`。E2E 先 `npm pack`、安装生成的 tarball，再运行安装后的 bin 做真实 stdio 往返；准备阶段失败也清理临时目录。
 
 **验证**
 
 - `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`：全部通过；Vitest 8 文件 / 46 项、MCP Node Test 11/11。E2E 覆盖首启 iPhone 17 Pro（inner 402×771、screen 402×874、DPR 3、touch 5）、iOS/Android/PC、快速切机竞态、DevTools、主题、缓存，以及从 npm tarball 安装后的 18 个 MCP 工具与 `get_state` 往返。
 - CUA 实机视觉检查设置页、检查更新与默认工作台；PC 手柄从 550×870 拖到 687×870，实时值变化并在松手后进入 1:1 固定模式。检查中发现透明欢迎页在强制深色 canvas 下对比度丢失，已改回中性白色网页 canvas 后再复核。
 - `npm pack --dry-run --json`：包内含 LICENSE；registry 查询当前仍为 404，未把源码存在误报为已发布。
-- `pnpm dist:unsigned`：arm64 app / dmg / zip 构建完成；`Info.plist` 的 `CFBundleIdentifier = app.ihopeful.FeishuDevTools`、版本 0.1.0，`codesign --verify --deep --strict` 与 `hdiutil verify` 均通过（ad-hoc，未公证）。
+- `pnpm dist:unsigned`：arm64 app / dmg / zip 构建完成；`Info.plist` 的 `CFBundleIdentifier = app.ihopeful.Larto`、版本 0.1.0，`codesign --verify --deep --strict` 与 `hdiutil verify` 均通过（ad-hoc，未公证）。
 
 **结论 / 遗留**
 
 - 本地代码、构建、自动化和本机拖拽/视觉检查通过；未提交、未推送、未打 tag、未发布 npm 或应用 Release。
 - 仍待用户真实 UAT：飞书扫码登录后的账号资料/头像/租户切换、`tt.config` / `requestAuthCode` / `requestAccess`，以及真实更新下载安装。
-- `feishu-devtools-mcp` 仍需获得明确发布授权并由有 npm 权限的账号完成首次 registry 发布；在 registry 可见前，`npx ...@latest` 不能作为已可用能力宣传。
+- `larto-mcp` 仍需获得明确发布授权并由有 npm 权限的账号完成首次 registry 发布；在 registry 可见前，`npx ...@latest` 不能作为已可用能力宣传。
 
 ## 2026-09-04 — Bug 收口 + 微信开发者工具式工作台重构
 
@@ -118,11 +140,11 @@
 - `pnpm typecheck`：三个 tsconfig 全部通过。
 - `pnpm test`：Vitest 7 文件 / 42 项通过；MCP Node Test 10/10 通过。
 - `pnpm build`：main / preload / renderer 全部通过。
-- `FDT_MCP_PORT=17431 pnpm e2e`：24 项全部 PASS，覆盖首次仿真、650ms 慢页面切机等待、重叠命令淘汰、1200ms PC 切机与 DevTools 并发、iOS/Android/PC、JSAPI、DevTools、主题、缓存与 stdio bridge；隔离 userData 由脚本清理。
+- `LARTO_MCP_PORT=17431 pnpm e2e`：24 项全部 PASS，覆盖首次仿真、650ms 慢页面切机等待、重叠命令淘汰、1200ms PC 切机与 DevTools 并发、iOS/Android/PC、JSAPI、DevTools、主题、缓存与 stdio bridge；隔离 userData 由脚本清理。
 - 最终压力复跑：重新构建后在 17441 / 17442 / 17443 连续三轮 E2E 均 24/24 PASS，第三轮启用 `NODE_OPTIONS=--unhandled-rejections=strict`；三轮均无运行期 ERROR 或未处理 rejection，端口与临时进程均已清理。
 - 独立只读终审：首导航后立即切机精确复现 5/5 通过；1200ms PC 切机 + 250ms 后切换 DevTools 在约 1.28s 正确返回；本轮关注的代理、更新、attach 与隐藏窗口布局链路未发现剩余 P0/P1/P2。
 - 独立运行时键盘复核：设备菜单 ArrowDown + Enter、缩放菜单 ArrowDown + Space 均实际切换并把 AX 焦点恢复到原触发按钮；本范围未发现剩余 P0/P1。
-- 将用户参考图与最终 iPhone + DevTools 实机截图放入同一画布逐项对照：顶栏层级、左右分栏、设备画布、底部控制/状态、深色表面与分割线均达到当前视觉验收；最终合成截图在 `/tmp/fdt-e2e/final-current.png`，对照图在 `/tmp/fdt-design-compare-final.png`，均不入库。
+- 将用户参考图与最终 iPhone + DevTools 实机截图放入同一画布逐项对照：顶栏层级、左右分栏、设备画布、底部控制/状态、深色表面与分割线均达到当前视觉验收；最终合成截图在 `/tmp/larto-e2e/final-current.png`，对照图在 `/tmp/larto-design-compare-final.png`，均不入库。
 
 **结论 / 遗留**
 
@@ -192,9 +214,9 @@
 
 **做了什么**（承接试用反馈修复；同版本号 0.1.0，未重新发 Release）
 
-- **检查更新对话框**：Sparkle 风格（图标、版本行、Release 说明经 `sanitizeReleaseNotes` 白名单清洗、「自动检查」；按钮「跳过 / 稍后 / 安装」；`skippedUpdateVersion` + `update:skip`；静默检查尊重跳过，手动检查仍报告；离线 `error` 不自动弹窗）。dev 可用 `FDT_UPDATE_FEED`。
+- **检查更新对话框**：Sparkle 风格（图标、版本行、Release 说明经 `sanitizeReleaseNotes` 白名单清洗、「自动检查」；按钮「跳过 / 稍后 / 安装」；`skippedUpdateVersion` + `update:skip`；静默检查尊重跳过，手动检查仍报告；离线 `error` 不自动弹窗）。dev 可用 `LARTO_UPDATE_FEED`。
 - **afterPack ad-hoc 签名**：`scripts/after-pack.mjs`，无 `CSC_LINK`/`CSC_NAME` 时对 `.app` 做 `codesign --force --deep --sign -`，避免 Gatekeeper「已损坏」。
-- **npm stdio 桥**：`packages/feishu-devtools-mcp` + `.github/workflows/npm-mcp.yml`；`install` 写入 cursor / claude-code / claude-desktop / codex；应用未运行时自动拉起并等 `/health`。
+- **npm stdio 桥**：`packages/larto-mcp` + `.github/workflows/npm-mcp.yml`；`install` 写入 cursor / claude-code / claude-desktop / codex；应用未运行时自动拉起并等 `/health`。
 - **官网 + README 重写**：跟随系统外观、真实截图（hero / simulator / DevTools）、MCP 与 npm 桥说明、Gatekeeper FAQ；MCP 工具表与 `src/main/mcp.ts` 共 18 个工具对齐。
 - **导航竞态**：`pendingUrl` / `flushPendingUrl`；`Simulator.tsx#attachGuest` 失败后重试，避免 MCP `navigate` 早于 webview attach 被吞。
 - **深色模拟器机身**：`--sim-*` 色板跟随主题；网页内容配色不变，无背景页仍在白色画布上（对齐官方 `#iframeContainer webview`）。
@@ -207,10 +229,10 @@
 - `git add -A` 后 `rg "__nav|dbg.push"`：`src/` 无匹配；`simulator.ts` 仅 `pendingUrl` / `flushPendingUrl`。
 - `prettier --write`（CHANGELOG / progress）+ `prettier --check .` → 通过。
 - `pnpm typecheck`（tsc ×3）→ 通过。
-- `pnpm test`：vitest 26 用例 + `feishu-devtools-mcp` node --test 4 用例 → 全部通过。
+- `pnpm test`：vitest 26 用例 + `larto-mcp` node --test 4 用例 → 全部通过。
 - `pnpm build`（electron-vite）→ 通过。
 - `node scripts/e2e.mjs`：19 项 PASS（含 fresh iPhone 13 + debugger、首屏 emulation、stdio bridge tools/list = 18）。
-- 既有 `dist/mac-arm64/FeishuDevTools.app`：`codesign --verify --deep --strict` 通过（adhoc，`com.feishudevtools.app`）；本会话未重打包。
+- 既有 `dist/mac-arm64/Larto.app`：`codesign --verify --deep --strict` 通过（adhoc）；本会话未重打包。
 
 **结论**
 
@@ -220,18 +242,18 @@
 
 - 真实飞书扫码登录、租户切换、`tt.config` / `requestAuthCode` / `requestAccess` 鉴权、PC 预览推送。
 - Developer ID 签名与 Apple 公证；干净机器 Gatekeeper「仍要打开」流程。
-- 用户验收通过后再重新发布 0.1.0 产物；`feishu-devtools-mcp` 需 `NPM_TOKEN` 随发布；官网改动需合并 `main` 后由 `pages.yml` 部署。
+- 用户验收通过后再重新发布 0.1.0 产物；`larto-mcp` 需 `NPM_TOKEN` 随发布；官网改动需合并 `main` 后由 `pages.yml` 部署。
 
 ## 2026-09-04 — v0.1.0 试用反馈修复（同版本号重新打包，待验收后再发布）
 
 **做了什么**（对应用户反馈 1–10）
 
-1. **图标偏小/留白**：`scripts/make-icons.mjs` 先 `trim()` 掉素材四周透明边距，再铺满画布；重新生成 `build/icon.icns|png`、`resources/icon*.png`、`src/renderer/src/assets/icon.png`（关于弹窗）、`website/public/*`。`iconutil` 在沙箱里报 Invalid Iconset，需在沙箱外执行。按 macOS 网格 824/1024 铺满和改成 90% 两版用户都说"还是小"——用 Swift 调 `NSWorkspace.icon(forFile:)` 渲染打包后的 .app 才看清根因：**macOS 26 会拿旧式 .icns 的 alpha 形状对照系统 squircle 网格，形状不符（我们的卡片圆角比 Apple 的圆得多）就缩小放进一块灰色系统底板**，所以填多少画布都没用。第三版把卡片渲染*进*精确的 squircle：`squirclePath()`（figma-squircle 算法，半径 22.37%、平滑 0.6）做 1024 画布上 824 的蒙版，卡片放大 5% 让自身圆角落在蒙版外、底下垫卡片边框均值色，再 `dest-in` 裁切。IconServices 实渲染：无灰底板、尺寸与官方图标一致（`/tmp/fdt-probe/sys/final-compare.png`）。
+1. **图标偏小/留白**：`scripts/make-icons.mjs` 先 `trim()` 掉素材四周透明边距，再铺满画布；重新生成 `build/icon.icns|png`、`resources/icon*.png`、`src/renderer/src/assets/icon.png`（关于弹窗）、`website/public/*`。`iconutil` 在沙箱里报 Invalid Iconset，需在沙箱外执行。按 macOS 网格 824/1024 铺满和改成 90% 两版用户都说"还是小"——用 Swift 调 `NSWorkspace.icon(forFile:)` 渲染打包后的 .app 才看清根因：**macOS 26 会拿旧式 .icns 的 alpha 形状对照系统 squircle 网格，形状不符（我们的卡片圆角比 Apple 的圆得多）就缩小放进一块灰色系统底板**，所以填多少画布都没用。第三版把卡片渲染*进*精确的 squircle：`squirclePath()`（figma-squircle 算法，半径 22.37%、平滑 0.6）做 1024 画布上 824 的蒙版，卡片放大 5% 让自身圆角落在蒙版外、底下垫卡片边框均值色，再 `dest-in` 裁切。IconServices 实渲染：无灰底板、尺寸与官方图标一致（`/tmp/larto-probe/sys/final-compare.png`）。
     **默认窗口盖不住模拟器**（追加反馈）：旧默认 1180×845 放不下 iPhone 13@100%（需要 82+28+20×2+844 = 994）。`window.ts#sizeForDevice()` 按机型 + 缩放算尺寸并裁到工作区，首次启动用它当默认；`fitWindowToDevice(device, zoom)` 改成"只增不减"地撑到能完整露出机身（宽度同时满足官方 `deviceWidth+557` 最小宽度），启动恢复旧 bounds 后也跑一次，`zoom` 变化经 `settings.on('change')` 触发；PC 机型不撑高。
 2. （用户第 2 条为空图，未处理。）
-3. **默认机型不是 iPhone 13**：根因是 `scripts/e2e.mjs` / `--smoke-test` 一直写真实 `settings.json`（上次 e2e 结束在 Nexus 5）。新增 `FDT_USER_DATA` 环境变量（`main/index.ts` 在实例锁之前 `setPath('userData'|'sessionData')`），e2e 每次用 `mkdtemp` 临时目录并在结束时删除。**机身圆角**：`shared/devices.ts#deviceCornerRadius()`（带刘海机型 = 状态栏高度，iPad Pro 18，其它移动机型 12，PC 8），`Simulator.tsx` 套到 `.gadget`。
+3. **默认机型不是 iPhone 13**：根因是 `scripts/e2e.mjs` / `--smoke-test` 一直写真实 `settings.json`（上次 e2e 结束在 Nexus 5）。新增 `LARTO_USER_DATA` 环境变量（`main/index.ts` 在实例锁之前 `setPath('userData'|'sessionData')`），e2e 每次用 `mkdtemp` 临时目录并在结束时删除。**机身圆角**：`shared/devices.ts#deviceCornerRadius()`（带刘海机型 = 状态栏高度，iPad Pro 18，其它移动机型 12，PC 8），`Simulator.tsx` 套到 `.gadget`。
 4. **调试器默认打开**：`DEFAULT_SETTINGS.showDevTools = true`。
-5. **选择元素不可用 / "DevTools 连接"**：实测（CDP 抓前端↔后端协议）移动机型开着 `Emulation.setTouchEmulationEnabled` 时 hover 完全不产生 `Overlay.nodeHighlightRequested`，关掉触摸模拟后 hover 高亮、点击 `inspectNodeRequested` 正常。方案：`main/devtools-frontend.ts` 向 DevTools 前端注入 `INSPECT_HOOK_JS`（包 `InspectorFrontendHost.sendMessageToBackend`，见到 `Overlay.setInspectMode` 就 `console.info('[fdt] inspect:on|off')`），`devtools-dock.ts` 在前端 `console-message` 识别并 emit `inspect-mode`，`index.ts` 接到 `guestManager.setInspecting()` 暂停/恢复触摸模拟（`applyEmulation(scope:'touch')`）。DevTools 关闭时也恢复。"连接"本身经首启动、关开、reload、从加载失败页导航四种场景核对 Elements 树均正常（此前看到的空面板是前端冷启动 4–6 s 内截图太早）。
+5. **选择元素不可用 / "DevTools 连接"**：实测（CDP 抓前端↔后端协议）移动机型开着 `Emulation.setTouchEmulationEnabled` 时 hover 完全不产生 `Overlay.nodeHighlightRequested`，关掉触摸模拟后 hover 高亮、点击 `inspectNodeRequested` 正常。方案：`main/devtools-frontend.ts` 向 DevTools 前端注入 `INSPECT_HOOK_JS`（包 `InspectorFrontendHost.sendMessageToBackend`，见到 `Overlay.setInspectMode` 就 `console.info('[larto] inspect:on|off')`），`devtools-dock.ts` 在前端 `console-message` 识别并 emit `inspect-mode`，`index.ts` 接到 `guestManager.setInspecting()` 暂停/恢复触摸模拟（`applyEmulation(scope:'touch')`）。DevTools 关闭时也恢复。"连接"本身经首启动、关开、reload、从加载失败页导航四种场景核对 Elements 树均正常（此前看到的空面板是前端冷启动 4–6 s 内截图太早）。
 6. **DevTools 深色与应用不一致**：`THEME_CSS` 通过 `insertCSS` 覆盖 `--sys-color-cdt-base-container / surface / base / divider / --color-background*` 等 token 为 app.css 深色配色；浅色不动。
 7. **登录层级低于 DevTools**：原生 `WebContentsView` 永远盖住 DOM。新增 `guest:snapshotDevTools`（IPC 三处同步）与 `useApp.devtoolsCovers` 计数 + `useCoversDevTools(open, ref)` 钩子（`Dropdown`/`UrlBar` 历史）；`DevToolsPane` 在弹层或 modal 打开时先把 `capturePage()` 的 PNG 画进占位 div，再隐藏 view，关闭后恢复并延迟 400 ms 清掉底图。登录窗口本身是 `parent` 子窗口，本来就在上面。
 8. **点登录还要点二级按钮**：`AccountMenu` 未登录时只渲染一个「登录」按钮直接触发 `account:login`；已登录/过期才是头像 + 下拉（过期头像半透明、菜单里给「登录」）。`login()` 进行中再点只聚焦登录窗口。
@@ -252,7 +274,7 @@
 **验证**
 
 - `prettier --check` / `tsc ×3` / `vitest`（26 用例，新增 `tests/passport.test.ts` 8 个、`tests/store.test.ts` 7 个）/ `electron-vite build` / `scripts/e2e.mjs`（16 项 PASS，新增「fresh profile defaults: iPhone 13 + debugger docked」与「first page load already emulated and its console captured」，后者靠预置 `settings.json.lastUrl` 指向测试页）。
-- 临时脚本（`/tmp/fdt-probe/*.mjs`，未入库）用 `--remote-debugging-port` 连 DevTools 前端与 guest 两个 target 实测：进入选择模式 `navigator.maxTouchPoints` 5→0，hover 有 `Overlay.nodeHighlightRequested`，点击 `inspectNodeRequested` 且 Elements 选中 `<div id="b">`，选完/手动关闭/关掉 DevTools 三种路径都恢复为 5；主题 token 计算值 `#1f2329`；历史弹层打开时 `devtools.visible=false` 且占位 div 有 PNG 底图，关闭后恢复；首屏脚本读到 `innerWidth 390 / dpr 3`（本地零延迟服务器下 `maxTouchPoints` 偶有一次读到 0，30 ms 延迟即稳定 5——触摸标志经 WebPreferences 异步下发，真实网络页面不受影响）；清缓存 toast 显示在模拟器列内；窗口尺寸（CDP 读 shell 的 `innerHeight` 与 `.simulatorContent` 溢出）：新配置 1180×994 无溢出、缩放 125% → 1205、存了 845 高的旧配置启动后 994、PC 不变、iPad Pro → 1581×工作区高并滚动。合成截图（窗口 + DevTools）深/浅各一张人工核对。
+- 临时脚本（`/tmp/larto-probe/*.mjs`，未入库）用 `--remote-debugging-port` 连 DevTools 前端与 guest 两个 target 实测：进入选择模式 `navigator.maxTouchPoints` 5→0，hover 有 `Overlay.nodeHighlightRequested`，点击 `inspectNodeRequested` 且 Elements 选中 `<div id="b">`，选完/手动关闭/关掉 DevTools 三种路径都恢复为 5；主题 token 计算值 `#1f2329`；历史弹层打开时 `devtools.visible=false` 且占位 div 有 PNG 底图，关闭后恢复；首屏脚本读到 `innerWidth 390 / dpr 3`（本地零延迟服务器下 `maxTouchPoints` 偶有一次读到 0，30 ms 延迟即稳定 5——触摸标志经 WebPreferences 异步下发，真实网络页面不受影响）；清缓存 toast 显示在模拟器列内；窗口尺寸（CDP 读 shell 的 `innerHeight` 与 `.simulatorContent` 溢出）：新配置 1180×994 无溢出、缩放 125% → 1205、存了 845 高的旧配置启动后 994、PC 不变、iPad Pro → 1581×工作区高并滚动。合成截图（窗口 + DevTools）深/浅各一张人工核对。
 - 未跑：真实飞书扫码登录（本机 shell 无法直连外网，且需要用户账号）、Gatekeeper 首次安装。
 
 **结论**
@@ -271,12 +293,12 @@
 - 新建 [`CHANGELOG.md`](../CHANGELOG.md)；README 补产品截图（`website/public/hero-dark.webp`）、状态改为 v0.1.0 已发布并写明已知限制。
 - 官网缩放文案 50%–200% → 50%–150%（与 `ZOOM_LEVELS` 一致）。
 - `electron-builder.yml` `minimumSystemVersion` 12.0 → 13.0（Electron 44 要求 Ventura）；README / 实施计划硬约束同步。
-- 仓库此前已推到 GitHub：CI 与 Pages 在 `main` 均 success；官网 https://ihopefulchina.github.io/FeishuDevTools/ 可访问。
-- 本机 `pnpm dist:unsigned`：`dist/FeishuDevTools-0.1.0-arm64.dmg`（105 MB）与 `.zip`（113 MB）；`Info.plist` 版本 0.1.0、最低系统 13.0。
+- 仓库此前已推到 GitHub：CI 与 Pages 在 `main` 均 success；官网 https://ihopefulchina.github.io/Larto/ 可访问。
+- 本机 `pnpm dist:unsigned`：`dist/Larto-0.1.0-arm64.dmg`（105 MB）与 `.zip`（113 MB）；`Info.plist` 版本 0.1.0、最低系统 13.0。
 - 打 annotated tag `v0.1.0` 并推送。
 - 第一次 Release 失败：空 `CSC_LINK` 被当成证书路径 → `not a file`。已 `unset` 空变量。
 - 第二次 Release 打包成功，但 dmg 与 zip 并行 `POST /releases`，后到的请求 422 `tag_name already_exists`。已改为 `--publish never` + `softprops/action-gh-release`。
-- 本机未签名产物已上传到 GitHub Release：`FeishuDevTools-0.1.0-arm64.dmg`（105 MB）、`.zip`（113 MB）、`latest-mac.yml`、两份 blockmap。
+- 本机未签名产物已上传到 GitHub Release：`Larto-0.1.0-arm64.dmg`（105 MB）、`.zip`（113 MB）、`latest-mac.yml`、两份 blockmap。
 
 **验证**
 
@@ -286,7 +308,7 @@
 
 **结论**
 
-- v0.1.0 已发布：https://github.com/ihopefulChina/FeishuDevTools/releases/tag/v0.1.0 。官网下载按钮会指向最新 arm64 dmg。包未签名。
+- v0.1.0 已发布：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0 。官网下载按钮会指向最新 arm64 dmg。包未签名。
 
 **遗留**
 
@@ -298,7 +320,7 @@
 
 **做了什么**
 
-- 阶段 1（布局复核）：用 MCP 驱动应用逐个截取 iPhone 13 / iPhone 8 / Nexus 5 / iPad / iPad Pro / PC、缩放 75%/150%、深/浅主题、DevTools 开关的窗口截图（`/tmp/fdt-e2e/p1-*.png`，未入库）对照研究文档 §2。修正三处：
+- 阶段 1（布局复核）：用 MCP 驱动应用逐个截取 iPhone 13 / iPhone 8 / Nexus 5 / iPad / iPad Pro / PC、缩放 75%/150%、深/浅主题、DevTools 开关的窗口截图（`/tmp/larto-e2e/p1-*.png`，未入库）对照研究文档 §2。修正三处：
   1. 窗口最小宽度随机型：`window.ts#fitWindowToDevice()` 实现官方 `setBrowserOptions` 的 `deviceWidth + 70 + 387 + 100` 规则（PC 回到 909，按显示器工作区裁剪），`guest:setDevice` 之后调用，窗口过窄时自动加宽（iPad Pro → 1581）。
   2. 模拟器溢出：`.simulatorContent` 原来 `justify-content: center` 在内容超宽时会把左边裁掉且滚不到；改为 `.gadgetBox`（缩放后的实际尺寸）+ `margin: 0 auto`，`.gadget` 以左上角为缩放原点。PC 机型由 `.gadgetBox.pc` 填满列。
   3. 滚动条由常显改为悬停显示（`:hover::-webkit-scrollbar-thumb`）。

@@ -2,6 +2,22 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — v0.1.3 发布与本机更新完成
+
+**完成 / 验证**
+
+- 修复提交 `10f5023a0f8d664816870d58a8f970cea8d627fc` 已推送 main；四平台 CI `34094081826` 与 Website `34094081699` 成功。tag `v0.1.3` 固定到该提交。
+- Release run `34094310172` 的 macOS arm64/x64、Windows x64、Linux x64 打包与原生 smoke 全部成功；公开 Release 为 Latest、非草稿非预发布，20 个附件全部 uploaded，19 项 SHA-256 清单与 GitHub asset digest 逐项一致，清单自身 digest 也通过。官网 HTML/JS live 已显示 0.1.3 和按需启动说明。
+- 从公开 Release 下载 arm64 DMG：SHA-256 为 `776dff82bec563599c203e5d28eeef05ad70dbb905293a6597ffabe4cd528417`，与清单一致；`hdiutil verify` 和 `gh attestation verify --repo ihopefulChina/Larto` 均返回 0。只读挂载后核对版本 0.1.3、Bundle ID、arm64、最低 macOS 13，`codesign --verify --deep --strict` 通过；用隔离 profile、本地 data 页运行下载包 smoke，退出 0 并生成非空截图（101091 bytes），未使用真实账号做 UAT。
+- npm 自动发布初次因 `ENEEDAUTH` 失败；通过本机已登录维护者账号执行 `npm publish --access public` 并完成 npm 认证后，registry 已公开 `larto-mcp@0.1.3` 且 latest=0.1.3。其 shasum `e1c951cb4e10ae8e08cc979f466b07d62e539437` 与完整 integrity 精确匹配本地待发布包（10 个文件）。重跑失败 job 后，工作流走“精确版本已存在则跳过”，attempt 2 最终全绿，没有重打或替换桌面资产。
+- 正常退出旧应用，将公开 DMG 内的 0.1.3 更新到本机应用目录，保留旧 bundle 备份；未修改 userData。安装后再次验证签名并卸载镜像。`npx --yes larto-mcp@latest --version` 返回 0.1.3；应用关闭状态下连续三次运行公开 npm 桥，初始化返回 0.1.3、枚举 18 个工具、心跳成功，进程检查确认 Larto 一直保持关闭。本机客户端入口已是 `@latest`，无需改写配置；重启客户端后加载新桥。
+
+**遗留**
+
+- Trusted Publisher 授权尚未修复；本次本机补发成功与重跑跳过均不代表后续版本可以免认证自动发布。
+- 真实飞书登录/鉴权、真实自动更新、各安装格式人工 UAT 与正式代码签名/公证仍待完成。当前为 macOS ad-hoc 签名、未公证；Windows/Linux 未正式签名。
+- 原有 README 手动 npm 发布说明、progress 的 EPRIVATE 排查记录继续保留为用户未提交改动，未混入本轮提交。
+
 ## 2026-09-07 — v0.1.3 修复 MCP 后台连接反复打开应用
 
 **做了什么**

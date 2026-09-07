@@ -2,7 +2,7 @@
   'use strict'
 
   var REPO = 'ihopefulChina/Larto'
-  var SITE_VERSION = '0.1.1'
+  var SITE_VERSION = '0.1.2'
   var RELEASES_URL = 'https://github.com/' + REPO + '/releases/tag/v' + SITE_VERSION
   var assetPatterns = {
     'mac-arm64-dmg': /-mac-arm64\.dmg$/i,
@@ -186,7 +186,7 @@
         'Larto ' + version + (published ? ' · ' + published + ' 发布' : '') + ' · SHA-256'
     })
     document.querySelectorAll('[data-release-name]').forEach(function (element) {
-      element.textContent = 'FEISHUDEVTOOLS / ' + version
+      element.textContent = 'LARTO / ' + version
     })
     refreshPrimaryDownload()
   }

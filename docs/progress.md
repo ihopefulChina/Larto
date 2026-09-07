@@ -2,6 +2,22 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — 准备发布 v0.1.2（Larto 资产）
+
+**做了什么**
+
+- 版本升到 0.1.2；CHANGELOG、README、SECURITY、官网与 MCP 文档改为新版本。官网遗留的 `FEISHUDEVTOOLS` 字样改为 `LARTO`。
+- v0.1.1 tag 不能覆盖：其 Release 资产仍是旧文件名。新 tag 将产出 `Larto-0.1.2-…` 并发布 `larto-mcp@0.1.2`。
+
+**验证**
+
+- Prettier、三份 tsc、Vitest 15/78、Node 23/23、`electron-vite build`、`LARTO_MCP_PORT=17493` E2E 24/24（stdio `name=larto` `version=0.1.2`）。
+- 本条写入时 tag 尚未推送；最终 GitHub Release / npm 结果以下一条记录为准。
+
+**结论 / 遗留**
+
+- npm Trusted Publisher 目前是旧包名配置；`larto-mcp` 首次发布可能需要在 npmjs 上绑定仓库 `ihopefulChina/Larto` 与 `release.yml`。
+
 ## 2026-09-07 — 博客改名发布，本机换成 Larto
 
 **做了什么**

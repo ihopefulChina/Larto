@@ -10,17 +10,17 @@ Larto serves MCP over Streamable HTTP at `http://127.0.0.1:17331/mcp`. Clients t
 
 Requires Node.js 20 or newer and Larto installed on a supported desktop platform: macOS arm64 / x64, Windows x64 or Linux x64 ([download](https://github.com/ihopefulChina/Larto/releases/latest)).
 
-The tagged `0.1.1` release workflow publishes this package alongside the desktop app. If the npm
+The tagged `0.1.2` release workflow publishes this package alongside the desktop app. If the npm
 registry has not finished publishing or propagating a new release, use the app's local HTTP endpoint
 until the package is visible; do not install an identically named package from another source.
 
 ## Install into a client
 
 ```bash
-npx --yes larto-mcp@0.1.1 install cursor          # add --project for ./.cursor/mcp.json
-npx --yes larto-mcp@0.1.1 install claude-code
-npx --yes larto-mcp@0.1.1 install claude-desktop  # writes the native config path for this OS
-npx --yes larto-mcp@0.1.1 install codex
+npx --yes larto-mcp@0.1.2 install cursor          # add --project for ./.cursor/mcp.json
+npx --yes larto-mcp@0.1.2 install claude-code
+npx --yes larto-mcp@0.1.2 install claude-desktop  # writes the native config path for this OS
+npx --yes larto-mcp@0.1.2 install codex
 ```
 
 Each of these registers a server named `larto` that runs `npx --yes larto-mcp@latest`. To see the entry without writing it:
@@ -56,7 +56,7 @@ instead of silently writing a user-level configuration.
 
 ## Tools
 
-The bridge exposes whatever the running app provides; with Larto 0.1.1 that is `get_state`, `navigate`, `reload`, `list_devices`, `set_device`, `set_zoom`, `set_theme`, `toggle_devtools`, `clear_cache`, `screenshot`, `evaluate`, `get_dom`, `click`, `fill`, `get_console`, `clear_console`, `get_jsapi_log` and `focus_window`. See the [project README](https://github.com/ihopefulChina/Larto#mcp) for details.
+The bridge exposes whatever the running app provides; with Larto 0.1.2 that is `get_state`, `navigate`, `reload`, `list_devices`, `set_device`, `set_zoom`, `set_theme`, `toggle_devtools`, `clear_cache`, `screenshot`, `evaluate`, `get_dom`, `click`, `fill`, `get_console`, `clear_console`, `get_jsapi_log` and `focus_window`. See the [project README](https://github.com/ihopefulChina/Larto#mcp) for details.
 
 ## How it works
 

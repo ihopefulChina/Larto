@@ -4,10 +4,21 @@
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-09-07
+
+产品更名为 Larto 后的首次公开发布。GitHub Release 资产、桌面安装包与 MCP npm 包均使用新名称。
+
 ### 变更
 
-- 产品更名为 **Larto**。应用显示名、GitHub 仓库、官网、Bundle ID（`app.ihopeful.Larto`）、Linux 可执行文件（`larto`）、MCP 服务名（`larto`）与 npm 包（`larto-mcp`）全部切换。
+- 产品更名为 **Larto**。应用显示名、窗口标题、GitHub 仓库、官网、Bundle ID（`app.ihopeful.Larto`）、Linux 可执行文件（`larto`）、MCP 服务名（`larto`）与 npm 包（`larto-mcp`）全部切换。
 - 首次启动时，若新的 userData 目录还没有设置或会话，会从旧产品目录复制已有资料。
+- GitHub Release 资产文件名改为 `Larto-${version}-…`；stdio 桥改为公开包 `larto-mcp`。
+
+### 已知限制
+
+- 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 鉴权、PC 预览推送：代码已实现，**尚未用真实账号验收**。
+- 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
+- Windows 与 Linux 包尚未签名。
 
 ## [0.1.1] — 2026-09-04
 
@@ -104,5 +115,6 @@
 - 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
+[0.1.2]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0

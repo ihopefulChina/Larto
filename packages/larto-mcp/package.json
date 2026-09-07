@@ -1,6 +1,6 @@
 {
   "name": "larto-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cross-platform stdio bridge and one-command installer for the Larto MCP server (Feishu/Lark H5 simulator).",
   "keywords": [
     "mcp",

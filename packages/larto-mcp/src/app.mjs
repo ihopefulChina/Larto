@@ -118,7 +118,7 @@ export async function launchApp(options = {}) {
  * `port` (unless `launch` is false). Resolves with the health payload, rejects with a message
  * suitable for the user.
  */
-export async function ensureApp({ port, launch = true, timeoutMs = 45_000, log = () => {} }) {
+export async function ensureApp({ port, launch = false, timeoutMs = 45_000, log = () => {} }) {
   let h = await health(port)
   if (!h.ok) {
     if (!launch) throw new Error(`Larto is not running on 127.0.0.1:${port}.`)

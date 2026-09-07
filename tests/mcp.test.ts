@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -52,6 +53,45 @@ function serviceFor(mcp: { enabled: boolean; port: number }) {
   services.push(service)
   return service
 }
+
+describe('McpService offline tool catalog', () => {
+  it('matches the complete HTTP tools/list result', async () => {
+    const port = await freePort()
+    const service = serviceFor({ enabled: true, port })
+    await service.start()
+
+    const response = await fetch(`http://127.0.0.1:${port}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-protocol-version': '2025-03-26'
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
+    })
+    expect(response.status).toBe(200)
+    const body = await response.text()
+    const messages = response.headers.get('content-type')?.includes('text/event-stream')
+      ? body
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => JSON.parse(line.slice(5).trim()))
+      : [JSON.parse(body)]
+    const reply = messages.find((message) => message.id === 1)
+    expect(reply).toBeDefined()
+    expect(reply.error).toBeUndefined()
+    expect(reply.result.tools).toHaveLength(18)
+
+    const catalog = new URL('../packages/larto-mcp/src/tools.json', import.meta.url)
+    // Regenerate only after intentionally changing the public tool contract:
+    // LARTO_UPDATE_MCP_TOOLS=1 pnpm exec vitest run tests/mcp.test.ts -t 'complete HTTP tools/list'
+    // pnpm exec prettier --write packages/larto-mcp/src/tools.json
+    if (process.env.LARTO_UPDATE_MCP_TOOLS === '1') {
+      writeFileSync(catalog, JSON.stringify(reply.result, null, 2) + '\n')
+    }
+    expect(reply.result).toStrictEqual(JSON.parse(readFileSync(catalog, 'utf8')))
+  })
+})
 
 describe('McpService lifecycle', () => {
   it('serializes rapid restarts and publishes only the newest port', async () => {

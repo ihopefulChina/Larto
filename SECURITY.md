@@ -8,8 +8,8 @@ boundaries below before using it with a real account.
 
 | Version | Security updates |
 | --- | --- |
-| 0.1.2 | Supported |
-| 0.1.1 and earlier | Not supported; upgrade to the latest release |
+| 0.1.3 | Supported |
+| 0.1.2 and earlier | Not supported; upgrade to the latest release |
 
 ## Report a vulnerability
 
@@ -46,7 +46,7 @@ coordinate disclosure after the issue has been reproduced and a fix is available
   navigate, inspect, and evaluate code in the current guest page. Any process running as the same
   local user may be able to call it; disable MCP in Settings when it is not needed and do not
   forward its port.
-- Version 0.1.2 is an early release: the `.app` inside each macOS DMG/ZIP is ad-hoc signed and not
+- Version 0.1.3 is an early release: the `.app` inside each macOS DMG/ZIP is ad-hoc signed and not
   notarized, while the download containers have no Developer ID signature. Windows and Linux
   artifacts are unsigned. This is disclosed in the README, website, and Release.
 - Automated tests and packaged smoke checks do not establish real-account UAT, tenant-specific
@@ -55,14 +55,14 @@ coordinate disclosure after the issue has been reproduced and a fix is available
 ## Verify a release
 
 Download artifacts only from this repository's
-[GitHub Releases](https://github.com/ihopefulChina/Larto/releases). The 0.1.2 release
+[GitHub Releases](https://github.com/ihopefulChina/Larto/releases). The 0.1.3 release
 workflow is configured to publish `SHA256SUMS.txt` and GitHub artifact attestations. Before trusting
 a download, confirm that the workflow succeeded, the checksum file is present, and attestation
 verification succeeds.
 
 ```bash
-sha256sum Larto-0.1.2-linux-x64.AppImage
-gh attestation verify Larto-0.1.2-mac-arm64.dmg \
+sha256sum Larto-0.1.3-linux-x64.AppImage
+gh attestation verify Larto-0.1.3-mac-arm64.dmg \
   --repo ihopefulChina/Larto
 ```
 

@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-09-07
+
+### 修复
+
+- 修复已配置 MCP 的客户端在后台连接、重连或发现工具时反复打开 Larto 的问题。stdio 桥启动以及 `initialize`、`ping`、`tools/list` 均在本地处理，不再启动桌面应用；只有实际 `tools/call` 才按需启动并等待模拟器就绪，`--no-launch` 始终禁止启动应用。
+- stdio 桥内置工具目录，由自动化测试与桌面应用的工具契约比对，使工具发现不依赖应用运行。
+
+### 升级说明
+
+- 本次修复位于 `larto-mcp` npm 桥中。升级桌面应用时也必须将桥更新至 0.1.3 或更新版本；固定旧 npm 版本或直接运行旧本地脚本的客户端配置需同步更新。
+- 真实飞书登录与 JSAPI 鉴权仍待真实账号 UAT；macOS 包仅做 ad-hoc 签名且未公证，Windows 与 Linux 包未签名。
+
 ## [0.1.2] — 2026-09-07
 
 产品更名为 Larto 后的首次公开发布。GitHub Release 资产、桌面安装包与 MCP npm 包均使用新名称。
@@ -115,6 +127,7 @@
 - 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
+[0.1.3]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.3
 [0.1.2]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0

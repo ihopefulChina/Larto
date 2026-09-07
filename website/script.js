@@ -2,7 +2,7 @@
   'use strict'
 
   var REPO = 'ihopefulChina/Larto'
-  var SITE_VERSION = '0.1.2'
+  var SITE_VERSION = '0.1.3'
   var RELEASES_URL = 'https://github.com/' + REPO + '/releases/tag/v' + SITE_VERSION
   var assetPatterns = {
     'mac-arm64-dmg': /-mac-arm64\.dmg$/i,

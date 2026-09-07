@@ -15,6 +15,7 @@ export function runBridge({
   input = process.stdin,
   output = process.stdout,
   log = () => {},
+  routeMessage,
   requestTimeoutMs = 60_000
 }) {
   let sessionId = null
@@ -81,6 +82,19 @@ export function runBridge({
         write({ jsonrpc: '2.0', id, error: { code: -32000, message } })
       }
       pendingIds.clear()
+    }
+    if (routeMessage) {
+      try {
+        // undefined forwards to HTTP; null consumes a notification without replying.
+        const response = await routeMessage(msg)
+        if (response !== undefined) {
+          if (response !== null) handleServerMessage(JSON.stringify(response))
+          return
+        }
+      } catch (err) {
+        failPending(err.message ?? String(err))
+        return
+      }
     }
     const controller = new AbortController()
     const timeoutMessage = `Request to ${url} timed out after ${requestTimeoutMs}ms`

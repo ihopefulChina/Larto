@@ -2,6 +2,27 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — v0.1.3 修复 MCP 后台连接反复打开应用
+
+**做了什么**
+
+- 确认根因：旧 stdio CLI 在读取 stdin 前就以 `launch=true` 执行 `ensureApp()`，客户端后台初始化或重连时只要 `/health` 不通，就会执行系统启动命令。macOS 路径为通过 Bundle ID 的 `open -g -b`；应用二次启动会聚焦窗口。本机安装版 0.1.2 和已启用的 `larto-mcp@latest` 配置与此路径一致；源码未发现登录启动项注册，更新器也已禁用自动下载和退出时安装。
+- stdio 新增本地协议路由：启动、初始化、心跳、工具列表、空资源/提示词列表与通知不连接或启动桌面应用；只有具备请求 id 的已知工具调用才按需启动。同桥并发调用共享启动过程，失败逐请求返回错误并允许后续重试；`--no-launch` 禁止启动，底层 `ensureApp` 也默认不启动。
+- 内置 18 个公开工具完整目录，使用隔离的真实 `McpService` HTTP 响应作严格契约回归；不是复制工具业务实现或模拟飞书接口。同步架构说明、版本号、CHANGELOG、README、MCP README、安全政策和官网下载版本到 0.1.3。
+- 保留开工前 README 的手动 npm 发布说明与 progress 的 EPRIVATE 排查记录，发布提交不包含这两段既有未提交内容。
+
+**验证**
+
+- 最窄 MCP Node 测试 25/25、真实 HTTP 目录契约与生命周期 Vitest 3/3 通过。
+- `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && LARTO_MCP_PORT=17523 pnpm e2e` 全通过：Vitest 15 文件 / 79 项，Node 28/28，Electron E2E 24/24（从 npm tarball 安装后验证 stdio 握手、18 工具列表及真实 `get_state` 往返）。
+- 新增 CLI 子进程回归连续运行三次，拦截任何启动/网络副作用：无请求退出、离线初始化、通知、心跳、工具/资源/提示词枚举均无副作用；并发工具启动合并、失败响应及重试、`--no-launch` 和版本协商测试通过。独立只读 review 未发现产品阻断问题；采用 `close` 事件等管道排空，避免 Windows 子进程测试竞态。
+
+**结论 / 遗留**
+
+- 代码与本地自动化通过，远端原生 CI、安装包、公开 GitHub/npm/Pages 发布结果待后续记录；未把本地 E2E 视为跨平台原生安装或真实飞书 UAT。
+- 修复在 npm 桥中，仅替换桌面应用不足以修复仍固定旧 npm 版本或旧脚本的客户端；发布后须核对 registry 与本机实际桥入口。
+- 真实飞书账号、鉴权、更新安装仍待 UAT；macOS 仍为 ad-hoc 签名且未公证，Windows/Linux 未正式签名。
+
 ## 2026-09-07 — v0.1.2 GitHub Release 已公开
 
 **做了什么**

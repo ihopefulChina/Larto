@@ -439,7 +439,7 @@ try {
   // clients. Drive a full initialize → tools/list → tools/call round trip through it.
   const bridge = await runBridge()
   check(
-    'stdio bridge: initialize answered by the app server',
+    'stdio bridge: initialize answered locally without launching the app',
     bridge.init?.result?.serverInfo?.name === 'larto',
     JSON.stringify(bridge.init?.result?.serverInfo ?? bridge.init?.error)
   )

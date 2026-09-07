@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
-import { DEFAULT_PORT, DOWNLOAD_URL, endpoint, ensureApp } from './src/app.mjs'
-import { runBridge } from './src/bridge.mjs'
+import { DEFAULT_PORT, DOWNLOAD_URL } from './src/app.mjs'
+import { runServer } from './src/server.mjs'
 import { CLIENTS, SERVER_NAME, install, serverEntry } from './src/install.mjs'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
@@ -18,12 +18,13 @@ Usage
 
 Options
   --port <n>     MCP port configured in Larto → Settings (default ${DEFAULT_PORT})
-  --no-launch    fail instead of starting Larto when it is not running
+  --no-launch    fail tool calls instead of starting Larto when it is not running
   --project      use project scope (Cursor and Claude Code only)
   -h, --help     show this help
   -v, --version  print the version
 
 Larto itself: ${DOWNLOAD_URL}
+The app opens only for a tool call, never for client startup or tool discovery.
 `
 
 function parse(argv) {
@@ -75,9 +76,7 @@ async function main() {
   if (command) throw new Error(`unknown command "${command}"\n\n${HELP}`)
 
   // Default: act as a stdio MCP server for the client that spawned us.
-  const health = await ensureApp({ port: opts.port, launch: opts.launch, log })
-  log(`connected to Larto ${health.version} at ${endpoint(opts.port)}`)
-  await runBridge({ url: endpoint(opts.port), log })
+  await runServer({ port: opts.port, launch: opts.launch, log })
 }
 
 main().catch((err) => {

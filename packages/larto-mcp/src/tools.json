@@ -1,0 +1,338 @@
+{
+  "tools": [
+    {
+      "name": "get_state",
+      "title": "Get simulator state",
+      "description": "Current URL, title, device, zoom, theme, DevTools visibility, account and MCP info.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "navigate",
+      "title": "Navigate",
+      "description": "Load a URL in the simulator (also records it in the address bar history).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": ["url"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "focus_window",
+      "title": "Focus window",
+      "description": "Bring the Larto window to the front (screenshots of the DevTools panel need an unoccluded window).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "reload",
+      "title": "Reload page",
+      "description": "Reload the current page in the simulator.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_devices",
+      "title": "List devices",
+      "description": "Device presets available in the simulator, with their ids.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "set_device",
+      "title": "Set device",
+      "description": "Switch the simulated device (reloads the page with the matching user agent).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "enum": [
+              "iphone-13",
+              "iphone-14-pro",
+              "iphone-14-pro-max",
+              "iphone-15",
+              "iphone-15-plus",
+              "iphone-16",
+              "iphone-16-plus",
+              "iphone-16-pro",
+              "iphone-17-pro",
+              "iphone-16-pro-max",
+              "iphone-air",
+              "iphone-13-mini",
+              "iphone-13-pro-max",
+              "iphone-12",
+              "iphone-12-mini",
+              "iphone-12-pro-max",
+              "iphone-x",
+              "iphone-11",
+              "iphone-xs-max",
+              "iphone-8",
+              "iphone-8-plus",
+              "nexus-5",
+              "nexus-5x",
+              "nexus-6",
+              "ipad-pro",
+              "ipad",
+              "pc-mac",
+              "pc-windows"
+            ]
+          }
+        },
+        "required": ["deviceId"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "set_zoom",
+      "title": "Set zoom",
+      "description": "Simulator zoom percentage. Allowed: 50, 75, 85, 100, 125, 150.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "zoom": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["zoom"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "set_theme",
+      "title": "Set appearance",
+      "description": "Switch app appearance.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["system", "light", "dark"]
+          }
+        },
+        "required": ["mode"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "toggle_devtools",
+      "title": "Toggle DevTools",
+      "description": "Show or hide the docked Chromium DevTools panel.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "show": {
+            "type": "boolean"
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "clear_cache",
+      "title": "Clear cache",
+      "description": "Clear all site data of the simulator session and reload.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "screenshot",
+      "title": "Screenshot",
+      "description": "Capture a PNG of the page viewport (default), of the Larto shell window (toolbar + simulator frame), or of the docked DevTools panel.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": ["page", "window", "devtools"]
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "evaluate",
+      "title": "Evaluate JavaScript",
+      "description": "Run a JavaScript expression in the page (main world) and return its JSON-serialisable result.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          }
+        },
+        "required": ["expression"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_dom",
+      "title": "Get DOM",
+      "description": "Return outerHTML of the first element matching a CSS selector (default: documentElement), truncated to maxLength.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          },
+          "maxLength": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 200000
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "click",
+      "title": "Click element",
+      "description": "Click the first element matching a CSS selector.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          }
+        },
+        "required": ["selector"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fill",
+      "title": "Fill input",
+      "description": "Set the value of an input/textarea (dispatches input & change events).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": ["selector", "value"]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_console",
+      "title": "Get console logs",
+      "description": "Recent console messages from the page.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 500
+          },
+          "level": {
+            "type": "string",
+            "enum": ["verbose", "info", "warning", "error"]
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "clear_console",
+      "title": "Clear console buffer",
+      "description": "Discard buffered console messages.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_jsapi_log",
+      "title": "Get JSAPI log",
+      "description": "Recent Feishu JSAPI calls made by the page and how the simulator answered them.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 300
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ]
+}

@@ -2,6 +2,24 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-07 — v0.1.2 GitHub Release 已公开
+
+**做了什么**
+
+- 推送 tag `v0.1.2`。Release 工作流 run `34074920703` 的 validate、macOS arm64/x64、Windows、Linux、Intel smoke 与 `publish-release` 成功；公开 Release 为 Latest，资产文件名均为 `Larto-0.1.2-…`，不含旧前缀。
+- 本机核对 `Larto-0.1.2-mac-arm64.dmg` SHA-256 与 `SHA256SUMS.txt` 一致后安装到 `/Applications/Larto.app`。
+- `publish-mcp` 失败：`larto-mcp` 是新包名，npm Trusted Publisher 仍绑在旧包上，`npm publish` 返回 `ENEEDAUTH`。
+
+**验证**
+
+- 本地 SHA-256 `ad3212301869c610eafa4b981bad62357e5e541cc62c5a865efd2f5590a3a82a` 与清单一致。
+- 安装后 Bundle ID `app.ihopeful.Larto`、版本 0.1.2；`/health` 返回 `app=Larto` `version=0.1.2`。
+
+**结论 / 遗留**
+
+- 桌面包已按 Larto 名称公开：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.2
+- `larto-mcp@0.1.2` 尚未出现在 npm。需在 npmjs 为 `larto-mcp` 配置 Trusted Publisher（仓库 `ihopefulChina/Larto`、工作流 `release.yml`），再重跑 `publish-mcp`。本机 Codex 仍走仓库内 bin。
+
 ## 2026-09-07 — 准备发布 v0.1.2（Larto 资产）
 
 **做了什么**

@@ -77,6 +77,13 @@ describe('JsonStore', () => {
     expect(JSON.parse(readFileSync(file, 'utf8')).theme).toBe('light')
   })
 
+  it('persists a simulator column wider than the old 4000 cap', () => {
+    const file = join(dir, 'settings.json')
+    const store = new JsonStore(file, SettingsSchema)
+    store.set({ ...store.get(), simulatorColumnWidth: 5000 })
+    expect(store.get().simulatorColumnWidth).toBe(5000)
+  })
+
   it('keeps the last committed value when the atomic rename fails', () => {
     const file = join(dir, 'settings.json')
     writeFileSync(file, JSON.stringify({ version: 1, theme: 'dark' }))

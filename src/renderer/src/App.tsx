@@ -4,8 +4,7 @@ import type { ShellCommand } from '@shared/ipc'
 import { invoke, on } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import { simulatorActions, useSimulator } from '@/store/simulator'
-import { DevToolsPane } from './components/DevToolsPane'
-import { Simulator } from './components/Simulator'
+import { IdePanel } from './components/IdePanel'
 import { Toolbar } from './components/Toolbar'
 import { navigateTo } from './components/UrlBar'
 import { AboutModal } from './components/modals/AboutModal'
@@ -19,7 +18,7 @@ export function App() {
   const ready = useApp((s) => s.ready)
   const dark = useApp((s) => s.dark)
   const modal = useApp((s) => s.modal)
-  const showDevTools = useApp((s) => s.settings.showDevTools)
+  const consent = useApp((s) => s.consent)
   const setSetting = useApp((s) => s.setSetting)
   const [focusSignal, setFocusSignal] = useState(0)
 
@@ -92,16 +91,17 @@ export function App() {
 
   return (
     <div className="main">
-      <Toolbar onClearCache={() => void clearCache()} onToggleDevTools={() => toggleDevTools()} />
-      <div className="idePanel">
-        <Simulator focusSignal={focusSignal} />
-        {showDevTools && <DevToolsPane />}
-      </div>
+      <Toolbar
+        focusSignal={focusSignal}
+        onClearCache={() => void clearCache()}
+        onToggleDevTools={() => toggleDevTools()}
+      />
+      <IdePanel />
       {modal === 'preview' && <PreviewModal />}
       {modal === 'settings' && <SettingsModal />}
       {modal === 'about' && <AboutModal />}
       {modal === 'update' && <UpdateDialog />}
-      {modal === 'consent' && <ConsentModal />}
+      {modal === 'consent' && consent && <ConsentModal key={consent.id} />}
     </div>
   )
 }

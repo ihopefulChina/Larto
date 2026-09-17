@@ -19,14 +19,20 @@ const logger = vi.hoisted(() => ({
   error: vi.fn()
 }))
 
-vi.mock('electron', () => ({ clipboard }))
+vi.mock('electron', () => ({
+  clipboard,
+  app: { getVersion: () => '0.1.0', isPackaged: false },
+  session: { defaultSession: { fetch: vi.fn() } }
+}))
 vi.mock('../src/main/openapi', () => openapi)
 vi.mock('../src/main/consent', () => ({ consentBroker: { ask: vi.fn() } }))
 vi.mock('../src/main/logger', () => ({
   createLogger: () => logger
 }))
 
-const { handleJsapiBackend } = await import('../src/main/jsapi-backend')
+const { handleJsapiBackend, mapJsapiCaughtError } = await import('../src/main/jsapi-backend')
+const { HttpError } = await import('../src/main/http')
+const { SessionExpiredError } = await import('../src/main/passport')
 
 function deps(permission: boolean) {
   return {
@@ -41,7 +47,8 @@ function signedInDeps() {
   const dependencies = deps(true)
   dependencies.account = {
     getCookie: () => 'session=secret',
-    getSession: () => 'secret'
+    getSession: () => 'secret',
+    refresh: vi.fn(async () => ({ status: 'expired' }))
   } as never
   return dependencies
 }
@@ -97,6 +104,55 @@ describe('JSAPI error logging', () => {
       resultCode: 230001
     })
     expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(sensitive)
+  })
+})
+
+describe('JSAPI session errors', () => {
+  it('maps HTTP 401 and passport expiry to the not-logged-in JSAPI code', () => {
+    expect(mapJsapiCaughtError(new HttpError(401, 'https://open.feishu.cn/x', ''))).toEqual({
+      code: JSAPI_ERROR.NOT_LOGGED_IN,
+      message: 'invalid session, please login',
+      sessionExpired: true
+    })
+    expect(mapJsapiCaughtError(new SessionExpiredError(4401))).toMatchObject({
+      code: JSAPI_ERROR.NOT_LOGGED_IN,
+      sessionExpired: true
+    })
+    expect(mapJsapiCaughtError(new HttpError(500, 'https://open.feishu.cn/x', ''))).toMatchObject({
+      code: JSAPI_ERROR.NETWORK,
+      sessionExpired: false
+    })
+  })
+
+  it('refreshes the account and returns 99991691 when verify gets HTTP 401', async () => {
+    openapi.verifyJsapiSignature.mockRejectedValueOnce(
+      new HttpError(401, 'https://open.feishu.cn/openapi/jssdk/verify', '')
+    )
+    const dependencies = signedInDeps()
+    const result = await handleJsapiBackend(dependencies, {
+      method: 'config',
+      params: { appId: 'cli_a', jsApiList: [], nonceStr: 'n', signature: 's', timestamp: 1 },
+      url: 'https://example.com/#hash'
+    })
+    expect(dependencies.account.refresh).toHaveBeenCalledOnce()
+    expect(result).toEqual({
+      ok: false,
+      data: expect.objectContaining({ errorCode: JSAPI_ERROR.NOT_LOGGED_IN })
+    })
+  })
+
+  it('refreshes the account when requestAuthCode sees an expired session', async () => {
+    openapi.requestAuthCode.mockRejectedValueOnce(
+      new HttpError(401, 'https://open.feishu.cn/x', '')
+    )
+    const dependencies = signedInDeps()
+    const result = await handleJsapiBackend(dependencies, {
+      method: 'requestAuthCode',
+      params: { appId: 'cli_a' },
+      url: 'https://example.com/'
+    })
+    expect(dependencies.account.refresh).toHaveBeenCalledOnce()
+    expect(result.data).toEqual(expect.objectContaining({ errorCode: JSAPI_ERROR.NOT_LOGGED_IN }))
   })
 })
 

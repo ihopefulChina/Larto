@@ -109,6 +109,11 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
     return !!this.view
   }
 
+  get webContents(): WebContents | null {
+    if (!this.view || this.view.webContents.isDestroyed()) return null
+    return this.view.webContents
+  }
+
   get state() {
     return {
       open: !!this.view,

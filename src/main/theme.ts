@@ -14,7 +14,7 @@ export function onThemeUpdated(listener: () => void): () => void {
   return () => nativeTheme.off('updated', listener)
 }
 
-/** Window chrome colours matching the renderer CSS tokens (see src/renderer/src/styles/tokens.css). */
+/** Window chrome colours matching the renderer CSS tokens (see src/renderer/src/styles/app.css). */
 export function windowBackgroundColor(dark: boolean): string {
-  return dark ? '#1f2329' : '#f5f6f7'
+  return dark ? '#13151a' : '#d5d8e0'
 }

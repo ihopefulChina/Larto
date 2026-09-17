@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SIMULATOR_COLUMN_MAX_W, SIMULATOR_COLUMN_MIN_W } from '@shared/ide-split'
 import { DEFAULT_SETTINGS, MAX_URL_HISTORY, MAX_URL_LENGTH, type Settings } from '@shared/settings'
 
 export const ThemeModeSchema = z.enum(['system', 'light', 'dark'])
@@ -45,6 +46,13 @@ export const SettingsSchema: z.ZodType<Settings, unknown> = z.object({
       width: z.number().int().min(320).max(2560),
       height: z.number().int().min(320).max(2560)
     })
+    .nullable()
+    .default(null),
+  simulatorColumnWidth: z
+    .number()
+    .int()
+    .min(SIMULATOR_COLUMN_MIN_W)
+    .max(SIMULATOR_COLUMN_MAX_W)
     .nullable()
     .default(null),
   windowBounds: z

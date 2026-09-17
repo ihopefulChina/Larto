@@ -9,6 +9,7 @@
  */
 import type { AccountState } from './account'
 import type { DeviceSpec } from './devices'
+import type { IdeSplitLayout } from './ide-split'
 import type { Settings, ThemeMode, WritableSettingKey } from './settings'
 
 export interface Rect {
@@ -114,6 +115,13 @@ export interface AccessConsentPrompt {
   info: AccessConsentInfo
 }
 
+export type AccessConsentClosedReason = 'timeout' | 'superseded' | 'cancelled' | 'closed'
+
+export interface AccessConsentClosed {
+  id: string
+  reason: AccessConsentClosedReason
+}
+
 export interface JsapiLogEntry {
   ts: number
   method: string
@@ -163,6 +171,9 @@ export interface IpcRequests {
    * without the panel visibly disappearing.
    */
   'guest:snapshotDevTools': [[], string | null]
+  /** Simulator / DevTools sash geometry in window-content CSS px. */
+  'split:setLayout': [[layout: IdeSplitLayout], void]
+  'split:pointer': [[req: { type: 'down' | 'move' | 'up' }], void]
 
   'account:getState': [[], AccountState]
   'account:login': [[], AccountState]
@@ -175,6 +186,8 @@ export interface IpcRequests {
   'jsapi:backend': [[req: JsapiBackendRequest], JsapiBackendResponse]
   /** Answer to a `jsapi:consent` prompt; unknown/expired ids are ignored. */
   'jsapi:consentDecision': [[req: { id: string; accept: boolean }], void]
+  /** Guest navigated: refuse any requestAccess dialog still waiting in main. */
+  'jsapi:cancelPending': [[], void]
   /** Renderer reports every JSAPI call (any handler kind) for the MCP `get_jsapi_log` tool. */
   'jsapi:log': [[entry: JsapiLogEntry], void]
 
@@ -202,6 +215,10 @@ export interface IpcEvents {
   'guest:titleChanged': { title: string }
   /** requestAccess needs the user to confirm scopes: show the consent dialog. */
   'jsapi:consent': AccessConsentPrompt
+  /** Main settled a prompt the renderer did not decide (timeout, navigate, newer ask). */
+  'jsapi:consentClosed': AccessConsentClosed
+  /** Live sash drag from the native 10px strip. */
+  'split:changed': { width: number; dragging: boolean }
 }
 export type IpcEventChannel = keyof IpcEvents
 

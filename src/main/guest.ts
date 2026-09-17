@@ -4,9 +4,13 @@ import { isIP } from 'node:net'
 import { app, dialog, session, webContents, type WebContents, type WebPreferences } from 'electron'
 import { findDevice, guestViewport, type DeviceSpec } from '@shared/devices'
 import { GUEST_PARTITION } from '@shared/constants'
+import { createLatestWinsQueue } from './cdp-queue'
 import { createLogger } from './logger'
 import { GuestPermissionPolicy } from './permissions'
 import { getMainWindow } from './window'
+
+/** MCP/UI waiters must cover stop-current (5s) + fresh reload (15s) + CDP + renderer IPC. */
+export const DEVICE_APPLY_TIMEOUT_MS = 30_000
 
 const log = createLogger('guest')
 
@@ -52,7 +56,10 @@ class GuestManager extends EventEmitter<GuestEvents> {
   private attachError: string | null = null
   private device: DeviceSpec = findDevice(undefined)
   private viewport: { width: number; height: number } = guestViewport(this.device)
+  /** Desired preset for in-flight switches; `device` stays on the last successful apply. */
+  private intendedDevice: DeviceSpec = this.device
   private emulationGeneration = 0
+  private readonly cdpQueue = createLatestWinsQueue()
   private inspecting = false
   private readonly permissions = new GuestPermissionPolicy()
   private reloadQueue: Promise<void> = Promise.resolve()
@@ -70,6 +77,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
   presetDevice(deviceId: string): void {
     this.device = findDevice(deviceId)
     this.viewport = guestViewport(this.device)
+    this.intendedDevice = this.device
   }
   private readonly consoleBuffer: ConsoleEntry[] = []
   private lastUrl = ''
@@ -269,7 +277,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
       title: this.contents?.getTitle() ?? this.lastTitle,
       loading: this.contents?.isLoading() ?? false,
       canGoBack: this.contents?.navigationHistory.canGoBack() ?? false,
-      deviceId: this.device.id
+      deviceId: this.intendedDevice.id
     }
   }
 
@@ -281,13 +289,12 @@ class GuestManager extends EventEmitter<GuestEvents> {
   ): Promise<void> {
     const device = findDevice(deviceId)
     // A ResizeObserver callback can pass its renderer-side guard just before the user switches
-    // away from PC. Recheck main's desired device so a late IPC cannot restore stale PC metrics.
-    if (options.background && device.id !== this.device.id) return
+    // away from PC. Recheck the in-flight target so a late IPC cannot restore stale PC metrics.
+    if (options.background && device.id !== this.intendedDevice.id) return
     const generation = options.background ? this.emulationGeneration : ++this.emulationGeneration
     if (options.reload) this.interruptActiveReload()
     const nextViewport = viewport ?? guestViewport(device)
-    this.device = device
-    this.viewport = nextViewport
+    if (!options.background) this.intendedDevice = device
     const contents = webContents.fromId(webContentsId)
     log.debug(
       `set device start generation=${generation} device=${device.id} request=${options.requestId ?? '-'} reload=${!!options.reload} background=${!!options.background}`
@@ -296,7 +303,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
       if (!contents || contents.isDestroyed()) {
         throw new Error(`webContents ${webContentsId} not found`)
       }
-      await this.applyEmulation(contents, device, 'all', nextViewport)
+      const applied = await this.applyEmulation(contents, device, 'all', nextViewport, generation)
       if (generation !== this.emulationGeneration) {
         log.debug(
           `set device superseded generation=${generation} current=${this.emulationGeneration} request=${options.requestId ?? '-'}`
@@ -310,6 +317,18 @@ class GuestManager extends EventEmitter<GuestEvents> {
         }
         return
       }
+      if (!applied) {
+        if (options.requestId) {
+          this.emit('deviceFailed', {
+            deviceId: device.id,
+            error: 'device request was superseded',
+            requestId: options.requestId
+          })
+        }
+        return
+      }
+      this.device = device
+      this.viewport = nextViewport
       if (options.reload) await this.reloadAndWait(contents, generation)
       if (generation !== this.emulationGeneration) {
         if (options.requestId) {
@@ -331,6 +350,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
       })
     } catch (err) {
       if (generation === this.emulationGeneration) {
+        this.intendedDevice = this.device
         if (!this.rendererReady) this.attachError = err instanceof Error ? err.message : String(err)
         this.emit('deviceFailed', {
           deviceId: device.id,
@@ -349,7 +369,11 @@ class GuestManager extends EventEmitter<GuestEvents> {
   }
 
   /** Lets command surfaces acknowledge the completed CDP operation instead of guessing a delay. */
-  waitForDeviceApplied(deviceId: string, requestId?: string, timeoutMs = 15_000): Promise<void> {
+  waitForDeviceApplied(
+    deviceId: string,
+    requestId?: string,
+    timeoutMs = DEVICE_APPLY_TIMEOUT_MS
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const matches = (info: { deviceId: string; requestId?: string }) =>
         info.deviceId === deviceId && info.requestId === requestId
@@ -378,6 +402,8 @@ class GuestManager extends EventEmitter<GuestEvents> {
   }
 
   failDeviceRequest(info: { deviceId: string; requestId: string; message: string }): void {
+    this.emulationGeneration++
+    this.interruptActiveReload()
     this.emit('deviceFailed', {
       deviceId: info.deviceId,
       requestId: info.requestId,
@@ -546,7 +572,14 @@ class GuestManager extends EventEmitter<GuestEvents> {
     this.inspecting = on
     const contents = this.contents
     try {
-      if (contents) await this.applyEmulation(contents, this.device, 'touch')
+      if (contents)
+        await this.applyEmulation(
+          contents,
+          this.device,
+          'touch',
+          this.viewport,
+          this.emulationGeneration
+        )
     } catch (err) {
       this.inspecting = previous
       throw err
@@ -564,54 +597,61 @@ class GuestManager extends EventEmitter<GuestEvents> {
     contents: WebContents,
     device: DeviceSpec,
     scope: 'all' | 'touch' = 'all',
-    viewport = this.viewport
-  ): Promise<void> {
-    if (process.env['LARTO_NO_EMULATION']) return
-    try {
-      const dbg = contents.debugger
-      if (!dbg.isAttached()) {
-        dbg.attach('1.3')
-        dbg.on('detach', (_e, reason) => log.warn(`guest debugger detached: ${reason}`))
-      }
-      const mobile = device.platform !== 'pc'
-      const touch = mobile && !this.inspecting
-      // Fire the commands back-to-back (the session processes them in order): on attach this
-      // races the first navigation, so every round trip saved is emulation the page sees earlier.
-      const commands: Promise<unknown>[] = []
-      if (scope === 'all') {
+    viewport = this.viewport,
+    generation = this.emulationGeneration
+  ): Promise<boolean> {
+    if (process.env['LARTO_NO_EMULATION']) return true
+    const applied = await this.cdpQueue.enqueue(async (isLatest) => {
+      if (!isLatest() || generation !== this.emulationGeneration) return false
+      try {
+        const dbg = contents.debugger
+        if (!dbg.isAttached()) {
+          dbg.attach('1.3')
+          dbg.on('detach', (_e, reason) => log.warn(`guest debugger detached: ${reason}`))
+        }
+        const mobile = device.platform !== 'pc'
+        const touch = mobile && !this.inspecting
+        // Fire the commands back-to-back (the session processes them in order): on attach this
+        // races the first navigation, so every round trip saved is emulation the page sees earlier.
+        const commands: Promise<unknown>[] = []
+        if (scope === 'all') {
+          commands.push(
+            dbg.sendCommand('Emulation.setDeviceMetricsOverride', {
+              width: mobile ? viewport.width : 0,
+              height: mobile ? viewport.height : 0,
+              deviceScaleFactor: device.dpr,
+              mobile,
+              screenWidth: device.platform === 'pc' ? viewport.width || device.width : device.width,
+              screenHeight:
+                device.platform === 'pc' ? viewport.height || device.height : device.height,
+              positionX: 0,
+              positionY: 0
+            })
+          )
+        }
         commands.push(
-          dbg.sendCommand('Emulation.setDeviceMetricsOverride', {
-            width: mobile ? viewport.width : 0,
-            height: mobile ? viewport.height : 0,
-            deviceScaleFactor: device.dpr,
-            mobile,
-            screenWidth: device.platform === 'pc' ? viewport.width || device.width : device.width,
-            screenHeight:
-              device.platform === 'pc' ? viewport.height || device.height : device.height,
-            positionX: 0,
-            positionY: 0
+          dbg.sendCommand('Emulation.setTouchEmulationEnabled', {
+            enabled: touch,
+            maxTouchPoints: 5
+          }),
+          dbg.sendCommand('Emulation.setEmitTouchEventsForMouse', {
+            enabled: touch,
+            configuration: mobile ? 'mobile' : 'desktop'
           })
         )
+        if (!isLatest() || generation !== this.emulationGeneration) return false
+        const results = await Promise.allSettled(commands)
+        const failures = results
+          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          .map((result) => result.reason)
+        if (failures.length) throw new AggregateError(failures, 'one or more CDP commands failed')
+        return true
+      } catch (err) {
+        log.warn('device emulation failed', err)
+        throw err
       }
-      commands.push(
-        dbg.sendCommand('Emulation.setTouchEmulationEnabled', {
-          enabled: touch,
-          maxTouchPoints: 5
-        }),
-        dbg.sendCommand('Emulation.setEmitTouchEventsForMouse', {
-          enabled: touch,
-          configuration: mobile ? 'mobile' : 'desktop'
-        })
-      )
-      const results = await Promise.allSettled(commands)
-      const failures = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map((result) => result.reason)
-      if (failures.length) throw new AggregateError(failures, 'one or more CDP commands failed')
-    } catch (err) {
-      log.warn('device emulation failed', err)
-      throw err
-    }
+    })
+    return applied === true
   }
 
   async clearCache(webContentsId: number): Promise<void> {

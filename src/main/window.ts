@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, screen, shell } from 'electron'
 import { APP_NAME } from '@shared/constants'
 import { findDevice, type DeviceSpec } from '@shared/devices'
+import {
+  DEVTOOLS_COLUMN_MIN_W,
+  SIMULATOR_COLUMN_MIN_W,
+  SIMULATOR_COLUMN_PAD_W
+} from '@shared/ide-split'
 import type { IpcEventChannel, IpcEvents } from '@shared/ipc'
 import type { SettingsStore } from './store'
 import { resolveTheme, windowBackgroundColor } from './theme'
@@ -14,14 +19,11 @@ const log = createLogger('window')
 export const DEFAULT_WINDOW = { width: 1180, height: 845, minWidth: 909, minHeight: 640 }
 
 /**
- * Shell chrome around the simulated device, in CSS px (app.css, border-box): title bar 40,
- * address bar 40, simulator padding 18px above/below, controls 36 and status 24. The column is the
- * scaled device width + 32 (16px breathing room per side, min 410) and DevTools needs 300.
+ * Shell chrome around the simulated device, in CSS px (app.css, border-box): title bar 40
+ * (address / device / zoom live there) and simulator padding 20px above/below.
+ * The column is the scaled device width + 32 (min 410) and DevTools needs 300.
  */
-const FRAME_CHROME_H = 40 + 40 + 18 + 18 + 36 + 24
-const SIMULATOR_COLUMN_MIN_W = 410
-const SIMULATOR_COLUMN_PAD_W = 32
-const DEVTOOLS_MIN_W = 300
+const FRAME_CHROME_H = 40 + 20 + 20
 
 export interface NativeFrameSize {
   width: number
@@ -58,7 +60,7 @@ export function sizeForDevice(
     Math.ceil(device.width * scale) + SIMULATOR_COLUMN_PAD_W
   )
   return framed(
-    Math.max(DEFAULT_WINDOW.width, column + DEVTOOLS_MIN_W),
+    Math.max(DEFAULT_WINDOW.width, column + DEVTOOLS_COLUMN_MIN_W),
     Math.max(DEFAULT_WINDOW.minHeight, FRAME_CHROME_H + Math.ceil(device.height * scale))
   )
 }

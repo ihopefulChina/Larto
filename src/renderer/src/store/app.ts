@@ -43,6 +43,7 @@ interface AppState {
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 let initPromise: Promise<void> | null = null
 let settingWriteQueue: Promise<void> = Promise.resolve()
+let settingsRevision = 0
 
 const systemLocale = navigator.language
 
@@ -82,8 +83,14 @@ export const useApp = create<AppState>((set, get) => ({
           ready: true
         })
         on('settings:changed', (s) => {
+          settingsRevision += 1
           set({ settings: s, lang: resolveLanguage(s.language, systemLocale) })
           void invoke('mcp:getStatus').then((m) => set({ mcp: m }))
+        })
+        on('jsapi:consentClosed', ({ id }) => {
+          const { consent, modal } = get()
+          if (consent?.id !== id) return
+          set({ consent: null, modal: modal === 'consent' ? null : modal })
         })
         on('theme:changed', ({ dark }) => set({ dark }))
         on('account:changed', (account) => set({ account }))
@@ -116,9 +123,11 @@ export const useApp = create<AppState>((set, get) => ({
     const operation = settingWriteQueue
       .catch(() => undefined)
       .then(async () => {
+        const revision = settingsRevision
         const settings = await invoke('settings:set', { [key]: value } as Partial<
           Pick<Settings, WritableSettingKey>
         >)
+        if (settingsRevision !== revision) return
         set({ settings, lang: resolveLanguage(settings.language, systemLocale) })
       })
     settingWriteQueue = operation.then(

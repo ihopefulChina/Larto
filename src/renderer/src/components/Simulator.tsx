@@ -2,31 +2,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WebviewTag } from 'electron'
 import { ENV_ENDPOINTS, GUEST_PARTITION } from '@shared/constants'
 import {
-  DEVICES,
   ZOOM_LEVELS,
   buildUserAgent,
   clampPcSize,
+  cssViewportFromVisualBox,
   deviceCornerRadius,
-  deviceMenuGroup,
   findDevice,
-  guestViewport
+  guestViewport,
+  zoomScale
 } from '@shared/devices'
 import { attachJsapiHost } from '@/jsapi/host'
 import { invoke } from '@/lib/bridge'
 import { afterLayout } from '@/lib/layout'
 import { useApp, useT } from '@/store/app'
 import { simulatorActions, useSimulator } from '@/store/simulator'
-import { Dropdown } from './Dropdown'
-import { ChevronDown } from './icons'
 import { JsapiOverlays } from './JsapiOverlays'
 import { NavBar } from './NavBar'
 import { StatusBar } from './StatusBar'
-import { UrlBar } from './UrlBar'
 
 /** Any truthy value works: main replaces it with the real guest preload in `will-attach-webview`. */
 const PRELOAD_PLACEHOLDER = 'file:///larto-guest-preload.cjs'
 
-export function Simulator({ focusSignal }: { focusSignal: number }) {
+export function Simulator({ columnWidth }: { columnWidth?: number }) {
   const settings = useApp((s) => s.settings)
   const lang = useApp((s) => s.lang)
   const setSetting = useApp((s) => s.setSetting)
@@ -57,9 +54,6 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   const pcResizeGeneration = useRef(0)
   const [attachFailed, setAttachFailed] = useState(false)
   const [attachRetry, setAttachRetry] = useState(0)
-  const currentUrl = useSimulator((s) => s.url)
-  const loading = useSimulator((s) => s.loading)
-
   // The `useragent` attribute is only read before the first navigation; later changes (language →
   // LarkLocale) have to go through setUserAgent and apply from the next load on.
   useEffect(() => {
@@ -129,7 +123,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
             // nominal 900×866. Measure it before allowing the real page's first script to run.
             const rect = boxRef.current?.getBoundingClientRect()
             if (rect && rect.width >= 50 && rect.height >= 50) {
-              initialViewport = { width: Math.round(rect.width), height: Math.round(rect.height) }
+              initialViewport = cssViewportFromVisualBox(rect, currentSettings.zoom)
             }
           }
           await invoke('guest:setDevice', {
@@ -367,8 +361,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
       const id = useSimulator.getState().webContentsId
       if (id === null) return
       const r = el.getBoundingClientRect()
-      const width = Math.round(r.width)
-      const height = Math.round(r.height)
+      const { width, height } = cssViewportFromVisualBox(r, latest.zoom)
       if (width < 50 || height < 50) return
       setLivePc({ width, height })
       queuePcEmulation({ width, height })
@@ -379,9 +372,8 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
     return () => ro.disconnect()
   }, [isPc, pcFixed, pcDraft, device.id, queuePcEmulation])
 
-  // PC resize is a direct 1 CSS px → 1 viewport px manipulation. Mobile zoom must not leak into
-  // it when the user switches from a scaled phone preset.
-  const scale = isPc ? 1 : zoom / 100
+  // Visual scale only: CDP / innerWidth stay at the CSS viewport (mobile and PC).
+  const scale = zoomScale(zoom)
   const shownPc = isPc ? (pcDraft === 'fit' ? null : (pcDraft ?? pcFixed)) : null
   const displayedPc = pcDraft && pcDraft !== 'fit' ? pcDraft : (pcFixed ?? livePc)
   // The frame keeps its CSS-pixel size and is scaled visually; the box around it takes the
@@ -389,15 +381,32 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   const boxStyle = isPc
     ? shownPc
       ? {
-          width: shownPc.width,
-          height: shownPc.height,
+          width: shownPc.width * scale,
+          height: shownPc.height * scale,
           ...(pcDragLeft === null ? {} : { marginLeft: pcDragLeft, marginRight: 'auto' })
         }
-      : undefined
+      : scale === 1
+        ? undefined
+        : {
+            width: `calc((100% - 40px) * ${scale})`,
+            height: `calc((100% - 4px) * ${scale})`
+          }
     : { width: device.width * scale, height: device.height * scale }
   const radius = deviceCornerRadius(device)
   const frameStyle = isPc
-    ? { borderRadius: radius }
+    ? shownPc
+      ? {
+          width: shownPc.width,
+          height: shownPc.height,
+          transform: `scale(${scale})`,
+          borderRadius: radius
+        }
+      : {
+          width: scale === 1 ? '100%' : `calc(100% / ${scale})`,
+          height: scale === 1 ? '100%' : `calc(100% / ${scale})`,
+          ...(scale === 1 ? {} : { transform: `scale(${scale})` }),
+          borderRadius: radius
+        }
     : {
         width: device.width,
         height: device.height,
@@ -408,15 +417,8 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   return (
     <div
       className="simulatorColumn"
-      style={{
-        width:
-          isPc || !settings.showDevTools ? undefined : Math.max(410, device.width * scale + 32),
-        flex: isPc || !settings.showDevTools ? 1 : undefined
-      }}
+      style={columnWidth === undefined ? { flex: 1 } : { width: columnWidth, flex: 'none' }}
     >
-      <div className="simulatorHeader">
-        <UrlBar focusSignal={focusSignal} />
-      </div>
       <div className="simulatorContent">
         <div
           ref={boxRef}
@@ -441,6 +443,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
                   <span>{t('simulator.attachFailedHint')}</span>
                   <button
                     type="button"
+                    className="btn primary"
                     onClick={() => {
                       setAttachFailed(false)
                       setAttachRetry((value) => value + 1)
@@ -461,6 +464,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
           {isPc && (
             <PcResizeHandle
               size={displayedPc}
+              scale={scale}
               onPreview={previewPcViewport}
               onCommit={(size) => void commitPcViewport(size)}
               onCancel={cancelPcResize}
@@ -471,109 +475,17 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
           )}
         </div>
       </div>
-      <div className="simulatorToolBox">
-        <Dropdown
-          className="wide"
-          placement="top"
-          trigger={(open, toggle) => (
-            <button
-              type="button"
-              className="tbtn"
-              onClick={toggle}
-              aria-haspopup="menu"
-              aria-expanded={open}
-              aria-label={`${t('menu.device')}: ${device.name}`}
-            >
-              {device.name} <ChevronDown aria-hidden className="chevron" />
-            </button>
-          )}
-        >
-          {(close) =>
-            DEVICES.flatMap((d, i) => {
-              const prev = i > 0 ? DEVICES[i - 1] : undefined
-              const sep =
-                prev && deviceMenuGroup(prev) !== deviceMenuGroup(d) ? (
-                  <div key={`sep-${d.id}`} className="menu-sep" role="separator" />
-                ) : null
-              const item = (
-                <button
-                  key={d.id}
-                  type="button"
-                  role="menuitemradio"
-                  className={`menu-item ${d.id === device.id ? 'checked' : ''}`}
-                  aria-checked={d.id === device.id}
-                  onClick={() => {
-                    close()
-                    void simulatorActions.changeDevice(d.id)
-                  }}
-                >
-                  {d.name}
-                  <span className="dim">
-                    {d.width}×{d.height}
-                  </span>
-                </button>
-              )
-              return sep ? [sep, item] : [item]
-            })
-          }
-        </Dropdown>
-        <span className="sep" />
-        {isPc ? (
+      {isPc && (
+        <div className="pcChrome">
           <span className="fitMode">{shownPc ? '1:1' : t('toolbar.pcFit')}</span>
-        ) : (
-          <Dropdown
-            placement="top"
-            trigger={(open, toggle) => (
-              <button
-                type="button"
-                className="tbtn"
-                onClick={toggle}
-                aria-haspopup="menu"
-                aria-expanded={open}
-                aria-label={`${t('menu.zoom')}: ${zoom}%`}
-              >
-                {zoom}% <ChevronDown aria-hidden className="chevron" />
-              </button>
-            )}
-          >
-            {(close) =>
-              ZOOM_LEVELS.map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  role="menuitemradio"
-                  className={`menu-item ${z === zoom ? 'checked' : ''}`}
-                  aria-checked={z === zoom}
-                  onClick={() => {
-                    close()
-                    void setSetting('zoom', z)
-                  }}
-                >
-                  {z}%
-                </button>
-              ))
-            }
-          </Dropdown>
-        )}
-        {isPc && (
           <PcSizeFields
             fallback={displayedPc}
             fixed={!!pcFixed}
             onCommit={(size) => void commitPcViewport(size)}
             onFit={() => void commitPcViewport(null)}
           />
-        )}
-      </div>
-      <div className="simulatorStatus">
-        <span className="simulatorStatus-label">{t('toolbar.pagePath')}</span>
-        <span className="simulatorStatus-path" title={currentUrl}>
-          {formatPagePath(currentUrl)}
-        </span>
-        <span className={`simulatorStatus-state ${loading ? 'loading' : ''}`}>
-          <span aria-hidden />
-          {loading ? t('toolbar.loading') : t('toolbar.ready')}
-        </span>
-      </div>
+        </div>
+      )}
       {/* Lives in the simulator column: the DevTools native view would cover a window-centred toast. */}
       {toast && (
         <div className="appToast" role="status" aria-live="polite">
@@ -584,16 +496,6 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   )
 }
 
-function formatPagePath(raw: string): string {
-  if (!raw || raw === 'about:blank') return '—'
-  try {
-    const url = new URL(raw)
-    return `${url.pathname || '/'}${url.search}${url.hash}`
-  } catch {
-    return raw
-  }
-}
-
 interface PcViewport {
   width: number
   height: number
@@ -601,12 +503,14 @@ interface PcViewport {
 
 function PcResizeHandle({
   size,
+  scale,
   onPreview,
   onCommit,
   onCancel,
   onActiveChange
 }: {
   size: PcViewport
+  scale: number
   onPreview: (size: PcViewport) => void
   onCommit: (size: PcViewport) => void
   onCancel: () => void
@@ -669,8 +573,8 @@ function PcResizeHandle({
         const current = drag.current
         if (!current || current.pointerId !== event.pointerId) return
         const next = moved(
-          current.start.width + event.clientX - current.x,
-          current.start.height + event.clientY - current.y
+          current.start.width + (event.clientX - current.x) / scale,
+          current.start.height + (event.clientY - current.y) / scale
         )
         current.latest = next
         onPreview(next)
@@ -745,7 +649,6 @@ function PcSizeFields({
 
   return (
     <>
-      <span className="sep" />
       <div className="pcSize">
         <input
           type="number"

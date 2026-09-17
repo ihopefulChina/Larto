@@ -78,4 +78,15 @@ describe('parseSessionCookies', () => {
     ).toEqual({ session: 'XN0YXJ0', sessionList: ['XN0YXJ0', 'YWJj'] })
     expect(parseSessionCookies([])).toEqual({})
   })
+
+  it('finds session cookies when Chromium joins Set-Cookie values', () => {
+    expect(
+      parseSessionCookies([
+        'session=XN0YXJ0; Path=/; HttpOnly, session_list=XN0YXJ0_YWJj; Path=/; Expires=Wed, 21 Oct 2026 07:28:00 GMT'
+      ])
+    ).toEqual({ session: 'XN0YXJ0', sessionList: ['XN0YXJ0', 'YWJj'] })
+    expect(
+      parseSessionCookies(['session_list=AAA_BBB; Path=/, session=SWITCHED; Path=/; HttpOnly'])
+    ).toEqual({ session: 'SWITCHED', sessionList: ['AAA', 'BBB'] })
+  })
 })

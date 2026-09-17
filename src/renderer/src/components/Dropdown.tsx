@@ -64,7 +64,10 @@ export function Dropdown({
   }, [open])
 
   return (
-    <div ref={ref} className={`dropdown ${placement === 'top' ? 'dropup' : ''} ${className ?? ''}`}>
+    <div
+      ref={ref}
+      className={`dropdown ${placement === 'top' ? 'dropup' : ''} ${open ? 'open' : ''} ${className ?? ''}`}
+    >
       {trigger(open, () => setOpen((v) => !v))}
       {open && (
         <div ref={menuRef} className={`menu ${align}`} role="menu">

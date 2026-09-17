@@ -19,8 +19,10 @@ import {
   type OpenApiSession
 } from './openapi'
 import { consentBroker } from './consent'
+import { HttpError } from './http'
 import { createLogger } from './logger'
 import { summarizeErrorForLog } from './log-summary'
+import { SessionExpiredError } from './passport'
 
 const log = createLogger('jsapi')
 
@@ -39,6 +41,29 @@ const fail = (method: string, code: number, message: string): JsapiBackendRespon
   ok: false,
   data: jsapiFail(method, code, message)
 })
+
+export function mapJsapiCaughtError(err: unknown): {
+  code: number
+  message: string
+  sessionExpired: boolean
+} {
+  if (err instanceof SessionExpiredError || (err instanceof HttpError && err.status === 401)) {
+    return {
+      code: JSAPI_ERROR.NOT_LOGGED_IN,
+      message: 'invalid session, please login',
+      sessionExpired: true
+    }
+  }
+  const code =
+    typeof (err as { code?: unknown }).code === 'number'
+      ? (err as { code: number }).code
+      : JSAPI_ERROR.NETWORK
+  return {
+    code,
+    message: err instanceof Error ? err.message : String(err),
+    sessionExpired: false
+  }
+}
 
 export function getLanIp(): string | null {
   for (const infos of Object.values(networkInterfaces())) {
@@ -68,11 +93,18 @@ export async function handleJsapiBackend(
         if (!s) return fail(method, JSAPI_ERROR.NOT_LOGGED_IN, 'invalid session, please login')
         const cfg = params as unknown as JsapiConfigParams
         const cleanUrl = url.split('#')[0] ?? url
-        const result = await verifyJsapiSignature(s, cleanUrl, cfg).catch((err) => {
+        let result
+        try {
+          result = await verifyJsapiSignature(s, cleanUrl, cfg)
+        } catch (err) {
           log.warn('verify failed', summarizeErrorForLog(err))
-          return null
-        })
-        if (!result) return fail(method, JSAPI_ERROR.NETWORK, 'network error')
+          const mapped = mapJsapiCaughtError(err)
+          if (mapped.sessionExpired) {
+            await deps.account.refresh().catch(() => undefined)
+            return fail(method, mapped.code, mapped.message)
+          }
+          return fail(method, JSAPI_ERROR.NETWORK, 'network error')
+        }
         if (result.code === 0) return ok(method)
         return fail(
           method,
@@ -163,14 +195,12 @@ export async function handleJsapiBackend(
         return fail(method, JSAPI_ERROR.NOT_SUPPORTED, `not handler api ${method}`)
     }
   } catch (err) {
-    const code =
-      typeof (err as { code?: unknown }).code === 'number'
-        ? (err as { code: number }).code
-        : JSAPI_ERROR.NETWORK
+    const mapped = mapJsapiCaughtError(err)
+    if (mapped.sessionExpired) await deps.account.refresh().catch(() => undefined)
     log.warn(`jsapi ${method} failed`, {
       ...summarizeErrorForLog(err),
-      resultCode: code
+      resultCode: mapped.code
     })
-    return fail(method, code, err instanceof Error ? err.message : String(err))
+    return fail(method, mapped.code, mapped.message)
   }
 }

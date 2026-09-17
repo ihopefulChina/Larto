@@ -26,6 +26,8 @@ const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
   'guest:setDevToolsBounds',
   'guest:closeDevTools',
   'guest:snapshotDevTools',
+  'split:setLayout',
+  'split:pointer',
   'account:getState',
   'account:login',
   'account:logout',
@@ -34,6 +36,7 @@ const REQUEST_CHANNELS: ReadonlySet<string> = new Set<IpcRequestChannel>([
   'preview:pushPc',
   'jsapi:backend',
   'jsapi:consentDecision',
+  'jsapi:cancelPending',
   'jsapi:log',
   'update:check',
   'update:download',
@@ -50,7 +53,9 @@ const EVENT_CHANNELS: ReadonlySet<string> = new Set<IpcEventChannel>([
   'update:state',
   'shell:command',
   'guest:titleChanged',
-  'jsapi:consent'
+  'jsapi:consent',
+  'jsapi:consentClosed',
+  'split:changed'
 ])
 
 export interface ShellBridge {

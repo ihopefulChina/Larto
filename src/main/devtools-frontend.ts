@@ -29,40 +29,40 @@ export const INSPECT_HOOK_JS = `(() => {
 
 /**
  * Dark-theme overrides so the docked DevTools uses the shell's palette (app.css dark tokens:
- * window #1f2329, panel #2b2f36, toolbar #373c43, hover #51565d) instead of Chromium's neutral
- * greys. Only surface/divider tokens are remapped; syntax and semantic colours stay stock.
+ * window #13151a, panel #191c22, toolbar #1c1f26) instead of Chromium's neutral greys.
+ * Only surface/divider tokens are remapped; syntax and semantic colours stay stock.
  * Light theme is left untouched (Chromium's white already matches the shell).
  */
 export const THEME_CSS = `
 :root.theme-with-dark-background {
-  --sys-color-cdt-base-container: #1f2329 !important;
-  --sys-color-base-container: #1f2329 !important;
-  --sys-color-omnibox-container: #1f2329 !important;
-  --sys-color-surface: #1f2329 !important;
-  --sys-color-inverse-on-surface: #1f2329 !important;
-  --sys-color-cdt-base: #2b2f36 !important;
-  --sys-color-base: #2b2f36 !important;
-  --sys-color-base-container-elevated: #2b2f36 !important;
-  --sys-color-surface1: #262a31 !important;
-  --sys-color-surface2: #2b2f36 !important;
-  --sys-color-surface3: #30353c !important;
-  --sys-color-surface4: #343941 !important;
-  --sys-color-surface5: #373c43 !important;
-  --sys-color-neutral-container: #373c43 !important;
-  --sys-color-header-container: #373c43 !important;
-  --sys-color-surface-variant: #51565d !important;
-  --sys-color-divider: rgba(255, 255, 255, 0.16) !important;
-  --sys-color-divider-on-tonal-container: rgba(255, 255, 255, 0.16) !important;
-  --sys-color-on-base-divider: rgba(255, 255, 255, 0.16) !important;
-  --sys-color-divider-prominent: rgba(255, 255, 255, 0.28) !important;
-  --sys-color-neutral-outline: #646a73 !important;
-  --sys-color-state-hover-dim-blend-protection: rgba(31, 35, 41, 0.1) !important;
-  --sys-color-state-hover-bright-blend-protection: rgba(31, 35, 41, 0.16) !important;
-  --color-background: #1f2329 !important;
-  --color-background-opacity-50: rgba(31, 35, 41, 0.5) !important;
-  --color-background-opacity-80: rgba(31, 35, 41, 0.8) !important;
-  --color-background-elevation-1: #2b2f36 !important;
-  --color-background-elevation-2: #373c43 !important;
-  --color-background-elevation-dark-only: #2b2f36 !important;
+  --sys-color-cdt-base-container: #13151a !important;
+  --sys-color-base-container: #13151a !important;
+  --sys-color-omnibox-container: #13151a !important;
+  --sys-color-surface: #13151a !important;
+  --sys-color-inverse-on-surface: #13151a !important;
+  --sys-color-cdt-base: #191c22 !important;
+  --sys-color-base: #191c22 !important;
+  --sys-color-base-container-elevated: #191c22 !important;
+  --sys-color-surface1: #1c1f26 !important;
+  --sys-color-surface2: #191c22 !important;
+  --sys-color-surface3: #22262e !important;
+  --sys-color-surface4: #22262e !important;
+  --sys-color-surface5: #22262e !important;
+  --sys-color-neutral-container: #1c1f26 !important;
+  --sys-color-header-container: #1c1f26 !important;
+  --sys-color-surface-variant: #2a2f38 !important;
+  --sys-color-divider: rgba(255, 255, 255, 0.08) !important;
+  --sys-color-divider-on-tonal-container: rgba(255, 255, 255, 0.08) !important;
+  --sys-color-on-base-divider: rgba(255, 255, 255, 0.08) !important;
+  --sys-color-divider-prominent: rgba(255, 255, 255, 0.18) !important;
+  --sys-color-neutral-outline: #3a404a !important;
+  --sys-color-state-hover-dim-blend-protection: rgba(19, 21, 26, 0.1) !important;
+  --sys-color-state-hover-bright-blend-protection: rgba(19, 21, 26, 0.16) !important;
+  --color-background: #13151a !important;
+  --color-background-opacity-50: rgba(19, 21, 26, 0.5) !important;
+  --color-background-opacity-80: rgba(19, 21, 26, 0.8) !important;
+  --color-background-elevation-1: #191c22 !important;
+  --color-background-elevation-2: #1c1f26 !important;
+  --color-background-elevation-dark-only: #191c22 !important;
 }
 `

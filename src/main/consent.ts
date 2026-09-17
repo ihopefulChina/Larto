@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AccessConsentInfo } from '@shared/ipc'
+import type { AccessConsentClosedReason, AccessConsentInfo } from '@shared/ipc'
 import { createLogger } from './logger'
 import { getMainWindow, sendToRenderer } from './window'
 
@@ -23,17 +23,17 @@ export class ConsentBroker {
   private pending = new Map<string, Pending>()
 
   ask(info: AccessConsentInfo): Promise<boolean> {
-    for (const id of this.pending.keys()) this.settle(id, false)
+    for (const id of [...this.pending.keys()]) this.settle(id, false, 'superseded')
     const win = getMainWindow()
     if (!win) return Promise.resolve(false)
     const id = randomUUID()
     return new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => {
         log.warn(`consent ${id} timed out`)
-        this.settle(id, false)
+        this.settle(id, false, 'timeout')
       }, CONSENT_TIMEOUT_MS)
       timer.unref()
-      const onClosed = () => this.settle(id, false)
+      const onClosed = () => this.settle(id, false, 'closed')
       win.once('closed', onClosed)
       this.pending.set(id, { resolve, timer, cleanup: () => win.off('closed', onClosed) })
       sendToRenderer('jsapi:consent', { id, info })
@@ -47,17 +47,23 @@ export class ConsentBroker {
     this.settle(id, accept)
   }
 
+  /** Guest navigated or the document was replaced: refuse every open prompt. */
+  cancelAll(): void {
+    for (const id of [...this.pending.keys()]) this.settle(id, false, 'cancelled')
+  }
+
   get hasPending(): boolean {
     return this.pending.size > 0
   }
 
-  private settle(id: string, accept: boolean): void {
+  private settle(id: string, accept: boolean, reason?: AccessConsentClosedReason): void {
     const p = this.pending.get(id)
     if (!p) return
     this.pending.delete(id)
     clearTimeout(p.timer)
     p.cleanup()
     p.resolve(accept)
+    if (reason) sendToRenderer('jsapi:consentClosed', { id, reason })
   }
 }
 

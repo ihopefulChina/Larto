@@ -15,6 +15,7 @@ import { HttpError, requestJson } from './http'
 import { createLogger } from './logger'
 import { summarizeErrorForLog } from './log-summary'
 import { applyProxyToSession } from './proxy'
+import { canCommitAccountWork, canStartAccountRefresh } from './account-work'
 import {
   brandMatchesEnv,
   NOT_LOGIN_CODE,
@@ -95,6 +96,7 @@ export class AccountService extends EventEmitter<AccountEvents> {
   private readonly store: JsonStore<Persisted>
   private secrets: Secrets | null = null
   private state: AccountState = { status: 'signedOut' }
+  private accountGeneration = 0
   private loginWindow: BrowserWindow | null = null
   private warnedMemoryOnly = false
 
@@ -170,8 +172,8 @@ export class AccountService extends EventEmitter<AccountEvents> {
     }
   }
 
-  private persist(account: AccountInfo | null): void {
-    if (!account || !this.secrets) {
+  private persist(account: AccountInfo | null, secrets: Secrets | null = this.secrets): void {
+    if (!account || !secrets) {
       this.clearPersistedSession()
       return
     }
@@ -186,8 +188,8 @@ export class AccountService extends EventEmitter<AccountEvents> {
     let sessionEnc: string
     let sessionListEnc: string
     try {
-      sessionEnc = encrypt(this.secrets.session)
-      sessionListEnc = encrypt(this.secrets.sessionList.join('_'))
+      sessionEnc = encrypt(secrets.session)
+      sessionListEnc = encrypt(secrets.sessionList.join('_'))
     } catch (err) {
       // Losing persistence must not turn a successful network login into a failed login. Keep
       // the authenticated process alive, but never fall back to plaintext storage.
@@ -226,24 +228,26 @@ export class AccountService extends EventEmitter<AccountEvents> {
    * account expired like the official `sessionExpired` hook. Other errors (offline…) keep state.
    */
   async refresh(): Promise<AccountState> {
-    if (!this.secrets || this.state.status === 'signedOut') return this.state
+    const secrets = this.secrets
+    if (
+      !canStartAccountRefresh({
+        status: this.state.status,
+        hasSecrets: !!secrets
+      }) ||
+      !secrets
+    ) {
+      return this.state
+    }
+    const generation = ++this.accountGeneration
     try {
-      const account = await this.loadAccount(this.getEnv(), this.secrets, true)
-      this.persist(account)
+      const account = await this.loadAccount(this.getEnv(), secrets, true)
+      if (!this.canCommit(generation, secrets)) return this.state
+      this.persist(account, secrets)
       this.setState({ status: 'signedIn', account })
     } catch (err) {
-      if (isSessionExpired(err)) {
-        log.warn('passport session expired; signing out', summarizeErrorForLog(err))
-        const previous =
-          this.state.status === 'signedIn' || this.state.status === 'expired'
-            ? this.state.account
-            : null
-        this.secrets = null
-        this.persist(null)
-        this.setState(previous ? { status: 'expired', account: previous } : { status: 'signedOut' })
-      } else {
-        throw err
-      }
+      if (!this.canCommit(generation, secrets)) return this.state
+      if (isSessionExpired(err)) return this.markExpired(err)
+      throw err
     }
     return this.state
   }
@@ -256,16 +260,20 @@ export class AccountService extends EventEmitter<AccountEvents> {
     const env = this.getEnv()
     const lang = this.getLang()
     const previous = this.state
+    const generation = ++this.accountGeneration
     this.setState({ status: 'signingIn' })
     try {
       const secrets = await this.openLoginWindow(env, lang)
+      if (generation !== this.accountGeneration) return this.state
       const account = await this.loadAccount(env, secrets, false)
+      if (generation !== this.accountGeneration) return this.state
       this.secrets = secrets
-      this.persist(account)
+      this.persist(account, secrets)
       this.setState({ status: 'signedIn', account })
       log.info(`signed in (${account.tenantList.length} tenant(s), env=${env})`)
     } catch (err) {
       log.warn('login failed', summarizeErrorForLog(err))
+      if (generation !== this.accountGeneration) return this.state
       // A cancelled re-login must not throw away a still valid session, nor the expired
       // account the menu was showing.
       const keep = (previous.status === 'signedIn' && this.secrets) || previous.status === 'expired'
@@ -276,6 +284,7 @@ export class AccountService extends EventEmitter<AccountEvents> {
   }
 
   logout(): AccountState {
+    this.accountGeneration++
     this.loginWindow?.close()
     this.secrets = null
     this.persist(null)
@@ -285,26 +294,36 @@ export class AccountService extends EventEmitter<AccountEvents> {
 
   async switchTenant(tenantUserId: string): Promise<AccountState> {
     if (!this.secrets || this.state.status !== 'signedIn') throw new Error('not signed in')
+    const generation = ++this.accountGeneration
     const env = this.getEnv()
     const target = this.state.account.tenantList.find((t) => t.userId === tenantUserId)
     if (!target) throw new Error('unknown tenant')
     const ep = ENV_ENDPOINTS[env]
     // Official `switchTenant`: POST { user_id, credential_id } of the *target* identity and read
     // the new `session` / `session_list` cookies from the response headers.
-    const res = await requestJson<Envelope<unknown>>(`${ep.passport}/accounts/web/switch`, {
-      method: 'POST',
-      headers: passportHeaders(this.getLang()),
-      cookie: cookieHeader(this.secrets),
-      body: {
-        user_id: target.userId,
-        credential_id: target.credentialId || this.state.account.user.loginCredentialId
-      }
-    })
+    let res: { status: number; headers: Headers; data: Envelope<unknown> }
+    try {
+      res = await requestJson<Envelope<unknown>>(`${ep.passport}/accounts/web/switch`, {
+        method: 'POST',
+        headers: passportHeaders(this.getLang()),
+        cookie: cookieHeader(this.secrets),
+        body: {
+          user_id: target.userId,
+          credential_id: target.credentialId || this.state.account.user.loginCredentialId
+        }
+      })
+    } catch (err) {
+      if (generation !== this.accountGeneration) return this.state
+      if (isSessionExpired(err)) return this.markExpired(err)
+      throw err
+    }
+    if (generation !== this.accountGeneration) return this.state
     const cookies = parseSessionCookies(res.headers.getSetCookie?.() ?? [])
     if (!cookies.session) {
       const code = res.data?.code ?? 0
-      if (SESSION_EXPIRED_CODES.has(code) || code === NOT_LOGIN_CODE)
-        throw new SessionExpiredError(code)
+      if (SESSION_EXPIRED_CODES.has(code) || code === NOT_LOGIN_CODE) {
+        return this.markExpired(new SessionExpiredError(code))
+      }
       throw new Error(
         `switch tenant failed: ${res.data?.message ?? res.data?.msg ?? `code ${code}, no session cookie`}`
       )
@@ -313,20 +332,44 @@ export class AccountService extends EventEmitter<AccountEvents> {
     // old session and the old tenant stay in place instead of drifting apart.
     const next: Secrets = {
       session: cookies.session,
-      sessionList: cookies.sessionList ?? this.secrets.sessionList
+      sessionList: cookies.sessionList ?? this.secrets?.sessionList ?? []
     }
     try {
       const account = await this.loadAccount(env, next, true)
+      if (generation !== this.accountGeneration) return this.state
       this.secrets = next
-      this.persist(account)
+      this.persist(account, next)
       this.setState({ status: 'signedIn', account })
     } catch (err) {
+      if (generation !== this.accountGeneration) return this.state
       if (!isSessionExpired(err)) throw err
       // The *new* cookies are already dead; the old ones are most likely gone too (passport
       // rotates the session on switch), so treat it like an expired refresh.
       this.secrets = next
       return this.refresh()
     }
+    return this.state
+  }
+
+  private canCommit(generation: number, secrets: Secrets): boolean {
+    return canCommitAccountWork({
+      startedGeneration: generation,
+      currentGeneration: this.accountGeneration,
+      startedSecrets: secrets,
+      currentSecrets: this.secrets,
+      status: this.state.status
+    })
+  }
+
+  private markExpired(err: unknown): AccountState {
+    log.warn('passport session expired; signing out', summarizeErrorForLog(err))
+    const previous =
+      this.state.status === 'signedIn' || this.state.status === 'expired'
+        ? this.state.account
+        : null
+    this.secrets = null
+    this.persist(null)
+    this.setState(previous ? { status: 'expired', account: previous } : { status: 'signedOut' })
     return this.state
   }
 
@@ -365,7 +408,9 @@ export class AccountService extends EventEmitter<AccountEvents> {
           cookie,
           body: { app_id: appId }
         })
-        return toUserEntries(unwrapPassport(res.data, signedIn))
+        // Optional tenant lists: treat code 4 as a missing list, not a dead session. 34/4401
+        // and HTTP 401 still expire via `requestJson` / `unwrapPassport`.
+        return toUserEntries(unwrapPassport(res.data, false))
       } catch (err) {
         if (isSessionExpired(err)) throw err
         log.warn(`${label} failed; continuing without it`, summarizeErrorForLog(err))

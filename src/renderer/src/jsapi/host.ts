@@ -19,6 +19,7 @@ import { translate } from '@shared/i18n'
 import { invoke } from '@/lib/bridge'
 import { useApp } from '@/store/app'
 import { simulatorActions, useSimulator, type NavItem } from '@/store/simulator'
+import { createJsapiDocumentGuard } from './document'
 
 type Result = { ok: boolean; data: Record<string, unknown> }
 const ok = (method: string, data: Record<string, unknown> = {}): Result => ({
@@ -46,6 +47,13 @@ export function emitGuestEvent(
   if (webview) sendToGuest(webview, { kind: 'event', name, data })
 }
 
+const documents = createJsapiDocumentGuard()
+
+function cancelGuestJsapi(): void {
+  documents.begin()
+  void invoke('jsapi:cancelPending').catch(() => undefined)
+}
+
 export function attachJsapiHost(webview: WebviewTag): () => void {
   const onMessage = (event: Electron.IpcMessageEvent) => {
     if (event.channel !== JSAPI_CHANNEL) return
@@ -58,14 +66,20 @@ export function attachJsapiHost(webview: WebviewTag): () => void {
     }
     if (msg.kind === 'invoke') void handleInvoke(webview, msg)
   }
+  const onNavigate = () => cancelGuestJsapi()
   webview.addEventListener('ipc-message', onMessage)
-  return () => webview.removeEventListener('ipc-message', onMessage)
+  webview.addEventListener('did-navigate', onNavigate)
+  return () => {
+    webview.removeEventListener('ipc-message', onMessage)
+    webview.removeEventListener('did-navigate', onNavigate)
+  }
 }
 
 async function handleInvoke(webview: WebviewTag, msg: JsapiInvoke): Promise<void> {
   const { method, params, url } = msg
   const handler = classifyJsapi(method)
   const started = Date.now()
+  const generation = documents.current()
   let result: Result
   try {
     if (handler === 'main') {
@@ -83,7 +97,9 @@ async function handleInvoke(webview: WebviewTag, msg: JsapiInvoke): Promise<void
   } catch (err) {
     result = fail(method, JSAPI_ERROR.NETWORK, err instanceof Error ? err.message : String(err))
   }
-  sendToGuest(webview, { kind: 'result', id: msg.id, data: result.data, ok: result.ok })
+  if (documents.isCurrent(generation)) {
+    sendToGuest(webview, { kind: 'result', id: msg.id, data: result.data, ok: result.ok })
+  }
   void invoke('jsapi:log', {
     ts: started,
     method,

@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import type { WebviewTag } from 'electron'
-import { buildUserAgent, findDevice, guestViewport } from '@shared/devices'
+import {
+  buildUserAgent,
+  cssViewportFromVisualBox,
+  findDevice,
+  guestViewport
+} from '@shared/devices'
 import { translate } from '@shared/i18n'
 import { invoke } from '@/lib/bridge'
 import { afterLayout } from '@/lib/layout'
@@ -150,7 +155,7 @@ function resolveDeviceViewport(device: ReturnType<typeof findDevice>): {
   const rect = adaptivePc?.getBoundingClientRect()
   if (device.platform === 'pc' && pc) return pc
   if (rect && rect.width >= 50 && rect.height >= 50) {
-    return { width: Math.round(rect.width), height: Math.round(rect.height) }
+    return cssViewportFromVisualBox(rect, useApp.getState().settings.zoom)
   }
   return guestViewport(device)
 }

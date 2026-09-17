@@ -4,6 +4,36 @@
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-09-17
+
+工作台与调试链路收口。官方左右栏可拖、PC 可缩放，并修掉登录 / JSAPI / 切机在并发时的几处竞态。
+
+### 新增
+
+- 调试器打开时，模拟器列与 DevTools 列之间为官方同款 10px sash。左列默认设备宽 + 32（PC 为 500），右列最小 300；拖动写入 `settings.simulatorColumnWidth`，切机型或双击分隔条回到自动宽度。
+- PC（含 Windows）工具栏提供 50%–150% 缩放，只改窗口外观，不改页面 CSS 视口。
+- 工作台改为单行命令栏：地址、机型、缩放与 PC 尺寸在顶栏，模拟器与 DevTools 齐顶。
+
+### 修复
+
+- 扫码登录进行中时，页面 401 触发的 `refresh()` 不再抬高 generation 丢掉登录结果。
+- `requestAccess` 授权弹窗在导航、超时或被新请求顶替时关闭，JSAPI 回包不会写回旧文档。
+- JSAPI 鉴权把 HTTP 401 与过期 session 映射为未登录，并刷新账号状态。
+- 切机 CDP 走 latest-wins 队列；PC `ResizeObserver` 不能把已切走的机型写回去。
+- Passport 能解析 Chromium 拼在一行里的 `Set-Cookie`；租户列表 code 4 不再整号登出。
+- 连续写入设置时，旧的 `settings:set` 回包不会盖掉更新的快照。
+- 分栏宽度的运行时上限与 `settings.json` schema 对齐，超宽屏拖拽可以落盘。
+- MCP `get_state` 的 `deviceId` 报告正在切换的目标机型。
+
+### 变更
+
+- 壳层 token、动效与机身投影（Dynamic Island / Home Indicator）；PC 宽高收到画布底部 HUD。
+
+### 已知限制
+
+- 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 与 PC 预览推送：代码已实现，**尚未用真实账号验收**。
+- macOS 包仅做 ad-hoc 签名且未公证，Windows 与 Linux 包未签名。
+
 ## [0.1.3] — 2026-09-07
 
 ### 修复
@@ -127,6 +157,7 @@
 - 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
+[0.1.4]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.4
 [0.1.3]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.3
 [0.1.2]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.1

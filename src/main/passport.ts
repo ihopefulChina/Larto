@@ -94,10 +94,12 @@ export function parseSessionCookies(setCookies: readonly string[]): {
 } {
   const out: { session?: string; sessionList?: string[] } = {}
   for (const c of setCookies) {
-    const m = /^\s*(session|session_list)=([^;]+)/.exec(c)
-    if (!m?.[2]) continue
-    if (m[1] === 'session') out.session = m[2]
-    else out.sessionList = m[2].split('_').filter(Boolean)
+    const re = /(?:^|,)\s*(session|session_list)=([^;]+)/g
+    for (let m = re.exec(c); m; m = re.exec(c)) {
+      if (!m[2]) continue
+      if (m[1] === 'session') out.session = m[2]
+      else out.sessionList = m[2].split('_').filter(Boolean)
+    }
   }
   return out
 }

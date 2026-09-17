@@ -147,6 +147,22 @@ export const DEFAULT_DEVICE_ID = 'iphone-17-pro'
 export const ZOOM_LEVELS: readonly number[] = [50, 75, 85, 100, 125, 150]
 export const DEFAULT_ZOOM = 100
 
+export function zoomScale(zoom: number): number {
+  return (ZOOM_LEVELS.includes(zoom) ? zoom : DEFAULT_ZOOM) / 100
+}
+
+/** Map a visually scaled gadgetBox rect back to the CSS viewport CDP should emulate. */
+export function cssViewportFromVisualBox(
+  box: { width: number; height: number },
+  zoom: number
+): { width: number; height: number } {
+  const scale = zoomScale(zoom)
+  return {
+    width: Math.max(1, Math.round(box.width / scale)),
+    height: Math.max(1, Math.round(box.height / scale))
+  }
+}
+
 /** Simulator chrome heights in CSS px (see renderer Simulator/StatusBar/NavBar). */
 export const SIM_NAV_BAR_HEIGHT = 44
 export const SIM_HOME_INDICATOR_HEIGHT = 20

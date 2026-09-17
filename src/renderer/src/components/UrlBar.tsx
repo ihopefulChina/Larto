@@ -76,9 +76,10 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
       >
         <RefreshIcon
           aria-hidden
-          style={loading ? { animation: 'spin 1s linear infinite' } : undefined}
+          style={loading ? { animation: 'spin 0.7s linear infinite' } : undefined}
         />
       </button>
+      <span className="urlProgress" aria-hidden />
       <input
         ref={inputRef}
         value={value}
@@ -154,24 +155,38 @@ export function UrlBar({ focusSignal }: { focusSignal: number }) {
             {history.length === 0 ? (
               <div className="history-empty">{t('toolbar.historyEmpty')}</div>
             ) : (
-              history.map((h, i) => (
-                <button
-                  id={`${historyId}-option-${i}`}
-                  key={h}
-                  className={`history-item ${i === active ? 'active' : ''}`}
-                  role="option"
-                  aria-selected={i === active}
-                  title={h}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => submit(h)}
-                >
-                  {h}
-                </button>
-              ))
+              history.map((h, i) => {
+                const parts = splitHistoryUrl(h)
+                return (
+                  <button
+                    id={`${historyId}-option-${i}`}
+                    key={h}
+                    className={`history-item ${i === active ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={i === active}
+                    title={h}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => submit(h)}
+                  >
+                    <span className="history-host">{parts.host}</span>
+                    {parts.path && <span className="history-path">{parts.path}</span>}
+                  </button>
+                )
+              })
             )}
           </div>
         </div>
       )}
     </div>
   )
+}
+
+function splitHistoryUrl(raw: string): { host: string; path: string } {
+  try {
+    const url = new URL(raw)
+    const path = `${url.pathname === '/' ? '' : url.pathname}${url.search}${url.hash}`
+    return { host: url.host || raw, path }
+  } catch {
+    return { host: raw, path: '' }
+  }
 }

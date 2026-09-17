@@ -2,6 +2,111 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-17 — 准备发布 v0.1.4
+
+**做了什么**
+
+- 根包与 `larto-mcp` 版本改为 0.1.4。CHANGELOG、README、SECURITY、官网与 MCP README 同步到该版本。
+- 官网 DevTools 能力补充可拖分栏；下载矩阵与安装示例指向 `v0.1.4`。
+
+**验证**
+
+- `pnpm format:check && pnpm typecheck && pnpm test && pnpm build` 通过（Vitest 20/101，Node Test 28/28）。
+- `node scripts/e2e.mjs` 24/24，含 stdio `version=0.1.4`。
+- `node scripts/capture-site-screenshots.mjs` 重建明暗 hero / simulator / DevTools 共 6 张（匿名诊断页）。
+- 未宣称 GitHub Release、Pages 或 npm 已成功，待 tag 工作流结束。
+
+**结论 / 遗留**
+
+- 代码、文档与官网截图已对齐 0.1.4。资产、清单、attestation 与 `larto-mcp@0.1.4` 待 Release 工作流。真飞书 UAT 与签名仍待做。
+
+## 2026-09-17 — 壳层布局与动效重写
+
+**做了什么**
+
+- 删掉左列地址行、底部机型胶囊和页面状态条。地址、机型、缩放收到一行窗口命令栏，模拟器与 DevTools 齐顶。
+- 重写 `app.css` token 与动效：自定义 ease-out、按压 `scale(0.97)`、菜单从 `scale(0.96)` 进入、弹层居中缩放、JSAPI sheet 自底部滑入。hover 只在精细指针下生效；`prefers-reduced-motion` 去掉位移、保留 spinner。
+- 机身改为真实投影 + Dynamic Island / Home Indicator；DevTools 深色表面跟新壳层。PC 宽高收到画布底部 HUD。窗口高度公式改为 `40 + 20×2`。
+
+**验证**
+
+- `prettier --write` 已改文件；三个 `tsc --noEmit`；`vitest tests/window.test.ts tests/shared.test.ts tests/ide-split.test.ts` 28/28。
+- 本机 `pnpm dev` 用 MCP 截了深色/浅色 iPhone 与 PC 窗口；切换 `set_theme` / `set_device`。
+- 未跑 `pnpm e2e` / 真飞书 UAT。设置/预览/授权弹层只走了样式，没在本轮逐个点完。
+
+**结论 / 遗留**
+
+- 日常工作台改成一行命令栏，左右栏对齐。未跑 e2e；官网 hero 仍是旧截图。
+
+## 2026-09-17 — 评审缺口收口
+
+**做了什么**
+
+- `refresh()` 只在真有 session 且未在扫码时才加 generation；登录窗开着时页面 401 不再把扫码结果丢掉。登录被更新的 generation 打断时返回当前状态，不再当成失败抛出。
+- 分栏宽度 clamp 与 `settings.json` 共用 `SIMULATOR_COLUMN_MAX_W`（16000），超宽屏拖拽不会在落盘时被 Zod 打掉。
+- `guest.state.deviceId` 报 in-flight 目标机型；CDP 队列跳过且带 requestId 时发出 `deviceFailed`。双击 sash 直接清宽度，不再先落盘再清空。`split:pointer` / `split:changed` 去掉未使用的 `x` / `hover`。
+
+**验证**
+
+- `vitest tests/account-work.test.ts tests/ide-split.test.ts tests/store.test.ts`；`tsc --noEmit`。
+- 未跑 `pnpm e2e` / 真飞书 UAT。
+
+**结论 / 遗留**
+
+- 评审里点名的行为缺口已对齐。未跑 e2e。
+
+## 2026-09-17 — PC 窗口补上缩放下拉
+
+**做了什么**
+
+- 官方工具栏在 PC 机型上也有 50%–150% 缩放。Larto 之前藏掉是因为 `transform` 只作用在手机机身。PC（含 Windows）现在同样展示缩放下拉。
+- 缩放只改窗口外观，不改 CSS 视口：测量 `.gadgetBox.pc` 时除回缩放比；右下角拖拽按视觉 1:1（指针位移 ÷ zoom）。
+
+**验证**
+
+- `vitest tests/shared.test.ts`；本机 PC 模拟器上切换缩放核对工具栏与页面 `innerWidth`。
+- 未跑 `pnpm e2e` / 真飞书 UAT。
+
+**结论 / 遗留**
+
+- PC 适应窗口与 1:1 固定窗口都能缩放外观。未跑 e2e。
+
+## 2026-09-17 — 官方式左右栏拖拽
+
+**做了什么**
+
+- 调试器打开时在模拟器列和 DevTools 列之间加官方同款 sash（左列默认设备宽 + 32 / PC 500，右列最小 300）。宽度写入 `settings.simulatorColumnWidth`；切机型或双击分隔条回到自动宽度。
+- 不把 DevTools 改回 `<webview>`（electron#15874 Elements 会空白）。分栏拖拽改由主进程跟踪 shell / guest / DevTools 的鼠标，并在拖动时盖一层透明捕获层；DOM sash 单独不够，原生叠层会吃掉 `pointermove`。
+- 重写分栏拖拽：不再猜 guest/DevTools 命中。两栏中间 10px 原生 sash 条按住即拖，全窗口层跟手。
+
+**验证**
+
+- 分栏拖拽已重写为「10px 原生 sash + 按下即跟手」。`tsc` / `vitest tests/ide-split.test.ts` 本轮跑过。
+- 未跑 `pnpm e2e` / 真飞书 UAT。
+
+**结论 / 遗留**
+
+- 旧命中状态机在 PC 全幅页面上点不到缝。请在左右栏中间竖线按住拖。未跑 e2e。
+
+## 2026-09-17 — 登录 / JSAPI / 切机竞态收口
+
+**做了什么**
+
+- JSAPI：guest `did-navigate` 提升 document generation，过期结果不再 `webview.send` 到新文档；同时 `jsapi:cancelPending` 拒绝未决 `requestAccess`。授权弹窗按 id 清理，超时/换页/新请求会推 `jsapi:consentClosed`。
+- 账号：`refresh` / `login` / `switchTenant` / `logout` 共用 generation；`persist` 只加密本次 `loadAccount` 用的 secrets。切租户 401 / 过期码走 `expired`。可选租户列表不再把 code `4` 当成整段会话死亡。`Set-Cookie` 解析兼容拼在一条里的 header。
+- JSAPI 401 / `SessionExpiredError` 映射 `99991691` 并 `account.refresh()`，不再报网络错误 1014。
+- 切机：CDP latest-wins 队列；成功后才提交 `this.device`；`failDeviceRequest` 提升 generation 并打断 reload；MCP `set_device` 等待 30s。渲染层 `settings:set` 回包若已有更新的 `settings:changed` 则丢弃。
+
+**验证**
+
+- `pnpm format:check`、三个 `tsc --noEmit`、`pnpm test`：Vitest 19 文件 / 91 项，Node 28/28。
+- `pnpm build && LARTO_MCP_PORT=17531 pnpm e2e`：24/24，含首屏仿真、慢页切机、重叠 `set_device`、PC ResizeObserver、JSAPI `:ok`、stdio 18 工具。
+- 未跑真飞书扫码 / `tt.config` / `requestAccess` / 切租户 UAT。
+
+**结论 / 遗留**
+
+- 代码层竞态与串页回调已按审查项修复并有回归。真机登录鉴权仍待 UAT。
+
 ## 2026-09-07 — v0.1.3 发布与本机更新完成
 
 **完成 / 验证**
@@ -38,6 +143,24 @@
 - 代码与本地自动化通过，远端原生 CI、安装包、公开 GitHub/npm/Pages 发布结果待后续记录；未把本地 E2E 视为跨平台原生安装或真实飞书 UAT。
 - 修复在 npm 桥中，仅替换桌面应用不足以修复仍固定旧 npm 版本或旧脚本的客户端；发布后须核对 registry 与本机实际桥入口。
 - 真实飞书账号、鉴权、更新安装仍待 UAT；macOS 仍为 ad-hoc 签名且未公证，Windows/Linux 未正式签名。
+
+## 2026-09-07 — 明确 MCP 手动发布目录，排查 EPRIVATE
+
+**做了什么**
+
+- 确认根目录 `larto` 是带 `private: true` 的桌面应用包；当时 npm 发布目标是 `packages/larto-mcp`（条目写下时版本为 0.1.2；随后 v0.1.3 已在 registry 发布，以倒序更早的 0.1.3 条目为准）。保留两个包的配置，在 README 补充切换目录、预览包内容、手动发布和查询版本的命令，以及 OTP 占位文字说明。
+
+**验证**
+
+- 在 `packages/larto-mcp` 执行 `npm test`：20/20 通过。
+- 同目录 `npm pack --dry-run --ignore-scripts --json`：通过，仅含 LICENSE、README、package.json、bin 与四个 src 文件，共 8 个文件；没有桌面构建产物、测试、日志或认证配置。
+- 同目录 `npm publish --dry-run --ignore-scripts --access public`：退出码 0，目标 `larto-mcp@0.1.2`，不再出现 `EPRIVATE`；这是预演，没有上传 npm。
+- `pnpm exec prettier --check README.md docs/progress.md` 与 `git diff --check`：通过。
+
+**结论 / 遗留**
+
+- 本次错误由发布目录错误导致，无需删除根包 `private`。实际 npm 发布及账号权限尚未验证，需在子包目录完成发布与 npm 双因素验证后查询 registry 确认。
+- 仅调整发布文档；未运行全项目类型检查、构建、Electron E2E 或跨平台/真实飞书 UAT，未提交或推送。
 
 ## 2026-09-07 — v0.1.2 GitHub Release 已公开
 

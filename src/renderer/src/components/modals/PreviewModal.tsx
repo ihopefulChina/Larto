@@ -77,7 +77,7 @@ export function PreviewModal() {
             {qr ? <img src={qr.dataUrl} alt={t('preview.qrAlt')} /> : <span className="spinner" />}
           </div>
           <p className="hint">{t('preview.scanHint')}</p>
-          <label className="field" style={{ justifyContent: 'center' }}>
+          <label className="field previewLan">
             <input
               type="checkbox"
               checked={useLanIp}
@@ -90,7 +90,7 @@ export function PreviewModal() {
               {w}
             </div>
           ))}
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <div className="previewActions">
             <button
               type="button"
               className="btn primary"
@@ -106,7 +106,7 @@ export function PreviewModal() {
           <p className="hint">{t('preview.pcHint')}</p>
           {account.status !== 'signedIn' && <div className="warn">{t('preview.needLogin')}</div>}
           {pcMessage && <div className="warn">{pcMessage}</div>}
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <div className="previewActions">
             <button
               type="button"
               className="btn primary"

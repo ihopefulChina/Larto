@@ -8,7 +8,9 @@ import {
   deviceMenuGroup,
   findDevice,
   guestViewport,
-  statusBarInset
+  statusBarInset,
+  cssViewportFromVisualBox,
+  zoomScale
 } from '../src/shared/devices'
 import { JSAPI_ERROR, classifyJsapi, failMsg, jsapiFail, okMsg } from '../src/shared/jsapi'
 import { displayUrl, isDefaultPage, normalizeUrl } from '../src/shared/url'
@@ -46,6 +48,18 @@ describe('devices', () => {
     expect(findDevice('nope').id).toBe(DEFAULT_DEVICE_ID)
     expect(findDevice(undefined).id).toBe(DEFAULT_DEVICE_ID)
     expect(ZOOM_LEVELS).toContain(100)
+  })
+  it('maps a visually scaled PC/mobile box back to the CSS viewport', () => {
+    expect(zoomScale(75)).toBe(0.75)
+    expect(zoomScale(999)).toBe(1)
+    expect(cssViewportFromVisualBox({ width: 450, height: 600 }, 75)).toEqual({
+      width: 600,
+      height: 800
+    })
+    expect(cssViewportFromVisualBox({ width: 600, height: 800 }, 100)).toEqual({
+      width: 600,
+      height: 800
+    })
   })
   it('models the default iPhone 17 Pro screen and safe-area viewport', () => {
     const device = findDevice(DEFAULT_DEVICE_ID)

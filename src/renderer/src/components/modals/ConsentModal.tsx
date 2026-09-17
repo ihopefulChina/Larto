@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { invoke } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import { Modal } from '../Modal'
@@ -15,6 +15,10 @@ export function ConsentModal() {
   const prompt = useApp((s) => s.consent)
   const [expanded, setExpanded] = useState(false)
   const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    setExpanded(false)
+    setBusy(false)
+  }, [prompt?.id])
   if (!prompt) return null
   const { info } = prompt
 
@@ -24,7 +28,10 @@ export function ConsentModal() {
     try {
       await invoke('jsapi:consentDecision', { id: prompt.id, accept })
     } finally {
-      useApp.setState({ modal: null, consent: null })
+      const current = useApp.getState()
+      if (current.consent?.id === prompt.id) {
+        useApp.setState({ modal: null, consent: null })
+      }
     }
   }
   const scopes = expanded ? info.scopes : info.scopes.slice(0, PREVIEW_COUNT)

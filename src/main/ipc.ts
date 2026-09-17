@@ -14,6 +14,7 @@ import type { SettingsStore } from './store'
 import { resolveTheme } from './theme'
 import type { UpdaterService } from './updater'
 import { consentBroker } from './consent'
+import { IdeSplitController } from './ide-split-drag'
 import { fitWindowToDevice, getMainWindow, isCurrentShellUrl } from './window'
 
 export interface IpcDeps {
@@ -61,6 +62,8 @@ export function getAppInfo(): AppInfo {
 }
 
 export function registerIpc(deps: IpcDeps): void {
+  const ideSplit = new IdeSplitController(deps.settings)
+  guestManager.on('attached', () => ideSplit.refreshHooks())
   handle('app:getInfo', () => getAppInfo())
   handle('app:openExternal', (_e, url) => {
     if (/^(https?|mailto|lark):/i.test(url)) return shell.openExternal(url)
@@ -96,12 +99,20 @@ export function registerIpc(deps: IpcDeps): void {
   handle('guest:deviceCommandFailed', (_e, req) => guestManager.failDeviceRequest(req))
   handle('guest:clearCache', (_e, id) => guestManager.clearCache(id))
   handle('jsapi:consentDecision', (_e, req) => consentBroker.decide(req.id, req.accept))
+  handle('jsapi:cancelPending', () => consentBroker.cancelAll())
   handle('guest:openDevTools', (_e, req) => {
     const win = getMainWindow()
     if (!win) throw new Error('no main window')
     devToolsDock.open(win, req.guestWebContentsId, req.bounds)
+    ideSplit.refreshHooks()
+    setTimeout(() => ideSplit.refreshHooks(), 400)
   })
-  handle('guest:setDevToolsBounds', (_e, req) => devToolsDock.setBounds(req.bounds, req.visible))
+  handle('split:setLayout', (_e, layout) => ideSplit.setLayout(layout))
+  handle('split:pointer', (_e, req) => ideSplit.handleRendererPointer(req.type))
+  handle('guest:setDevToolsBounds', (_e, req) => {
+    devToolsDock.setBounds(req.bounds, req.visible)
+    ideSplit.refreshHooks()
+  })
   handle('guest:closeDevTools', () => devToolsDock.close())
   handle('guest:snapshotDevTools', async () => {
     try {

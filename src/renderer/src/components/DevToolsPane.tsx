@@ -19,6 +19,11 @@ export function DevToolsPane() {
   const covered = useApp((s) => s.modal !== null || s.devtoolsCovers > 0)
   const openedFor = useRef<number | null>(null)
 
+  const overlayVisible = (): boolean => {
+    const s = useApp.getState()
+    return s.modal === null && s.devtoolsCovers === 0
+  }
+
   useEffect(() => {
     const el = ref.current
     if (!el || guestId === null) return
@@ -31,10 +36,9 @@ export function DevToolsPane() {
     // post-open report matters: the first layout pass may have observed a 0-width column.
     const report = () => {
       if (!alive) return
-      const s = useApp.getState()
       void invoke('guest:setDevToolsBounds', {
         bounds: bounds(),
-        visible: s.modal === null && s.devtoolsCovers === 0
+        visible: overlayVisible()
       })
     }
     void invoke('guest:openDevTools', { guestWebContentsId: guestId, bounds: bounds() })

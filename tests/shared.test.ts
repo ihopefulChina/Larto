@@ -4,10 +4,13 @@ import {
   DEFAULT_DEVICE_ID,
   ZOOM_LEVELS,
   buildUserAgent,
+  clampSimulatorColumnWidth,
   deviceHasIsland,
   deviceMenuGroup,
+  devicesByMenuGroup,
   findDevice,
   guestViewport,
+  simulatorColumnStyle,
   statusBarInset
 } from '../src/shared/devices'
 import { JSAPI_ERROR, classifyJsapi, failMsg, jsapiFail, okMsg } from '../src/shared/jsapi'
@@ -108,6 +111,24 @@ describe('devices', () => {
     expect(deviceMenuGroup(findDevice('nexus-5'))).toBe('android')
     expect(deviceMenuGroup(findDevice('ipad'))).toBe('ipad')
     expect(deviceMenuGroup(findDevice('pc-mac'))).toBe('pc')
+    const grouped = devicesByMenuGroup()
+    expect(grouped.map((entry) => entry.group)).toEqual(['iphone', 'android', 'ipad', 'pc'])
+    expect(grouped.flatMap((entry) => entry.devices.map((d) => d.id)).sort()).toEqual(
+      DEVICES.map((d) => d.id).sort()
+    )
+    expect(grouped.every((entry) => entry.devices.length > 0)).toBe(true)
+  })
+  it('keeps the left simulator column independently sized next to DevTools', () => {
+    const phone = findDevice('iphone-17-pro')
+    const pc = findDevice('pc-mac')
+    expect(simulatorColumnStyle(phone, 100, null, true)).toEqual({ width: 434, flex: 'none' })
+    expect(simulatorColumnStyle(pc, 100, null, true)).toEqual({ flex: 1 })
+    expect(simulatorColumnStyle(pc, 100, 640, true)).toEqual({ width: 640, flex: 'none' })
+    expect(simulatorColumnStyle(phone, 100, 640, true).width).toBe(640)
+    expect(simulatorColumnStyle(findDevice('ipad-pro'), 100, 500, true).width).toBe(1056)
+    expect(simulatorColumnStyle(pc, 100, 640, false)).toEqual({ flex: 1 })
+    expect(clampSimulatorColumnWidth(200, 1000)).toBe(410)
+    expect(clampSimulatorColumnWidth(900, 800)).toBe(500)
   })
 })
 

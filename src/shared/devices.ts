@@ -195,7 +195,7 @@ export function deviceHasIsland(device: DeviceSpec): boolean {
 }
 
 /** Coarse grouping for the simulator device menu (iPhone / Android / iPad / PC). */
-export function deviceMenuGroup(device: DeviceSpec): 'iphone' | 'android' | 'ipad' | 'pc' {
+export function deviceMenuGroup(device: DeviceSpec): DeviceMenuGroup {
   if (device.platform === 'pc') return 'pc'
   if (device.platform === 'android') return 'android'
   if (device.id.startsWith('ipad')) return 'ipad'
@@ -208,6 +208,63 @@ export const PC_SIZE_MAX = 2560
 export function clampPcSize(n: number, fallback: number): number {
   if (!Number.isFinite(n)) return fallback
   return Math.min(PC_SIZE_MAX, Math.max(PC_SIZE_MIN, Math.round(n)))
+}
+
+/** Simulator / DevTools column metrics (app.css + official `deviceWidth + 64` chrome). */
+export const SIMULATOR_COLUMN_MIN_W = 410
+export const SIMULATOR_COLUMN_PAD_W = 32
+export const DEVTOOLS_COLUMN_MIN_W = 300
+
+export type DeviceMenuGroup = 'iphone' | 'android' | 'ipad' | 'pc'
+
+export const DEVICE_MENU_GROUPS: readonly DeviceMenuGroup[] = ['iphone', 'android', 'ipad', 'pc']
+
+export function devicesByMenuGroup(): { group: DeviceMenuGroup; devices: DeviceSpec[] }[] {
+  const buckets: Record<DeviceMenuGroup, DeviceSpec[]> = {
+    iphone: [],
+    android: [],
+    ipad: [],
+    pc: []
+  }
+  for (const device of DEVICES) buckets[deviceMenuGroup(device)].push(device)
+  return DEVICE_MENU_GROUPS.map((group) => ({ group, devices: buckets[group] })).filter(
+    (entry) => entry.devices.length > 0
+  )
+}
+
+export function deviceGroupI18nKey(group: DeviceMenuGroup): `menu.deviceGroup.${DeviceMenuGroup}` {
+  return `menu.deviceGroup.${group}`
+}
+
+export function mobileSimulatorColumnWidth(device: DeviceSpec, zoom: number): number {
+  return Math.max(
+    SIMULATOR_COLUMN_MIN_W,
+    Math.ceil(device.width * (zoom / 100)) + SIMULATOR_COLUMN_PAD_W
+  )
+}
+
+export function clampSimulatorColumnWidth(width: number, panelWidth: number): number {
+  const max = Math.max(SIMULATOR_COLUMN_MIN_W, Math.round(panelWidth) - DEVTOOLS_COLUMN_MIN_W)
+  return Math.min(max, Math.max(SIMULATOR_COLUMN_MIN_W, Math.round(width)))
+}
+
+/**
+ * Width of the left simulator column next to DevTools. A stored drag width is honoured for every
+ * preset, but mobile frames still grow to fit the current device so they are never clipped.
+ * PC with no stored width stays `flex: 1` until the user drags the splitter.
+ */
+export function simulatorColumnStyle(
+  device: DeviceSpec,
+  zoom: number,
+  storedWidth: number | null,
+  showDevTools: boolean
+): { width?: number; flex?: 1 | 'none' } {
+  if (!showDevTools) return { flex: 1 }
+  const needed =
+    device.platform === 'pc' ? SIMULATOR_COLUMN_MIN_W : mobileSimulatorColumnWidth(device, zoom)
+  if (storedWidth != null) return { width: Math.max(needed, storedWidth), flex: 'none' }
+  if (device.platform === 'pc') return { flex: 1 }
+  return { width: needed, flex: 'none' }
 }
 
 /**

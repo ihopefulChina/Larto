@@ -47,6 +47,7 @@ export const SettingsSchema: z.ZodType<Settings, unknown> = z.object({
     })
     .nullable()
     .default(null),
+  simulatorColumnWidth: z.number().int().min(410).max(4000).nullable().default(null),
   windowBounds: z
     .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
     .nullable()

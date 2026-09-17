@@ -48,6 +48,11 @@ export interface Settings {
    * `calc(100% - 40px)` behaviour); the guest then uses the laid-out webview size.
    */
   pcViewport: { width: number; height: number } | null
+  /**
+   * Dragged width of the left simulator column when DevTools is docked. `null` = auto
+   * (device-sized for phones/tablets, flex-fill for PC until the splitter is used).
+   */
+  simulatorColumnWidth: number | null
   windowBounds: { x: number; y: number; width: number; height: number } | null
 }
 
@@ -74,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   skippedUpdateVersion: null,
   mockLocation: null,
   pcViewport: null,
+  simulatorColumnWidth: null,
   windowBounds: null
 }
 
@@ -89,6 +95,7 @@ export const WritableSettingKeys = [
   'mcp',
   'autoCheckUpdates',
   'mockLocation',
-  'pcViewport'
+  'pcViewport',
+  'simulatorColumnWidth'
 ] as const satisfies readonly (keyof Settings)[]
 export type WritableSettingKey = (typeof WritableSettingKeys)[number]

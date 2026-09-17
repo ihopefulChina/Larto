@@ -168,7 +168,7 @@ pnpm format           # prettier --write
 
 ### 后续（v0.2+，非必须）
 
-- DevTools 面板宽度可拖拽（现为固定比例）；记忆宽度到 settings。
+- 模拟器 / DevTools 分栏可拖拽，宽度写入 `settings.simulatorColumnWidth`；双击分栏恢复自动宽度。
 - MCP：增加 `set_mock_location`、`login_state`、`network_log`（通过 `debugger` 的 `Network.*`）。
 - 网络代理设置生效验证（`settings.proxy` → `session.setProxy`）。
 - 多语言 DevTools（`--lang`）与 DevTools 主题跟随应用主题。

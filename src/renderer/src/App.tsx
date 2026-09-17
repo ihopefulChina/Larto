@@ -4,6 +4,7 @@ import type { ShellCommand } from '@shared/ipc'
 import { invoke, on } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import { simulatorActions, useSimulator } from '@/store/simulator'
+import { ColumnResizer } from './components/ColumnResizer'
 import { DevToolsPane } from './components/DevToolsPane'
 import { Simulator } from './components/Simulator'
 import { Toolbar } from './components/Toolbar'
@@ -22,6 +23,7 @@ export function App() {
   const showDevTools = useApp((s) => s.settings.showDevTools)
   const setSetting = useApp((s) => s.setSetting)
   const [focusSignal, setFocusSignal] = useState(0)
+  const [liveColumnWidth, setLiveColumnWidth] = useState<number | null>(null)
 
   useEffect(() => {
     void useApp.getState().init()
@@ -42,6 +44,7 @@ export function App() {
   const toggleDevTools = useCallback(
     (show?: boolean) => {
       const next = show ?? !useApp.getState().settings.showDevTools
+      if (!next) setLiveColumnWidth(null)
       void setSetting('showDevTools', next)
     },
     [setSetting]
@@ -94,7 +97,20 @@ export function App() {
     <div className="main">
       <Toolbar onClearCache={() => void clearCache()} onToggleDevTools={() => toggleDevTools()} />
       <div className="idePanel">
-        <Simulator focusSignal={focusSignal} />
+        <Simulator focusSignal={focusSignal} columnWidth={liveColumnWidth} />
+        {showDevTools && (
+          <ColumnResizer
+            onPreview={setLiveColumnWidth}
+            onCommit={(width) => {
+              void setSetting('simulatorColumnWidth', width).finally(() => setLiveColumnWidth(null))
+            }}
+            onCancel={() => setLiveColumnWidth(null)}
+            onReset={() => {
+              setLiveColumnWidth(null)
+              void setSetting('simulatorColumnWidth', null)
+            }}
+          />
+        )}
         {showDevTools && <DevToolsPane />}
       </div>
       {modal === 'preview' && <PreviewModal />}

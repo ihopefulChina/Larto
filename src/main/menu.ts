@@ -5,7 +5,7 @@ import {
   OFFICIAL_TOOL_DOCS_URL,
   WEBSITE_URL
 } from '@shared/constants'
-import { DEVICES, ZOOM_LEVELS } from '@shared/devices'
+import { ZOOM_LEVELS, deviceGroupI18nKey, devicesByMenuGroup } from '@shared/devices'
 import { translate, type I18nKey } from '@shared/i18n'
 import type { ShellCommand } from '@shared/ipc'
 import type { Language, ResolvedLanguage, ThemeMode } from '@shared/settings'
@@ -170,12 +170,16 @@ export function createMenuTemplate(
         { type: 'separator' },
         {
           label: t('menu.device'),
-          submenu: DEVICES.map((d) => ({
-            label: d.name,
-            type: 'radio' as const,
-            checked: s.deviceId === d.id,
-            click: () => deps.sendCommand({ type: 'setDevice', deviceId: d.id })
-          }))
+          submenu: devicesByMenuGroup().flatMap(({ group, devices }, index) => [
+            ...(index > 0 ? [{ type: 'separator' as const }] : []),
+            { label: t(deviceGroupI18nKey(group)), enabled: false },
+            ...devices.map((d) => ({
+              label: d.name,
+              type: 'radio' as const,
+              checked: s.deviceId === d.id,
+              click: () => deps.sendCommand({ type: 'setDevice', deviceId: d.id })
+            }))
+          ])
         },
         {
           label: t('menu.zoom'),

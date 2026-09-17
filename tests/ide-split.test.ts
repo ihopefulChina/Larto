@@ -6,6 +6,7 @@ import {
   IDE_RESIZER_W,
   isSplitPress,
   isSplitRelease,
+  sameIdeSplitLayout,
   PC_SIMULATOR_COLUMN_DEFAULT_W,
   sashViewBounds,
   SIMULATOR_COLUMN_MAX_W,
@@ -66,5 +67,18 @@ describe('ide-split', () => {
     expect(isSplitPress('mouseMove')).toBe(false)
     expect(isSplitRelease('mouseUp')).toBe(true)
     expect(isSplitRelease('pointerUp')).toBe(true)
+  })
+
+  it('compares split layouts by their geometry, not identity', () => {
+    const layout = {
+      enabled: true,
+      panelLeft: 0,
+      panelWidth: 1200,
+      panelTop: 40,
+      panelBottom: 800,
+      columnWidth: 500
+    }
+    expect(sameIdeSplitLayout(layout, { ...layout })).toBe(true)
+    expect(sameIdeSplitLayout(layout, { ...layout, columnWidth: 501 })).toBe(false)
   })
 })

@@ -15,6 +15,8 @@ const log = createLogger('devtools')
 export interface DevToolsDockEvents {
   /** The frontend entered (true) or left (false) "select an element" mode. */
   'inspect-mode': [on: boolean]
+  /** Native view was re-attached after the frontend committed; sash can raise above it. */
+  ready: []
 }
 
 /**
@@ -182,6 +184,7 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
       view.webContents
         .executeJavaScript(INSPECT_HOOK_JS)
         .catch((err) => log.warn('devtools inspect hook failed', err))
+      this.emit('ready')
     })
   }
 

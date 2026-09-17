@@ -21,6 +21,7 @@ export function IdePanel() {
 
   const panelRef = useRef<HTMLDivElement>(null)
   const lastDeviceId = useRef(deviceId)
+  const lastLayoutKey = useRef('')
 
   const [panelWidth, setPanelWidth] = useState(0)
   const [draftWidth, setDraftWidth] = useState<number | null>(null)
@@ -37,14 +38,18 @@ export function IdePanel() {
     const report = () => {
       const r = el.getBoundingClientRect()
       if (r.width > 0) setPanelWidth(r.width)
-      void invoke('split:setLayout', {
+      const next = {
         enabled: showDevTools,
         panelLeft: r.left,
         panelWidth: r.width,
         panelTop: r.top,
         panelBottom: r.bottom,
         columnWidth
-      })
+      }
+      const key = JSON.stringify(next)
+      if (key === lastLayoutKey.current) return
+      lastLayoutKey.current = key
+      void invoke('split:setLayout', next)
     }
     report()
     const ro = new ResizeObserver(report)

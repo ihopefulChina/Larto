@@ -152,6 +152,10 @@ export function createMainWindow(settings: SettingsStore): BrowserWindow {
   mainWindow = win
 
   win.once('ready-to-show', () => win.show())
+  // ready-to-show can be delayed or missed if a child WebContentsView stalls first paint.
+  setTimeout(() => {
+    if (!win.isDestroyed() && !win.isVisible()) win.show()
+  }, 2500)
   win.on('close', () => persistBounds(win, settings))
   win.on('closed', () => {
     mainWindow = null

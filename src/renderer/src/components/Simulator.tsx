@@ -52,6 +52,7 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
   } | null>(null)
   const pcPreviewRun = useRef<Promise<void> | null>(null)
   const pcResizeGeneration = useRef(0)
+  const lastPcSize = useRef<{ width: number; height: number } | null>(null)
   const [attachFailed, setAttachFailed] = useState(false)
   const [attachRetry, setAttachRetry] = useState(0)
   // The `useragent` attribute is only read before the first navigation; later changes (language →
@@ -343,6 +344,7 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
     // device guard and must not keep a stale draft visible in the next preset.
     ++pcResizeGeneration.current
     pcPreviewQueue.current = null
+    lastPcSize.current = null
     setPcDraft(null)
     setPcDragLeft(null)
   }, [device.id])
@@ -363,6 +365,9 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
       const r = el.getBoundingClientRect()
       const { width, height } = cssViewportFromVisualBox(r, latest.zoom)
       if (width < 50 || height < 50) return
+      const prev = lastPcSize.current
+      if (prev && prev.width === width && prev.height === height) return
+      lastPcSize.current = { width, height }
       setLivePc({ width, height })
       queuePcEmulation({ width, height })
     }

@@ -40,6 +40,17 @@ export function clampSimulatorColumnWidth(width: number, panelWidth: number): nu
   return Math.min(maxLeft, SIMULATOR_COLUMN_MAX_W, Math.max(SIMULATOR_COLUMN_MIN_W, wanted))
 }
 
+export function sameIdeSplitLayout(a: IdeSplitLayout, b: IdeSplitLayout): boolean {
+  return (
+    a.enabled === b.enabled &&
+    a.panelLeft === b.panelLeft &&
+    a.panelWidth === b.panelWidth &&
+    a.panelTop === b.panelTop &&
+    a.panelBottom === b.panelBottom &&
+    a.columnWidth === b.columnWidth
+  )
+}
+
 /** Native sash strip sitting on the 10px flex gap between the two columns. */
 export function sashViewBounds(layout: IdeSplitLayout): {
   x: number

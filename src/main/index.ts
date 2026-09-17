@@ -192,7 +192,10 @@ async function bootstrap(): Promise<void> {
     const win = getMainWindow()
     if (win) {
       if (win.isMinimized()) win.restore()
+      if (!win.isVisible()) win.show()
       win.focus()
+    } else {
+      openWindow()
     }
   })
   app.on('activate', () => {
@@ -203,30 +206,16 @@ async function bootstrap(): Promise<void> {
 
   await app.whenReady()
   guestManager.installGlobalHooks()
-  try {
-    await applyProxyEverywhere(appliedProxy)
-  } catch (err) {
-    startupProxyError = err instanceof Error ? err.message : String(err)
-    log.error('could not apply saved proxy settings at startup', err)
-    const fallback = DEFAULT_SETTINGS.proxy
-    if (!sameProxy(appliedProxy, fallback)) {
-      try {
-        await applyProxyEverywhere(fallback)
-        appliedProxy = fallback
-        settings.patch({ proxy: fallback })
-      } catch (fallbackError) {
-        log.error('could not apply system proxy fallback', fallbackError)
-      }
-    }
-  }
-  proxyReady = true
   account.restore()
   registerIpc({ settings, account, updater, mcp, getLang })
   rebuildMenu()
-  // Complete the initial listen before the renderer reads its first MCP status.
-  await mcp.start()
+  // Show the window before proxy/MCP settle. A hung system PAC or listen() used to leave
+  // Dock/second-instance focused on a process that had never painted.
   openWindow()
-  if (startupProxyError) setImmediate(() => showProxyFailure(startupProxyError!))
+  void mcp.start()
+  void applyStartupProxy().then(() => {
+    if (startupProxyError) showProxyFailure(startupProxyError)
+  })
   if (app.isPackaged) {
     setTimeout(() => {
       // Re-check the live preference and state: the user may disable auto-check or complete a
@@ -235,6 +224,26 @@ async function bootstrap(): Promise<void> {
         void updater.check({ manual: false })
       }
     }, 5000)
+  }
+
+  async function applyStartupProxy(): Promise<void> {
+    try {
+      await applyProxyEverywhere(appliedProxy)
+    } catch (err) {
+      startupProxyError = err instanceof Error ? err.message : String(err)
+      log.error('could not apply saved proxy settings at startup', err)
+      const fallback = DEFAULT_SETTINGS.proxy
+      if (!sameProxy(appliedProxy, fallback)) {
+        try {
+          await applyProxyEverywhere(fallback)
+          appliedProxy = fallback
+          settings.patch({ proxy: fallback })
+        } catch (fallbackError) {
+          log.error('could not apply system proxy fallback', fallbackError)
+        }
+      }
+    }
+    proxyReady = true
   }
 
   function openWindow(): void {

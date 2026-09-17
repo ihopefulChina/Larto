@@ -64,6 +64,7 @@ export function getAppInfo(): AppInfo {
 export function registerIpc(deps: IpcDeps): void {
   const ideSplit = new IdeSplitController(deps.settings)
   guestManager.on('attached', () => ideSplit.refreshHooks())
+  devToolsDock.on('ready', () => ideSplit.refreshHooks())
   handle('app:getInfo', () => getAppInfo())
   handle('app:openExternal', (_e, url) => {
     if (/^(https?|mailto|lark):/i.test(url)) return shell.openExternal(url)

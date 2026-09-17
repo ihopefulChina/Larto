@@ -291,9 +291,17 @@ class GuestManager extends EventEmitter<GuestEvents> {
     // A ResizeObserver callback can pass its renderer-side guard just before the user switches
     // away from PC. Recheck the in-flight target so a late IPC cannot restore stale PC metrics.
     if (options.background && device.id !== this.intendedDevice.id) return
+    const nextViewport = viewport ?? guestViewport(device)
+    if (
+      options.background &&
+      device.id === this.device.id &&
+      this.viewport.width === nextViewport.width &&
+      this.viewport.height === nextViewport.height
+    ) {
+      return
+    }
     const generation = options.background ? this.emulationGeneration : ++this.emulationGeneration
     if (options.reload) this.interruptActiveReload()
-    const nextViewport = viewport ?? guestViewport(device)
     if (!options.background) this.intendedDevice = device
     const contents = webContents.fromId(webContentsId)
     log.debug(

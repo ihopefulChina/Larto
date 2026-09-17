@@ -1,6 +1,9 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 export const DEFAULT_PORT = 17331
 export const BUNDLE_ID = 'app.ihopeful.Larto'
@@ -95,8 +98,19 @@ function spawnDetached(candidate, spawnImpl) {
   })
 }
 
+async function clearMacQuarantine(appPath = '/Applications/Larto.app') {
+  try {
+    await execFileAsync('xattr', ['-dr', 'com.apple.quarantine', appPath], { timeout: 3000 })
+  } catch {
+    // Best-effort: a leftover Chrome/Gatekeeper quarantine can pin the first launch at dyld.
+  }
+}
+
 /** Launch the installed app without going through a command shell. */
 export async function launchApp(options = {}) {
+  if ((options.platform ?? process.platform) === 'darwin' && !options.spawnImpl) {
+    await clearMacQuarantine()
+  }
   const candidates = launchCandidates(options)
   let lastError = null
   for (const candidate of candidates) {

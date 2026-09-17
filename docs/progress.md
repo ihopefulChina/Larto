@@ -2,6 +2,25 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-17 — 修复 0.1.4 安装后打不开，准备 v0.1.5
+
+**做了什么**
+
+- 本机 `/Applications/Larto.app` 0.1.4 有 Chrome quarantine；一个 Larto 进程停了 40+ 分钟（`sample` 只看到 `_dyld_start`，RSS 极低），二次打开被单实例锁吸走，窗口不出现。
+- 启动改为先 `openWindow()`，代理和 MCP listen 后台进行；`second-instance` 对隐藏窗口补 `show()`，并给 `ready-to-show` 2.5s 兜底。
+- 去掉 sash 每 500ms `addChildView`；相同分栏布局不再下发；PC 相同视口不再打 CDP。DevTools `did-finish-load` 后发 `ready` 再抬 sash。
+- `larto-mcp` 在 macOS 启动应用前尽量 `xattr -dr com.apple.quarantine`。版本改为 0.1.5，文档/官网同步。
+
+**验证**
+
+- `pnpm format:check && pnpm typecheck && pnpm test && pnpm build` 通过（Vitest 20/102，Node Test 28/28）。
+- `node scripts/e2e.mjs` 24/24，stdio `version=0.1.5`。
+- 未宣称 GitHub Release / npm 已成功。未做真飞书 UAT。未重截官网图（界面未改）。
+
+**结论 / 遗留**
+
+- 0.1.4 安装后卡死是启动被代理/MCP 堵住、sash/DevTools 抢层级，再加上未公证包的 Gatekeeper/quarantine。0.1.5 修前两项；浏览器下载仍可能要 `xattr -dr com.apple.quarantine /Applications/Larto.app`。Trusted Publisher、签名、真飞书 UAT 仍待做。
+
 ## 2026-09-17 — v0.1.4 GitHub Release 已公开，npm 待补发
 
 **做了什么**

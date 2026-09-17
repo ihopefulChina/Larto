@@ -3,6 +3,7 @@ import {
   clampSimulatorColumnWidth,
   isSplitPress,
   isSplitRelease,
+  sameIdeSplitLayout,
   sashViewBounds,
   type IdeSplitLayout
 } from '@shared/ide-split'
@@ -21,13 +22,14 @@ export class IdeSplitController {
   private sash: WebContentsView | null = null
   private overlay: WebContentsView | null = null
   private ticker: ReturnType<typeof setInterval> | null = null
-  private raiseTimer: ReturnType<typeof setInterval> | null = null
   private readonly hooked = new WeakSet<WebContents>()
+  private readonly ready = new WeakSet<WebContents>()
   private blurWin: Electron.BrowserWindow | null = null
 
   constructor(private readonly settings: SettingsStore) {}
 
   setLayout(layout: IdeSplitLayout): void {
+    if (this.layout && sameIdeSplitLayout(this.layout, layout)) return
     this.layout = layout
     if (!layout.enabled) {
       this.cancel()
@@ -35,7 +37,6 @@ export class IdeSplitController {
     }
     this.syncSash()
     this.watchBlur()
-    this.startRaise()
   }
 
   refreshHooks(): void {
@@ -66,6 +67,7 @@ export class IdeSplitController {
     if (wc.isDestroyed() || this.hooked.has(wc)) return
     this.hooked.add(wc)
     const onInput = (_event: Electron.Event, input: InputEvent) => {
+      if (!this.ready.has(wc)) return
       if (isSplitPress(input.type)) {
         const clickCount = 'clickCount' in input ? Number(input.clickCount) : 1
         if (clickCount >= 2) this.resetToAuto()
@@ -75,6 +77,8 @@ export class IdeSplitController {
       if (isSplitRelease(input.type)) this.finish()
     }
     wc.on('input-event', onInput)
+    wc.once('did-finish-load', () => this.ready.add(wc))
+    if (wc.getURL() && !wc.isLoading()) this.ready.add(wc)
     wc.once('destroyed', () => wc.off('input-event', onInput))
     void role
   }
@@ -130,10 +134,6 @@ export class IdeSplitController {
     this.hideOverlay()
     this.dragging = false
     this.seed = null
-    if (this.raiseTimer) {
-      clearInterval(this.raiseTimer)
-      this.raiseTimer = null
-    }
     this.hideSash()
   }
 
@@ -162,13 +162,6 @@ export class IdeSplitController {
     if (!this.ticker) return
     clearInterval(this.ticker)
     this.ticker = null
-  }
-
-  private startRaise(): void {
-    if (this.raiseTimer) return
-    this.raiseTimer = setInterval(() => {
-      if (this.layout?.enabled && !this.dragging) this.syncSash()
-    }, 500)
   }
 
   private syncSash(): void {

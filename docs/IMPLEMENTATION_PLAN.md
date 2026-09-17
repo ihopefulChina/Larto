@@ -164,7 +164,7 @@ pnpm format           # prettier --write
 5. 官网与 README 的首要任务是让开发者确认能力、安全边界并选择正确下载；系统自动识别只做推荐，始终提供完整手动下载矩阵。截图使用匿名本地示例页，不含账号、租户或内部域名。
 6. 发布前跑本文件 §5 全套、本机 macOS arm64/x64 包启动；发布后等待 CI、Release、Pages 和 npm registry 的最终状态，再记录真实结果。未签名/未公证、Windows SmartScreen、Linux keyring、真实飞书账号 UAT 均需如实披露。
 
-验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view larto-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。当前桌面与 MCP 包版本为 **0.1.4**（官方 sash、PC 缩放、登录/JSAPI/切机竞态、单行命令栏）；发布结果以 `docs/progress.md` 最新记录为准。
+验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view larto-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。当前桌面与 MCP 包版本为 **0.1.5**（0.1.4 安装后窗口不出现 / 假死的启动与 sash 修复）；发布结果以 `docs/progress.md` 最新记录为准。
 
 ### 后续（v0.2+，非必须）
 

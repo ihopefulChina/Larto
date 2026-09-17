@@ -226,6 +226,8 @@ const check = (label, ok, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${extra ? '  ' + extra : ''}`)
   if (!ok) failures++
 }
+/** Chromium may report deviceScaleFactor as 3.0000000558793545 instead of exact 3. */
+const approx = (value, expected, epsilon = 0.05) => Math.abs(Number(value) - expected) < epsilon
 
 try {
   let ready = false
@@ -251,7 +253,7 @@ try {
   )
   check(
     'first page load already emulated and its console captured',
-    !!firstLoad && /inner=402x771 dpr=3 screen=402x874 touch=5/.test(firstLoad.message),
+    !!firstLoad && /inner=402x771 dpr=3(\.\d+)? screen=402x874 touch=5/.test(firstLoad.message),
     firstLoad?.message ?? 'no first-load console entry'
   )
 
@@ -278,7 +280,7 @@ try {
   )
   check(
     'iphone-13 emulation (390 wide, dpr 3, screen 390x844)',
-    metrics.w === 390 && metrics.dpr === 3 && metrics.sw === 390 && metrics.sh === 844,
+    metrics.w === 390 && approx(metrics.dpr, 3) && metrics.sw === 390 && metrics.sh === 844,
     JSON.stringify(metrics)
   )
   check('Lark UA injected', /Lark\/\d/.test(metrics.ua))
@@ -391,7 +393,7 @@ try {
   )
   check(
     'zoom keeps CSS viewport stable',
-    zoomed.w === 360 && zoomed.dpr === 3,
+    zoomed.w === 360 && approx(zoomed.dpr, 3),
     JSON.stringify(zoomed)
   )
   await tool('set_zoom', { zoom: 100 })

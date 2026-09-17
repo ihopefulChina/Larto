@@ -9,14 +9,19 @@
 - 设备下拉与系统「视图 → 设备」菜单按 iPhone / Android / iPad / PC 分组并显示标题，不再只有一条无分类长列表。
 - 调试器打开时，模拟器与 DevTools 之间可拖拽分栏（命中区只叠在模拟器右侧，避免被原生 DevTools 盖住）；宽度写入 `settings.simulatorColumnWidth`，双击恢复自动宽度。PC 默认仍 `flex: 1`，拖过一次后记住。
 - PC 画布缩放手柄移到 `.pcStage` 内边距，不再与 `<webview>` 重叠，避免 guest 原生视图吞掉拖拽。
+- E2E 对 `devicePixelRatio` 改为近似比较，避免 Chromium 在 Linux 上报 `3.0000000558793545` 时误失败。
 
 **验证**
 
-- 待跑：`pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e`。
+- `pnpm format:check`：通过。
+- `pnpm typecheck`：三个 tsconfig 通过。
+- `pnpm test`：Vitest 15 文件 / 81 项，Node Test 28/28 通过。
+- `pnpm build`：通过。
+- `pnpm e2e`：23/24 通过。失败项是 `DevTools screenshot captured`（4417 bytes，Xvfb 下原生 DevTools 视图未绘制出内容）；`devtools://` 已加载且 bounds 正常。窗口截图与 PC `inner === screen` 通过。未在 macOS 实机上用鼠标拖分栏做 UAT。
 
 **结论 / 遗留**
 
-- 针对用户反馈的设备未分类、PC 不能拖左侧窗口。真实飞书登录/鉴权仍待 UAT；本条记录时自动化结果以下一次更新为准。
+- 用户反馈的设备未分类、PC 不能拖左侧窗口已修。真实飞书登录/鉴权仍待 UAT。Linux Xvfb 上原生 DevTools `capturePage` 空白是既有环境限制，不是本轮分栏改动引入。
 
 ## 2026-09-07 — v0.1.3 发布与本机更新完成
 

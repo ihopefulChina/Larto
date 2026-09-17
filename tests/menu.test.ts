@@ -63,4 +63,22 @@ describe('native application menu', () => {
       expect(accelerators.every((value) => !/(^|\+)Cmd\+/.test(value))).toBe(true)
     }
   })
+
+  it('groups simulator devices under iPhone / Android / iPad / PC headings', () => {
+    const view = items(
+      createMenuTemplate(makeDeps() as never, 'darwin').find((item) => item.label === 'View')
+        ?.submenu
+    )
+    const deviceMenu = items(view.find((item) => item.label === 'Device')?.submenu)
+    const labels = deviceMenu.map((item) => item.label)
+    expect(labels[0]).toBe('iPhone')
+    expect(deviceMenu[0]?.enabled).toBe(false)
+    expect(labels).toEqual(expect.arrayContaining(['iPhone', 'Android', 'iPad', 'PC']))
+    expect(deviceMenu.filter((item) => item.type === 'separator')).toHaveLength(3)
+    expect(deviceMenu.some((item) => item.label === 'iPhone 17 Pro' && item.type === 'radio')).toBe(
+      true
+    )
+    expect(deviceMenu.some((item) => item.label === 'PC' && item.enabled === false)).toBe(true)
+    expect(deviceMenu.some((item) => item.label === 'PC' && item.type === 'radio')).toBe(true)
+  })
 })

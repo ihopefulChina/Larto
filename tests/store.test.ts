@@ -108,10 +108,12 @@ describe('SettingsStore', () => {
     store.pushHistory('https://example.com/kept')
     const next = store.patchWritable({
       theme: 'dark',
+      simulatorColumnWidth: 640,
       urlHistory: [],
       windowBounds: { x: 0, y: 0, width: 1, height: 1 }
     } as never)
     expect(next.theme).toBe('dark')
+    expect(next.simulatorColumnWidth).toBe(640)
     expect(next.urlHistory).toEqual(['https://example.com/kept'])
     expect(next.windowBounds).toEqual(DEFAULT_SETTINGS.windowBounds)
   })

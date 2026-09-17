@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WebviewTag } from 'electron'
 import { ENV_ENDPOINTS, GUEST_PARTITION } from '@shared/constants'
 import {
-  DEVICES,
   ZOOM_LEVELS,
   buildUserAgent,
   clampPcSize,
   deviceCornerRadius,
-  deviceMenuGroup,
+  deviceGroupI18nKey,
+  devicesByMenuGroup,
   findDevice,
-  guestViewport
+  guestViewport,
+  simulatorColumnStyle
 } from '@shared/devices'
 import { attachJsapiHost } from '@/jsapi/host'
 import { invoke } from '@/lib/bridge'
@@ -26,7 +27,13 @@ import { UrlBar } from './UrlBar'
 /** Any truthy value works: main replaces it with the real guest preload in `will-attach-webview`. */
 const PRELOAD_PLACEHOLDER = 'file:///larto-guest-preload.cjs'
 
-export function Simulator({ focusSignal }: { focusSignal: number }) {
+export function Simulator({
+  focusSignal,
+  columnWidth
+}: {
+  focusSignal: number
+  columnWidth?: number | null
+}) {
   const settings = useApp((s) => s.settings)
   const lang = useApp((s) => s.lang)
   const setSetting = useApp((s) => s.setSetting)
@@ -40,6 +47,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   )
   const webviewRef = useRef<WebviewTag>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const pcStageRef = useRef<HTMLDivElement>(null)
   const isPc = device.platform === 'pc'
   const pcFixed = isPc ? settings.pcViewport : null
   const [livePc, setLivePc] = useState({ width: device.width, height: device.height })
@@ -388,11 +396,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
   // scaled size so centring and scrolling work on the visible footprint.
   const boxStyle = isPc
     ? shownPc
-      ? {
-          width: shownPc.width,
-          height: shownPc.height,
-          ...(pcDragLeft === null ? {} : { marginLeft: pcDragLeft, marginRight: 'auto' })
-        }
+      ? { width: shownPc.width, height: shownPc.height }
       : undefined
     : { width: device.width * scale, height: device.height * scale }
   const radius = deviceCornerRadius(device)
@@ -404,59 +408,68 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
         transform: `scale(${scale})`,
         borderRadius: radius
       }
+  const columnLayout = simulatorColumnStyle(
+    device,
+    zoom,
+    columnWidth ?? settings.simulatorColumnWidth,
+    settings.showDevTools
+  )
 
   return (
-    <div
-      className="simulatorColumn"
-      style={{
-        width:
-          isPc || !settings.showDevTools ? undefined : Math.max(410, device.width * scale + 32),
-        flex: isPc || !settings.showDevTools ? 1 : undefined
-      }}
-    >
+    <div className="simulatorColumn" style={columnLayout}>
       <div className="simulatorHeader">
         <UrlBar focusSignal={focusSignal} />
       </div>
       <div className="simulatorContent">
         <div
-          ref={boxRef}
-          className={`gadgetBox ${isPc ? `pc ${shownPc ? 'fixed' : 'fit'}` : ''}`}
-          style={boxStyle}
+          ref={pcStageRef}
+          className={isPc ? `pcStage ${shownPc ? 'fixed' : 'fit'}` : 'mobileStage'}
+          style={
+            isPc && pcDragLeft !== null
+              ? { marginLeft: pcDragLeft, marginRight: 'auto' }
+              : undefined
+          }
         >
-          <div className={`gadget ${isPc ? 'pc' : ''}`} style={frameStyle}>
-            {!isPc && <StatusBar device={device} />}
-            {!isPc && <NavBar />}
-            <div className="webviewContainer">
-              <webview
-                ref={webviewRef}
-                src="about:blank"
-                partition={GUEST_PARTITION}
-                preload={PRELOAD_PLACEHOLDER}
-                useragent={ua}
-                allowpopups
-              />
-              {attachFailed && (
-                <div className="guestAttachError" role="alert">
-                  <strong>{t('simulator.attachFailed')}</strong>
-                  <span>{t('simulator.attachFailedHint')}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachFailed(false)
-                      setAttachRetry((value) => value + 1)
-                    }}
-                  >
-                    {t('simulator.retry')}
-                  </button>
+          <div
+            ref={boxRef}
+            className={`gadgetBox ${isPc ? `pc ${shownPc ? 'fixed' : 'fit'}` : ''}`}
+            style={boxStyle}
+          >
+            <div className={`gadget ${isPc ? 'pc' : ''}`} style={frameStyle}>
+              {!isPc && <StatusBar device={device} />}
+              {!isPc && <NavBar />}
+              <div className="webviewContainer">
+                <webview
+                  ref={webviewRef}
+                  src="about:blank"
+                  partition={GUEST_PARTITION}
+                  preload={PRELOAD_PLACEHOLDER}
+                  useragent={ua}
+                  allowpopups
+                />
+                {attachFailed && (
+                  <div className="guestAttachError" role="alert">
+                    <strong>{t('simulator.attachFailed')}</strong>
+                    <span>{t('simulator.attachFailedHint')}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachFailed(false)
+                        setAttachRetry((value) => value + 1)
+                      }}
+                    >
+                      {t('simulator.retry')}
+                    </button>
+                  </div>
+                )}
+                <JsapiOverlays />
+              </div>
+              {device.homeIndicator && (
+                <div className="homeIndicator">
+                  <span />
                 </div>
               )}
-              <JsapiOverlays />
             </div>
-            {device.homeIndicator && (
-              <div className="homeIndicator">
-                <span />
-              </div>
-            )}
           </div>
           {isPc && (
             <PcResizeHandle
@@ -465,7 +478,7 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
               onCommit={(size) => void commitPcViewport(size)}
               onCancel={cancelPcResize}
               onActiveChange={(active) => {
-                setPcDragLeft(active ? (boxRef.current?.offsetLeft ?? 0) : null)
+                setPcDragLeft(active ? (pcStageRef.current?.offsetLeft ?? 0) : null)
               }}
             />
           )}
@@ -489,32 +502,29 @@ export function Simulator({ focusSignal }: { focusSignal: number }) {
           )}
         >
           {(close) =>
-            DEVICES.flatMap((d, i) => {
-              const prev = i > 0 ? DEVICES[i - 1] : undefined
-              const sep =
-                prev && deviceMenuGroup(prev) !== deviceMenuGroup(d) ? (
-                  <div key={`sep-${d.id}`} className="menu-sep" role="separator" />
-                ) : null
-              const item = (
-                <button
-                  key={d.id}
-                  type="button"
-                  role="menuitemradio"
-                  className={`menu-item ${d.id === device.id ? 'checked' : ''}`}
-                  aria-checked={d.id === device.id}
-                  onClick={() => {
-                    close()
-                    void simulatorActions.changeDevice(d.id)
-                  }}
-                >
-                  {d.name}
-                  <span className="dim">
-                    {d.width}×{d.height}
-                  </span>
-                </button>
-              )
-              return sep ? [sep, item] : [item]
-            })
+            devicesByMenuGroup().map(({ group, devices }) => (
+              <div key={group} role="group" aria-label={t(deviceGroupI18nKey(group))}>
+                <div className="menu-label">{t(deviceGroupI18nKey(group))}</div>
+                {devices.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    role="menuitemradio"
+                    className={`menu-item ${d.id === device.id ? 'checked' : ''}`}
+                    aria-checked={d.id === device.id}
+                    onClick={() => {
+                      close()
+                      void simulatorActions.changeDevice(d.id)
+                    }}
+                  >
+                    {d.name}
+                    <span className="dim">
+                      {d.width}×{d.height}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))
           }
         </Dropdown>
         <span className="sep" />

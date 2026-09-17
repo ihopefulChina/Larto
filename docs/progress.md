@@ -15,11 +15,13 @@
 
 - `pnpm format:check && pnpm typecheck && pnpm test && pnpm build` 通过（Vitest 20/102，Node Test 28/28）。
 - `node scripts/e2e.mjs` 24/24，stdio `version=0.1.5`。
-- 未宣称 GitHub Release / npm 已成功。未做真飞书 UAT。未重截官网图（界面未改）。
+- tag `v0.1.5` → `a1e0d94`。Release 工作流 `35187724379`：validate、三平台打包、macOS Intel smoke 与 `publish-release` 成功；公开 Release 为 Latest。`publish-mcp` 仍 `ENEEDAUTH`（Trusted Publisher 未通）。
+- 未做真飞书 UAT。未重截官网图（界面未改）。本机 `electron-builder --mac --arm64` 因下载超时未打出本地包。
 
 **结论 / 遗留**
 
-- 0.1.4 安装后卡死是启动被代理/MCP 堵住、sash/DevTools 抢层级，再加上未公证包的 Gatekeeper/quarantine。0.1.5 修前两项；浏览器下载仍可能要 `xattr -dr com.apple.quarantine /Applications/Larto.app`。Trusted Publisher、签名、真飞书 UAT 仍待做。
+- 0.1.4 安装后卡死是启动被代理/MCP 堵住、sash/DevTools 抢层级，再加上未公证包的 Gatekeeper/quarantine。桌面 0.1.5 已公开：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.5
+- 浏览器下载后若 Dock 仍一直跳，先退出再执行 `xattr -dr com.apple.quarantine /Applications/Larto.app`。`larto-mcp@0.1.5` 待维护者本机 `npm publish`。签名与真飞书 UAT 仍待做。
 
 ## 2026-09-17 — v0.1.4 GitHub Release 已公开，npm 待补发
 

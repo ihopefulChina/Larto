@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-09-18
+
+修复调试器分栏拖拽：拖动时不再在机身上留下竖线，松手后也不再跟着光标改列宽。
+
+### 修复
+
+- 拖分栏时原生 sash 灰线不再停在按下位置压到机身；只藏标记，不卸掉接松开的 sash。
+- 松手、失焦或壳层 mouseup 都会结束拖拽，不再依赖 overlay `did-finish-load`。未按住时 ticker 不再跟光标改左栏宽度。
+- `contentView.children` 为空时不再把主进程打崩。
+
+### 已知限制
+
+- 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 与 PC 预览推送：代码已实现，**尚未用真实账号验收**。
+- macOS 包仅做 ad-hoc 签名且未公证，Windows 与 Linux 包未签名。浏览器下载后若仍被拦截或 Dock 一直跳，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后再打开。
+
 ## [0.1.5] — 2026-09-17
 
 修复 0.1.4 安装后 Dock 在跳、窗口不出现或界面假死。
@@ -172,6 +187,7 @@
 - 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
+[0.1.6]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.6
 [0.1.5]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.5
 [0.1.4]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.4
 [0.1.3]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.3

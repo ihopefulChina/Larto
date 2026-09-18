@@ -12,8 +12,10 @@ import { getMainWindow, sendToRenderer } from './window'
 
 /**
  * Official-style column sash: a native 10px strip in the gap between the
- * simulator column and DevTools. Press starts a drag; a full-window overlay
- * then follows the screen cursor until mouseup.
+ * simulator column and DevTools. Press starts a drag; the gray mark is
+ * hidden so it does not stay parked over the phone. The sash view stays
+ * mounted (mouseup must not be lost) and a full-window overlay follows
+ * the screen cursor until mouseup.
  */
 export class IdeSplitController {
   private layout: IdeSplitLayout | null = null
@@ -42,6 +44,8 @@ export class IdeSplitController {
   refreshHooks(): void {
     if (this.sash) this.hook(this.sash.webContents, 'sash')
     if (this.overlay) this.hook(this.overlay.webContents, 'overlay')
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) this.hook(win.webContents, 'window')
     this.syncSash()
   }
 
@@ -57,30 +61,37 @@ export class IdeSplitController {
     this.blurWin?.off('blur', this.onBlur)
     this.blurWin = win
     win.on('blur', this.onBlur)
+    this.hook(win.webContents, 'window')
   }
 
   private readonly onBlur = (): void => {
     this.finish()
   }
 
-  private hook(wc: WebContents, role: 'sash' | 'overlay'): void {
+  private hook(wc: WebContents, role: 'sash' | 'overlay' | 'window'): void {
     if (wc.isDestroyed() || this.hooked.has(wc)) return
     this.hooked.add(wc)
     const onInput = (_event: Electron.Event, input: InputEvent) => {
-      if (!this.ready.has(wc)) return
+      if (isSplitRelease(input.type)) {
+        if (this.dragging) this.finish()
+        return
+      }
+      if (role === 'window' || !this.ready.has(wc)) return
       if (isSplitPress(input.type)) {
         const clickCount = 'clickCount' in input ? Number(input.clickCount) : 1
         if (clickCount >= 2) this.resetToAuto()
         else this.begin()
-        return
       }
-      if (isSplitRelease(input.type)) this.finish()
     }
     wc.on('input-event', onInput)
-    wc.once('did-finish-load', () => this.ready.add(wc))
-    if (wc.getURL() && !wc.isLoading()) this.ready.add(wc)
+    if (role !== 'window') {
+      wc.once('did-finish-load', () => {
+        this.ready.add(wc)
+        if (role === 'sash') this.setSashMark(!this.dragging)
+      })
+      if (wc.getURL() && !wc.isLoading()) this.ready.add(wc)
+    }
     wc.once('destroyed', () => wc.off('input-event', onInput))
-    void role
   }
 
   private screenX(): number {
@@ -96,6 +107,7 @@ export class IdeSplitController {
       startWidth: layout.columnWidth,
       latest: layout.columnWidth
     }
+    this.setSashMark(false)
     this.showOverlay()
     this.startTicker()
     this.emit(layout.columnWidth, true)
@@ -122,6 +134,7 @@ export class IdeSplitController {
     this.dragging = false
     this.seed = null
     this.syncSash()
+    this.setSashMark(true)
     if (!wasDragging || !seed) return
     if (this.settings.get().simulatorColumnWidth !== seed.latest) {
       this.settings.patchWritable({ simulatorColumnWidth: seed.latest })
@@ -146,6 +159,7 @@ export class IdeSplitController {
       this.settings.patchWritable({ simulatorColumnWidth: null })
     }
     this.syncSash()
+    this.setSashMark(true)
     this.emit(0, false)
   }
 
@@ -180,7 +194,7 @@ export class IdeSplitController {
       view.setBounds(next)
     }
     view.setVisible(true)
-    const children = win.contentView.children
+    const children = win.contentView.children ?? []
     if (children[children.length - 1] !== view) {
       win.contentView.addChildView(view)
     }
@@ -189,9 +203,19 @@ export class IdeSplitController {
   private hideSash(): void {
     const view = this.sash
     if (!view) return
-    const win = getMainWindow()
-    if (win && !win.isDestroyed()) win.contentView.removeChildView(view)
+    this.detachView(view)
     view.setVisible(false)
+  }
+
+  private setSashMark(visible: boolean): void {
+    const view = this.sash
+    if (!view || view.webContents.isDestroyed()) return
+    const display = visible ? 'block' : 'none'
+    void view.webContents
+      .executeJavaScript(
+        `(() => { const el = document.getElementById('mark'); if (el) el.style.display = '${display}'; })()`
+      )
+      .catch(() => undefined)
   }
 
   private ensureSash(): WebContentsView {
@@ -207,7 +231,7 @@ export class IdeSplitController {
       'data:text/html;charset=utf-8,' +
         encodeURIComponent(
           `<!doctype html><html><body style="margin:0;height:100%;cursor:col-resize;background:rgba(0,0,0,.01)">
-            <div style="position:absolute;inset:0 3px;background:rgba(128,128,128,.4)"></div>
+            <div id="mark" style="position:absolute;inset:0 3px;background:rgba(128,128,128,.4)"></div>
           </body></html>`
         )
     )
@@ -229,9 +253,15 @@ export class IdeSplitController {
   private hideOverlay(): void {
     const view = this.overlay
     if (!view) return
-    const win = getMainWindow()
-    if (win && !win.isDestroyed()) win.contentView.removeChildView(view)
+    this.detachView(view)
     view.setVisible(false)
+  }
+
+  private detachView(view: WebContentsView): void {
+    const win = getMainWindow()
+    if (!win || win.isDestroyed()) return
+    const children = win.contentView.children ?? []
+    if (children.includes(view)) win.contentView.removeChildView(view)
   }
 
   private ensureOverlay(): WebContentsView {

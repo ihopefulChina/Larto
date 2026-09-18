@@ -2,6 +2,59 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-18 — 准备发布 v0.1.6
+
+**做了什么**
+
+- 根包与 `larto-mcp` 版本改为 0.1.6。CHANGELOG、README、SECURITY、官网、MCP README 与实施计划同步到该版本。
+- 本版只修分栏拖拽：拖时灰线不压机身，松手后不再跟光标改列宽；`contentView.children` 为空不再打崩主进程。未重截官网图（静止界面未改）。
+
+**验证**
+
+- `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm e2e` 通过（Vitest 20/102，Node Test 28/28）。
+- `node scripts/e2e.mjs` 24/24，stdio `version=0.1.6`。
+- 未重截官网图（静止界面未改）。未宣称 GitHub Release、Pages 或 npm 已成功，待 tag 工作流结束。
+
+**结论 / 遗留**
+
+- 代码、文档与官网已对齐 0.1.6。资产、清单、attestation 与 `larto-mcp@0.1.6` 待 Release 工作流。真飞书 UAT 与签名仍待做。
+
+## 2026-09-18 — 松手后分栏不再跟着光标走
+
+**做了什么**
+
+- 上一轮 `begin()` 里 `hideSash()` 会卸掉按下的那条原生 sash。mouseup 只能打到 overlay，而 `input-event` 还要等 `did-finish-load` 才处理，松手被丢掉后 16ms ticker 仍按屏幕光标改列宽，看起来像没按住鼠标窗口还在跟手。
+- 拖的时候只藏 `#mark` 灰线，sash 继续挂着接松开。松开不再看 `ready`。壳层 `webContents` 在拖的过程中也结束拖拽。`contentView.children` 仍按空数组兜底。
+
+**验证**
+
+- `pnpm exec prettier --write src/main/ide-split-drag.ts docs/ARCHITECTURE.md docs/progress.md`
+- `pnpm exec vitest run tests/ide-split.test.ts` 7/7
+- `pnpm exec tsc --noEmit -p tsconfig.node.json` 通过
+- 未跑全套 e2e。正在重启 `pnpm dev` 以便目视确认松手即停。
+
+**结论 / 遗留**
+
+- 跟手只应发生在按住期间。静止灰线仍在，拖时不压机身。
+
+## 2026-09-18 — 拖分栏时原生 sash 不再压在机身上
+
+**做了什么**
+
+- 按下分栏后 `IdeSplitController.begin()` 立刻 `hideSash()`。拖的过程中原生 10px 条不再停在按下时的 X，机身居中后也不会再看到一条竖线。
+- 松手、失焦、双击恢复自动宽度仍走原来的 `syncSash()` / `cancel()`，sash 回到新缝。DOM `.resizer` 继续跟手显示当前分隔位置。
+
+**验证**
+
+- `pnpm exec prettier --write src/main/ide-split-drag.ts docs/ARCHITECTURE.md docs/progress.md`
+- `pnpm exec vitest run tests/ide-split.test.ts` 7/7
+- `pnpm exec tsc --noEmit -p tsconfig.node.json` 通过
+- 未跑全套 format/typecheck/test/build/e2e；未做真飞书 UAT。本机窗口仍是 0.1.5，拖分栏需重启/热更新后目视确认。
+
+**结论 / 遗留**
+
+- 拖动中只留 overlay 跟手，不再残留原生 sash 灰线。静止命中条与官方同款视觉未改。
+
 ## 2026-09-17 — 修复 0.1.4 安装后打不开，准备 v0.1.5
 
 **做了什么**

@@ -2,6 +2,23 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-18 — `larto-mcp@0.1.6` 已发到 npm
+
+**做了什么**
+
+- 本机以维护者身份 `npm publish --access public`。第一次 PUT 因 2FA 进入 npm 暂存/扫描，约 90s 后 registry 可见。
+- `latest` 现为 0.1.6。0.1.5 从未上过 registry，版本从 0.1.4 跳到 0.1.6。
+
+**验证**
+
+- `packages/larto-mcp` Node Test 25/25；`npm pack --dry-run` 10 个文件（LICENSE、README、package.json、bin、src）。
+- `npm view larto-mcp version` = `0.1.6`；`dist-tags.latest` = `0.1.6`；tarball `https://registry.npmjs.org/larto-mcp/-/larto-mcp-0.1.6.tgz`。
+- 未再跑桌面 e2e。Trusted Publisher 自动发布仍未通。
+
+**结论 / 遗留**
+
+- stdio 桥可用 `npx --yes larto-mcp@0.1.6` 或 `@latest`。真飞书 UAT 与签名仍待做。
+
 ## 2026-09-18 — v0.1.6 GitHub Release 已公开，npm 待补发
 
 **做了什么**

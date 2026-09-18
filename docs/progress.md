@@ -2,6 +2,25 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-18 — v0.1.6 GitHub Release 已公开，npm 待补发
+
+**做了什么**
+
+- tag `v0.1.6` 指向 `5779e49`。Release 工作流 `35301251257` 的 validate、三平台打包、macOS Intel smoke 与 `publish-release` 成功；公开 Release 为 Latest、非草稿非预发布，20 个附件已上传（含 `SHA256SUMS.txt` 与 latest yml）。
+- `publish-mcp` 因 Trusted Publisher / npm 认证失败，与 0.1.3–0.1.5 相同。registry 上 `larto-mcp` 仍为自动发布失败前的版本。
+- CI `35301246491` 与 Website `35301246492` 成功；官网已指向 0.1.6。
+
+**验证**
+
+- `gh release view v0.1.6`：20 个资产文件名与文档矩阵一致。未再下载 DMG 做本机安装核对。
+- 官网 `https://ihopefulchina.github.io/Larto/` 已出现 0.1.6。
+- `npm view larto-mcp version` 仍为自动发布失败前的 registry 状态；stdio 桥需等补发或先用应用内 HTTP MCP。
+
+**结论 / 遗留**
+
+- 桌面包已从 GitHub Releases 可下：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.6
+- `larto-mcp@0.1.6` 待维护者本机 `npm publish` 或修好 Trusted Publisher 后重跑 `publish-mcp`。真飞书 UAT 与签名仍待做。
+
 ## 2026-09-18 — 准备发布 v0.1.6
 
 **做了什么**

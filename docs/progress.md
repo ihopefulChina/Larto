@@ -2,6 +2,24 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-23 — v0.1.7 已发布，本机应用已替换
+
+**做了什么**
+
+- tag `v0.1.7` 指向 `1eb2f79`。Release 工作流 `35845784023` 的 validate、三平台打包、macOS Intel smoke 与 `publish-release` 成功。公开 Release 为 Latest，20 个附件已上传（含 `SHA256SUMS.txt` 与 latest yml）。
+- 下载 `Larto-0.1.7-mac-arm64.dmg`，SHA-256 与清单一致（`cf664fb66c0dacd62fa4263f70f48975b748ddd1ed80dc8a21dbf687026c3e6e`）。退出旧进程后，把 `/Applications/Larto.app` 换成该包；0.1.6 备份在 `/tmp/larto-0.1.7/Larto-0.1.6.app`。未改 userData。
+
+**验证**
+
+- CI `35845778244` 与 Website `35845778243` 成功。
+- 安装后 `CFBundleShortVersionString=0.1.7`，Mach-O arm64，`codesign --verify --deep --strict` 通过（ad-hoc，无 Developer ID）。`/health` 返回 `version=0.1.7`，guest 已附着。启动日志有 `automatic updater disabled: macUnsigned`。
+- `publish-mcp` 失败：`ENEEDAUTH`，Trusted Publishing 没有登录 npm。本机 `npm whoami` 也是 401，没有代发。
+
+**结论 / 遗留**
+
+- 桌面包：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.7 。本机应用程序已是 0.1.7。
+- `larto-mcp@0.1.7` 仍待维护者登录 npm 后发布。真飞书 UAT 与正式签名仍待做。
+
 ## 2026-09-23 — 准备发布 v0.1.7
 
 **做了什么**

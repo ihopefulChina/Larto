@@ -2,7 +2,7 @@
   'use strict'
 
   var REPO = 'ihopefulChina/Larto'
-  var SITE_VERSION = '0.1.6'
+  var SITE_VERSION = '0.1.7'
   var RELEASES_URL = 'https://github.com/' + REPO + '/releases/tag/v' + SITE_VERSION
   var assetPatterns = {
     'mac-arm64-dmg': /-mac-arm64\.dmg$/i,
@@ -137,7 +137,7 @@
       label = '选择 Linux x64 版本'
       note =
         environment.arch === 'arm64'
-          ? '已识别 Linux arm64；0.1.1 暂无 arm64 构建，请勿下载 x64 包'
+          ? '已识别 Linux arm64；当前没有 arm64 构建，请勿下载 x64 包'
           : '已识别 Linux；当前提供 x64 AppImage / DEB / RPM / tar.gz'
     } else if (environment.platform === 'mac' && environment.arch === 'arm64') {
       label = '下载 macOS Apple Silicon 版'

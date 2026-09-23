@@ -131,6 +131,8 @@ const zhCN = {
     '当前运行的是 Windows 便携版 {app} {cur}，请手动下载新版本替换，或安装 NSIS 版以使用应用内更新。',
   'update.unsupported.linuxPackage':
     '当前 Linux 安装包不支持应用内替换。请通过系统包管理器更新，或前往下载页手动获取新版本。',
+  'update.unsupported.macUnsigned':
+    '当前 macOS 安装包没有 Developer ID 签名，无法在应用内安装更新。请前往下载页下载新版本后手动替换。',
   'update.unsupported.platform':
     '当前平台无法在应用内更新 {app} {cur}，请前往下载页手动获取新版本。',
   'update.downloading': '正在下载更新…',
@@ -288,6 +290,8 @@ const enUS: Record<I18nKey, string> = {
     'The Windows portable build of {app} {cur} must be replaced manually. Download the new portable build, or install the NSIS build for in-app updates.',
   'update.unsupported.linuxPackage':
     'This Linux package cannot replace itself in-app. Update it with your system package manager or download a new build manually.',
+  'update.unsupported.macUnsigned':
+    'This macOS build is not Developer ID signed, so it cannot install updates itself. Download the new version and replace the app manually.',
   'update.unsupported.platform':
     '{app} {cur} cannot update itself on this platform. Open the download page for the latest release.',
   'update.downloading': 'Downloading update…',

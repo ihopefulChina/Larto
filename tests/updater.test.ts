@@ -33,8 +33,13 @@ vi.mock('electron', () => ({
 }))
 vi.mock('electron-updater', () => ({ default: { autoUpdater: updater.autoUpdater } }))
 
-const { UpdaterService, resolveUpdateCapability } = await import('../src/main/updater')
-const updatableRuntime = { platform: 'darwin' as const, isPackaged: true }
+const { UpdaterService, hasDeveloperIdSignature, macBundlePath, resolveUpdateCapability } =
+  await import('../src/main/updater')
+const updatableRuntime = {
+  platform: 'darwin' as const,
+  isPackaged: true,
+  macDeveloperIdSigned: true
+}
 
 beforeEach(() => {
   updater.listeners.clear()
@@ -45,7 +50,17 @@ beforeEach(() => {
 
 describe('UpdaterService.check', () => {
   it('enables only package formats that can update in place', () => {
-    expect(resolveUpdateCapability({ platform: 'darwin', isPackaged: true }).enabled).toBe(true)
+    expect(resolveUpdateCapability({ platform: 'darwin', isPackaged: true })).toEqual({
+      enabled: false,
+      unsupportedReason: 'macUnsigned'
+    })
+    expect(
+      resolveUpdateCapability({
+        platform: 'darwin',
+        isPackaged: true,
+        macDeveloperIdSigned: true
+      }).enabled
+    ).toBe(true)
     expect(resolveUpdateCapability({ platform: 'win32', isPackaged: true }).enabled).toBe(true)
     expect(
       resolveUpdateCapability({
@@ -80,6 +95,40 @@ describe('UpdaterService.check', () => {
         testFeed: 'http://127.0.0.1:1234/'
       }).enabled
     ).toBe(false)
+  })
+
+  it('reads a Developer ID authority and the outer app bundle', () => {
+    expect(
+      hasDeveloperIdSignature(
+        'Authority=Developer ID Application: Example (TEAMID)\nAuthority=Apple Root CA\n'
+      )
+    ).toBe(true)
+    expect(hasDeveloperIdSignature('Signature=adhoc\nTeamIdentifier=not set\n')).toBe(false)
+    expect(macBundlePath('/Applications/Larto.app/Contents/MacOS/Larto')).toBe(
+      '/Applications/Larto.app'
+    )
+    expect(
+      macBundlePath(
+        '/Applications/Larto.app/Contents/Frameworks/Larto Helper.app/Contents/MacOS/Larto Helper'
+      )
+    ).toBe('/Applications/Larto.app/Contents/Frameworks/Larto Helper.app')
+    expect(macBundlePath('/usr/local/bin/node')).toBeNull()
+  })
+
+  it('does not call electron-updater for an ad-hoc macOS package', async () => {
+    const settings = { get: () => ({ skippedUpdateVersion: null }), patch: vi.fn() }
+    const service = new UpdaterService(settings as never, {
+      platform: 'darwin',
+      isPackaged: true,
+      macDeveloperIdSigned: false
+    })
+    const state = await service.check()
+    expect(updater.checkForUpdates).not.toHaveBeenCalled()
+    expect(state).toMatchObject({
+      status: 'unsupported',
+      currentVersion: '1.0.0',
+      reason: 'macUnsigned'
+    })
   })
 
   it('does not call electron-updater for a non-AppImage Linux package', async () => {

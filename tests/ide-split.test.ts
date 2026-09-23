@@ -6,6 +6,7 @@ import {
   IDE_RESIZER_W,
   isSplitPress,
   isSplitRelease,
+  rectsOverlap,
   sameIdeSplitLayout,
   PC_SIMULATOR_COLUMN_DEFAULT_W,
   sashViewBounds,
@@ -56,7 +57,8 @@ describe('ide-split', () => {
       panelWidth: 1200,
       panelTop: 40,
       panelBottom: 800,
-      columnWidth: 500
+      columnWidth: 500,
+      covered: false
     }
     expect(sashViewBounds(layout)).toEqual({ x: 500, y: 40, width: IDE_RESIZER_W, height: 760 })
   })
@@ -76,9 +78,18 @@ describe('ide-split', () => {
       panelWidth: 1200,
       panelTop: 40,
       panelBottom: 800,
-      columnWidth: 500
+      columnWidth: 500,
+      covered: false
     }
     expect(sameIdeSplitLayout(layout, { ...layout })).toBe(true)
     expect(sameIdeSplitLayout(layout, { ...layout, columnWidth: 501 })).toBe(false)
+    expect(sameIdeSplitLayout(layout, { ...layout, covered: true })).toBe(false)
+  })
+
+  it('treats touching edges as separate and real intersection as overlap', () => {
+    const menu = { left: 100, right: 280, top: 40, bottom: 200 }
+    expect(rectsOverlap(menu, { left: 280, right: 290, top: 40, bottom: 400 })).toBe(false)
+    expect(rectsOverlap(menu, { left: 270, right: 280, top: 40, bottom: 400 })).toBe(true)
+    expect(rectsOverlap(menu, { left: 0, right: 50, top: 0, bottom: 10 })).toBe(false)
   })
 })

@@ -15,7 +15,8 @@ import { getMainWindow, sendToRenderer } from './window'
  * simulator column and DevTools. Press starts a drag; the gray mark is
  * hidden so it does not stay parked over the phone. The sash view stays
  * mounted (mouseup must not be lost) and a full-window overlay follows
- * the screen cursor until mouseup.
+ * the screen cursor until mouseup. While a shell menu or modal covers the
+ * strip, the view is detached so it cannot paint above that DOM.
  */
 export class IdeSplitController {
   private layout: IdeSplitLayout | null = null
@@ -182,6 +183,10 @@ export class IdeSplitController {
     const win = getMainWindow()
     const layout = this.layout
     if (!win || win.isDestroyed() || !layout?.enabled || this.dragging) return
+    if (layout.covered) {
+      this.hideSash()
+      return
+    }
     const view = this.ensureSash()
     const next = sashViewBounds(layout)
     const cur = view.getBounds()

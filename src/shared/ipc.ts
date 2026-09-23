@@ -26,7 +26,7 @@ export interface UpdateInfoLite {
 }
 
 export type UnsupportedUpdateReason =
-  'development' | 'windowsPortable' | 'linuxPackage' | 'platform'
+  'development' | 'windowsPortable' | 'linuxPackage' | 'macUnsigned' | 'platform'
 
 export type UpdateState =
   | { status: 'idle' }

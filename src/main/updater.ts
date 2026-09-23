@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -20,6 +21,8 @@ export interface UpdateRuntime {
   testFeed?: string
   appImage?: string
   portableExecutable?: string
+  /** Packaged macOS builds can install updates only with a Developer ID signature. */
+  macDeveloperIdSigned?: boolean
 }
 
 export interface UpdateCapability {
@@ -27,15 +30,43 @@ export interface UpdateCapability {
   unsupportedReason?: UnsupportedUpdateReason
 }
 
+/** `Larto.app/Contents/MacOS/Larto` → `Larto.app`. Anything else is not a bundled Mac app. */
+export function macBundlePath(execPath: string): string | null {
+  const normalized = execPath.replaceAll('\\', '/')
+  const match = /^(.*\.app)\/Contents\/MacOS\/[^/]+$/.exec(normalized)
+  return match?.[1] ?? null
+}
+
+/** `codesign -dv` prints Developer ID authorities on stderr. Ad-hoc signatures have none. */
+export function hasDeveloperIdSignature(codesignText: string): boolean {
+  return /^Authority=Developer ID Application:/m.test(codesignText)
+}
+
+export function readMacDeveloperIdSigned(execPath: string): boolean {
+  const bundle = macBundlePath(execPath)
+  if (!bundle) return false
+  try {
+    const result = spawnSync('codesign', ['-dv', '--verbose=4', bundle], { encoding: 'utf8' })
+    return hasDeveloperIdSignature(`${result.stdout ?? ''}\n${result.stderr ?? ''}`)
+  } catch {
+    return false
+  }
+}
+
 /**
- * Packaging support is broader than in-place update support. electron-updater can replace the
- * macOS app, a Windows NSIS installation and Linux AppImage. Package-manager/tarball builds and
- * electron-builder's portable Windows executable must instead be replaced by the user.
+ * Packaging support is broader than in-place update support. electron-updater can replace a
+ * Developer ID-signed macOS app, a Windows NSIS installation and Linux AppImage. Ad-hoc macOS
+ * builds, package-manager/tarball builds and the portable Windows executable must be replaced
+ * by the user.
  */
 export function resolveUpdateCapability(runtime: UpdateRuntime): UpdateCapability {
   if (runtime.testFeed && !runtime.isPackaged) return { enabled: true }
   if (!runtime.isPackaged) return { enabled: false, unsupportedReason: 'development' }
-  if (runtime.platform === 'darwin') return { enabled: true }
+  if (runtime.platform === 'darwin') {
+    return runtime.macDeveloperIdSigned
+      ? { enabled: true }
+      : { enabled: false, unsupportedReason: 'macUnsigned' }
+  }
   if (runtime.platform === 'win32') {
     return runtime.portableExecutable
       ? { enabled: false, unsupportedReason: 'windowsPortable' }
@@ -74,15 +105,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
 
   constructor(
     private readonly settings: SettingsStore,
-    runtime: UpdateRuntime = {
-      platform: process.platform,
-      isPackaged: app.isPackaged,
-      ...(process.env.LARTO_UPDATE_FEED ? { testFeed: process.env.LARTO_UPDATE_FEED } : {}),
-      ...(process.env.APPIMAGE ? { appImage: process.env.APPIMAGE } : {}),
-      ...(process.env.PORTABLE_EXECUTABLE_FILE
-        ? { portableExecutable: process.env.PORTABLE_EXECUTABLE_FILE }
-        : {})
-    }
+    runtime: UpdateRuntime = defaultUpdateRuntime()
   ) {
     super()
     autoUpdater.autoDownload = false
@@ -113,7 +136,8 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
       isPackaged: runtime.isPackaged,
       ...(testFeed ? { testFeed } : {}),
       ...(runtime.appImage ? { appImage: runtime.appImage } : {}),
-      ...(runtime.portableExecutable ? { portableExecutable: runtime.portableExecutable } : {})
+      ...(runtime.portableExecutable ? { portableExecutable: runtime.portableExecutable } : {}),
+      ...(runtime.macDeveloperIdSigned ? { macDeveloperIdSigned: true } : {})
     })
     this.enabled = capability.enabled
     this.unsupportedReason = capability.unsupportedReason ?? 'platform'
@@ -235,6 +259,22 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
     this.set({ status: 'notAvailable', currentVersion: app.getVersion() })
     return this.state
   }
+}
+
+function defaultUpdateRuntime(): UpdateRuntime {
+  const runtime: UpdateRuntime = {
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    ...(process.env.LARTO_UPDATE_FEED ? { testFeed: process.env.LARTO_UPDATE_FEED } : {}),
+    ...(process.env.APPIMAGE ? { appImage: process.env.APPIMAGE } : {}),
+    ...(process.env.PORTABLE_EXECUTABLE_FILE
+      ? { portableExecutable: process.env.PORTABLE_EXECUTABLE_FILE }
+      : {})
+  }
+  if (runtime.platform === 'darwin' && runtime.isPackaged) {
+    runtime.macDeveloperIdSigned = readMacDeveloperIdSigned(process.execPath)
+  }
+  return runtime
 }
 
 function lite(info: {

@@ -2,6 +2,57 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-09-23 — 准备发布 v0.1.7
+
+**做了什么**
+
+- 根包与 `larto-mcp` 版本改为 0.1.7。CHANGELOG、README、SECURITY、官网、MCP README 与实施计划同步到该版本。
+- 机型菜单盖住分栏缝时卸下原生竖线，菜单开着时列宽变化会重测。没有 Developer ID 的 macOS 包检查更新时直接去下载页。
+
+**验证**
+
+- `pnpm format:check && pnpm typecheck && pnpm test && pnpm build && LARTO_MCP_PORT=17497 pnpm e2e` 通过。Vitest 105/105，Node 测试 28/28，E2E 24/24，stdio `version=0.1.7`。
+- 真飞书 UAT 与签名仍待做。Release 资产、Pages 与 npm 以 tag 工作流结果为准。
+
+**结论 / 遗留**
+
+- 代码与文档已对齐 0.1.7。GitHub Release、官网 Pages 与 `larto-mcp@0.1.7` 待 tag 工作流。真飞书 UAT 与签名仍待做。
+
+## 2026-09-23 — 未签名 Mac 不走应用内更新，菜单开着时重测分栏
+
+**做了什么**
+
+- 已打包的 macOS 只有 `codesign -dv` 里出现 `Authority=Developer ID Application:` 才允许原地更新。ad-hoc 包在检查时就是 `macUnsigned`，手动检查直接去下载页；静默检查不弹窗。
+- 机型等弹层保持打开时，列宽、面板和窗口尺寸变化会重新判断是否盖住 DevTools 与分栏缝，计数只在相交状态变化时加减。
+- 官网 Linux arm64 提示不再写死 0.1.1。
+
+**验证**
+
+- `pnpm exec vitest run tests/updater.test.ts tests/ide-split.test.ts` 15/15。`tsc` node、preload、web 通过。改过的文件已跑 prettier。
+- 隔离 userData 的 `pnpm dev`：机型菜单先不压住分栏，再把列加宽到缝进入菜单。菜单区域像素与菜单底色一致，没有 4px 灰条；菜单仍开着把列移开后，灰条回到缝上（约 8 个设备像素宽）。
+- `/Applications/Larto.app` 的 codesign 输出是 `Signature=adhoc`，没有 Developer ID authority。未跑全套 `format:check && typecheck && test && build && e2e`。真飞书 UAT 与正式签名仍待做。
+
+**结论 / 遗留**
+
+- 当前这种 ad-hoc 安装包不会再先下载再因签名失败。菜单开着拖列宽时，原生竖线会跟着让开或回来。
+- 已安装的 0.1.6 还是旧包，要下次发布才带上这两处行为。
+
+## 2026-09-23 — 机型菜单打开时卸下分栏竖线
+
+**做了什么**
+
+- 分栏灰线是盖在壳层 DOM 上的原生 sash。机型等下拉与 `.resizer` 相交时计入 `sashCovers`，`split:setLayout` 带上 `covered`，主进程卸下这条 view。模态同样算盖住。菜单关掉后灰线回到缝上。
+
+**验证**
+
+- `pnpm exec vitest run tests/ide-split.test.ts` 7/7。`tsc` node 与 web 通过。
+- 隔离 userData 的 `pnpm dev` 里打开机型菜单：相交时 `sashCovers=1`，窗口截图像素里菜单区域不再有灰条；关掉后 `sashCovers=0`，4px 灰线回到缝上。
+- 未跑全套 `format:check && typecheck && test && build && e2e`。真飞书 UAT 与签名仍待做。
+
+**结论 / 遗留**
+
+- 菜单压住分隔缝时，原生竖线不再画在菜单上。缝以下仍是 DOM 的 1px 分隔线，直到菜单关闭、原生灰线回来。
+
 ## 2026-09-18 — `larto-mcp@0.1.6` 已发到 npm
 
 **做了什么**

@@ -18,6 +18,8 @@ export interface IdeSplitLayout {
   panelTop: number
   panelBottom: number
   columnWidth: number
+  /** A shell popover or modal covers this strip; keep the native view off it. */
+  covered: boolean
 }
 
 export function autoSimulatorColumnWidth(
@@ -47,7 +49,8 @@ export function sameIdeSplitLayout(a: IdeSplitLayout, b: IdeSplitLayout): boolea
     a.panelWidth === b.panelWidth &&
     a.panelTop === b.panelTop &&
     a.panelBottom === b.panelBottom &&
-    a.columnWidth === b.columnWidth
+    a.columnWidth === b.columnWidth &&
+    a.covered === b.covered
   )
 }
 
@@ -64,6 +67,13 @@ export function sashViewBounds(layout: IdeSplitLayout): {
     width: IDE_RESIZER_W,
     height: Math.max(0, Math.round(layout.panelBottom - layout.panelTop))
   }
+}
+
+export function rectsOverlap(
+  a: { left: number; right: number; top: number; bottom: number },
+  b: { left: number; right: number; top: number; bottom: number }
+): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 }
 
 export function isSplitPress(type: string): boolean {

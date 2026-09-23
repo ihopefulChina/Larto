@@ -17,6 +17,7 @@ export function IdePanel() {
   const deviceId = useApp((s) => s.settings.deviceId)
   const zoom = useApp((s) => s.settings.zoom)
   const savedWidth = useApp((s) => s.settings.simulatorColumnWidth)
+  const sashCovered = useApp((s) => s.modal !== null || s.sashCovers > 0)
   const setSetting = useApp((s) => s.setSetting)
 
   const panelRef = useRef<HTMLDivElement>(null)
@@ -44,7 +45,8 @@ export function IdePanel() {
         panelWidth: r.width,
         panelTop: r.top,
         panelBottom: r.bottom,
-        columnWidth
+        columnWidth,
+        covered: sashCovered
       }
       const key = JSON.stringify(next)
       if (key === lastLayoutKey.current) return
@@ -59,7 +61,7 @@ export function IdePanel() {
       ro.disconnect()
       window.removeEventListener('resize', report)
     }
-  }, [showDevTools, columnWidth])
+  }, [showDevTools, columnWidth, sashCovered])
 
   useEffect(() => {
     return on('split:changed', ({ width, dragging }) => {

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, type RefObject } from 'react'
+import { useCallback, useLayoutEffect, type RefObject } from 'react'
 import { create } from 'zustand'
 import type { AccountState } from '@shared/account'
+import { rectsOverlap } from '@shared/ide-split'
 import { resolveLanguage, translate, type I18nKey } from '@shared/i18n'
 import type { AccessConsentPrompt, AppInfo, UpdateState } from '@shared/ipc'
 import {
@@ -30,6 +31,11 @@ interface AppState {
    * overlay is a native view above the DOM, so it is hidden while this is > 0 (see DevToolsPane).
    */
   devtoolsCovers: number
+  /**
+   * Open popovers that overlap the column sash. That strip is a native view above the DOM, so it
+   * is detached while this is > 0 (see IdePanel / IdeSplitController).
+   */
+  sashCovers: number
   /** Transient shell notice (bottom-centre), e.g. "cache cleared" or a failed sign-in. */
   toast: string | null
 
@@ -37,6 +43,7 @@ interface AppState {
   setSetting: <K extends WritableSettingKey>(key: K, value: Settings[K]) => Promise<void>
   openModal: (id: ModalId) => void
   coverDevTools: (delta: 1 | -1) => void
+  coverSash: (delta: 1 | -1) => void
   showToast: (message: string, ms?: number) => void
 }
 
@@ -59,6 +66,7 @@ export const useApp = create<AppState>((set, get) => ({
   modal: null,
   consent: null,
   devtoolsCovers: 0,
+  sashCovers: 0,
   toast: null,
 
   async init() {
@@ -152,6 +160,10 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => ({ devtoolsCovers: Math.max(0, s.devtoolsCovers + delta) }))
   },
 
+  coverSash(delta) {
+    set((s) => ({ sashCovers: Math.max(0, s.sashCovers + delta) }))
+  },
+
   showToast(message, ms = 2000) {
     clearTimeout(toastTimer)
     set({ toast: message })
@@ -160,22 +172,61 @@ export const useApp = create<AppState>((set, get) => ({
 }))
 
 /**
- * Hides the DevTools overlay while `open` and the popover element overlaps the DevTools column.
- * Native child views always paint above the DOM, so this is the only way a dropdown can be
- * shown "on top" of DevTools.
+ * Hides native overlays while `open` and the popover overlaps them. Child views always paint
+ * above the DOM, so a dropdown can sit on top only after DevTools and the column sash step aside.
+ * Overlap is measured again while the popover stays open: column width and window size move the
+ * sash without changing the menu's own box.
  */
 export function useCoversDevTools(open: boolean, ref: RefObject<HTMLElement | null>): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return
     const el = ref.current
-    const pane = document.querySelector('.devtoolsColumn')
-    if (!el || !pane) return
-    const a = el.getBoundingClientRect()
-    const b = pane.getBoundingClientRect()
-    const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-    if (!overlaps) return
-    useApp.getState().coverDevTools(1)
-    return () => useApp.getState().coverDevTools(-1)
+    if (!el) return
+    let devtools = false
+    let sash = false
+    const apply = (nextDevtools: boolean, nextSash: boolean): void => {
+      if (nextDevtools !== devtools) {
+        useApp.getState().coverDevTools(nextDevtools ? 1 : -1)
+        devtools = nextDevtools
+      }
+      if (nextSash !== sash) {
+        useApp.getState().coverSash(nextSash ? 1 : -1)
+        sash = nextSash
+      }
+    }
+    const measure = (): void => {
+      const menu = el.getBoundingClientRect()
+      if (menu.width === 0 || menu.height === 0) return
+      const hit = (selector: string): boolean => {
+        const pane = document.querySelector(selector)
+        return !!pane && rectsOverlap(menu, pane.getBoundingClientRect())
+      }
+      apply(hit('.devtoolsColumn'), hit('.resizer'))
+    }
+    const ro = new ResizeObserver(() => measure())
+    const observe = (node: Element | null): void => {
+      if (node) ro.observe(node)
+    }
+    const bind = (): void => {
+      ro.disconnect()
+      observe(el)
+      observe(document.querySelector('.idePanel'))
+      observe(document.querySelector('.simulatorColumn'))
+      observe(document.querySelector('.devtoolsColumn'))
+      observe(document.querySelector('.resizer'))
+      measure()
+    }
+    const panel = document.querySelector('.idePanel')
+    const mutations = new MutationObserver(() => bind())
+    if (panel) mutations.observe(panel, { childList: true })
+    window.addEventListener('resize', measure)
+    bind()
+    return () => {
+      mutations.disconnect()
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+      apply(false, false)
+    }
   }, [open, ref])
 }
 

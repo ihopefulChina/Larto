@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-10-03
+
+分栏竖线静止时完全透明。顶栏「H5 网页调试」铭牌隐藏但保留宽度。空白的顶栏和手机周围的暗色区域可以拖动窗口。
+
+### 变更
+
+- 模拟器与 DevTools 之间的原生 sash 标记改为透明，10px 命中条仍在；壳层 1px 分隔线静止时也不再绘制。悬停、拖动和键盘焦点仍是 3px 蓝色。
+- 顶栏模式铭牌用 `visibility: hidden` 藏起，占位宽度保留，地址栏不左移。
+- 铭牌空位、控件间隙、模拟器画布、状态栏和导航标题可以拖动窗口。地址栏、按钮、网页、返回/关闭/更多、PC 尺寸条和分栏缝保持可操作。调试器面板不作为拖拽区。
+
+### 已知限制
+
+- 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 与 PC 预览推送：代码已实现，**尚未用真实账号验收**。
+- macOS 包仅做 ad-hoc 签名且未公证，Windows 与 Linux 包未签名。浏览器下载后若仍被拦截或 Dock 一直跳，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后再打开。应用内更新仍需要 Developer ID 签名，因此当前安装包的「检查更新」会前往下载页。
+
 ## [0.1.7] — 2026-09-23
 
 机型菜单不再被分栏竖线穿过。没有 Developer ID 签名的 macOS 包在检查更新时直接去下载页，不再先下载一个无法安装的更新。
@@ -202,6 +217,7 @@
 - 本版本为 **ad-hoc 签名、未公证**。首次打开需在「系统设置 → 隐私与安全性」选择「仍要打开」；若提示「已损坏」，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后重试。macOS 上 electron-updater 的静默安装需要 Developer ID 签名，因此应用内更新会跳转下载页。
 - 仅 macOS 13+ Apple Silicon（arm64）。不做 Intel / Windows / 小程序等其它模块。
 
+[0.1.8]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.8
 [0.1.7]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.7
 [0.1.6]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.6
 [0.1.5]: https://github.com/ihopefulChina/Larto/releases/tag/v0.1.5

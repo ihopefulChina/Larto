@@ -33,7 +33,7 @@ export function Toolbar({ onClearCache, onToggleDevTools, focusSignal }: Toolbar
       </div>
       <div className="toolBar-content">
         <div className="toolBar-group toolBar-main">
-          <div className="toolBar-mode" aria-label={t('toolbar.webMode')}>
+          <div className="toolBar-mode" aria-hidden="true">
             <CodeIcon aria-hidden />
             <span>{t('toolbar.webMode')}</span>
           </div>

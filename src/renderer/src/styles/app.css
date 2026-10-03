@@ -203,6 +203,18 @@ input {
   align-items: center;
   gap: 2px;
   min-width: 0;
+}
+/* Controls opt out. Empty toolbar slots, including the retired nameplate, stay draggable. */
+.tbtn,
+.urlbox,
+.dropdown,
+.menu,
+.history,
+.gadgetBox,
+.pcChrome,
+.pcResizeHandle,
+.modalMask,
+.resizer {
   -webkit-app-region: no-drag;
 }
 .toolBar-main {
@@ -210,7 +222,9 @@ input {
   gap: 8px;
   z-index: 2;
 }
+/* Retired mode nameplate. The box stays so the address bar does not slide left. */
 .toolBar-mode {
+  visibility: hidden;
   height: 26px;
   display: inline-flex;
   align-items: center;
@@ -616,6 +630,7 @@ input {
   flex-direction: column;
   min-width: 410px;
   background: var(--bg-window);
+  -webkit-app-region: drag;
 }
 .simulatorChrome {
   display: flex;
@@ -820,6 +835,7 @@ body.pc-resizing * {
   font-weight: 600;
   letter-spacing: -0.02em;
   background: var(--sim-bg);
+  -webkit-app-region: drag;
 }
 .statusBar.notch {
   height: var(--status-h, 47px);
@@ -876,6 +892,7 @@ body.pc-resizing * {
   border-bottom: 1px solid var(--sim-border);
   background: var(--sim-bg);
   font-size: 15px;
+  -webkit-app-region: drag;
 }
 .navigator .side {
   display: flex;
@@ -894,6 +911,7 @@ body.pc-resizing * {
   padding: 4px 6px;
   border-radius: 7px;
   color: var(--sim-fg);
+  -webkit-app-region: no-drag;
   transition:
     transform var(--dur-press) var(--ease-out),
     background var(--dur-press) var(--ease-out);
@@ -931,6 +949,7 @@ body.pc-resizing * {
   flex: 1;
   position: relative;
   min-height: 0;
+  -webkit-app-region: no-drag;
 }
 .webviewContainer webview {
   position: absolute;
@@ -974,6 +993,7 @@ body.pc-resizing * {
   justify-content: center;
   background: transparent;
   pointer-events: none;
+  -webkit-app-region: no-drag;
 }
 .homeIndicator span {
   width: 128px;
@@ -1170,7 +1190,7 @@ body.pc-resizing * {
   left: 50%;
   width: 1px;
   transform: translateX(-50%);
-  background: var(--border);
+  background: transparent;
   transition:
     width var(--dur-menu) var(--ease-out),
     background var(--dur-menu) var(--ease-out);

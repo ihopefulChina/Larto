@@ -12,8 +12,9 @@ import { getMainWindow, sendToRenderer } from './window'
 
 /**
  * Official-style column sash: a native 10px strip in the gap between the
- * simulator column and DevTools. Press starts a drag; the gray mark is
- * hidden so it does not stay parked over the phone. The sash view stays
+ * simulator column and DevTools. The strip is only a hit target; its mark
+ * stays transparent. Press starts a drag and hides the mark so a painted
+ * mark cannot stay parked over the phone. The sash view stays
  * mounted (mouseup must not be lost) and a full-window overlay follows
  * the screen cursor until mouseup. While a shell menu or modal covers the
  * strip, the view is detached so it cannot paint above that DOM.
@@ -236,7 +237,7 @@ export class IdeSplitController {
       'data:text/html;charset=utf-8,' +
         encodeURIComponent(
           `<!doctype html><html><body style="margin:0;height:100%;cursor:col-resize;background:rgba(0,0,0,.01)">
-            <div id="mark" style="position:absolute;inset:0 3px;background:rgba(128,128,128,.4)"></div>
+            <div id="mark" style="position:absolute;inset:0 3px;background:transparent"></div>
           </body></html>`
         )
     )

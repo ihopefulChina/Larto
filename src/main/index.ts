@@ -256,11 +256,18 @@ async function bootstrap(): Promise<void> {
 
   await app.whenReady()
   guestManager.setAccountCookieProvider(() => account.getCookie())
+  guestManager.setAdoptProvider(() => account.getAdoptCookies())
   guestManager.setDebugIdentityOptions({
     preferGuestSession: () => settings.get().guestDebugIdentity
   })
+  // Chrome-parity jar: whenever the account changes, mirror its login cookies into the guest
+  // partition (login/switch adopt, logout/expired clear).
+  account.on('change', () => {
+    void guestManager.adoptAccountCookies()
+  })
   guestManager.installGlobalHooks()
   account.restore()
+  await guestManager.adoptAccountCookies()
   registerIpc({ settings, account, updater, mcp, getLang, remoteDebuggingActive })
   rebuildMenu()
   // Show the window before proxy/MCP settle. A hung system PAC or listen() used to leave

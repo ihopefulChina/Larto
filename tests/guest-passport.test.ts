@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isPassportApiUrl,
+  mergeCookieHeader,
   passportApiOrigins,
   rewriteCookieHeader
 } from '../src/main/guest-passport'
@@ -67,5 +68,25 @@ describe('rewriteCookieHeader', () => {
   it('keeps unrelated cookies and works without an existing header', () => {
     expect(rewriteCookieHeader('foo=1; bar=2', 'session=acc')).toBe('foo=1; bar=2; session=acc')
     expect(rewriteCookieHeader(undefined, 'session=acc')).toBe('session=acc')
+  })
+})
+
+describe('mergeCookieHeader', () => {
+  it('leaves the header untouched when the jar already carries the same session', () => {
+    const jar = 'did=1; session=ROTATED; session_list=a_b; locale=zh-CN'
+    expect(mergeCookieHeader(jar, 'session=ROTATED; session_list=a_b')).toBe(jar)
+  })
+
+  it('splices the account session in when the jar session differs', () => {
+    expect(mergeCookieHeader('did=1; session=page', 'session=acc; session_list=a')).toBe(
+      'did=1; session=acc; session_list=a'
+    )
+  })
+
+  it('injects when the jar has no session at all', () => {
+    expect(mergeCookieHeader('did=1', 'session=acc; session_list=a')).toBe(
+      'did=1; session=acc; session_list=a'
+    )
+    expect(mergeCookieHeader(undefined, 'session=acc')).toBe('session=acc')
   })
 })

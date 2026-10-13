@@ -77,3 +77,20 @@ export function rewriteCookieHeader(existing: string | undefined, accountCookie:
     })
   return [...kept, accountCookie].join('; ')
 }
+
+/**
+ * Chrome-jar semantics on top of the official splice: when the jar already
+ * carries exactly the session we would inject, leave the header untouched —
+ * passport may have rotated it mid-flow and the jar copy is the fresh one.
+ * A missing or different session still triggers the official strip-and-splice.
+ */
+export function mergeCookieHeader(existing: string | undefined, accountCookie: string): string {
+  const sessionOf = (h: string): string | null => {
+    const m = /(?:^|;\s*)session=([^;]*)/.exec(h)
+    return m && m[1] !== undefined ? m[1] : null
+  }
+  const current = sessionOf(existing ?? '')
+  const incoming = sessionOf(accountCookie)
+  if (current !== null && incoming !== null && current === incoming) return existing ?? ''
+  return rewriteCookieHeader(existing, accountCookie)
+}

@@ -13,11 +13,13 @@ import {
 import { findDevice, guestViewport, type DeviceSpec } from '@shared/devices'
 import { GUEST_PARTITION } from '@shared/constants'
 import { createLatestWinsQueue } from './cdp-queue'
+import type { AdoptCookieSpec } from './account'
+import { summarizeErrorForLog } from './log-summary'
 import {
   isPassportApiUrl,
+  mergeCookieHeader,
   passportApiOrigins,
-  passportHosts,
-  rewriteCookieHeader
+  passportHosts
 } from './guest-passport'
 import { clearNativeResources, installNativeResourceProtocol } from './native-resources'
 import { createLogger } from './logger'
@@ -83,6 +85,9 @@ class GuestManager extends EventEmitter<GuestEvents> {
    * index.ts so this module stays independent of AccountService; null while signed out.
    */
   private accountCookieProvider: (() => string | null) | null = null
+  /** Account login cookies for guest-jar adoption (Chrome parity), wired from index.ts. */
+  private adoptProvider: (() => AdoptCookieSpec[] | null) | null = null
+  private adoptedKeys: string[] = []
   /**
    * Official `debugAccountInfo` equivalent: when enabled, guest passport requests prefer the
    * guest partition's own page-login session (adopted via the `#mode=debug` hash protocol).
@@ -110,6 +115,52 @@ class GuestManager extends EventEmitter<GuestEvents> {
   /** Wires the account session used by the guest passport header injection. */
   setAccountCookieProvider(provider: () => string | null): void {
     this.accountCookieProvider = provider
+  }
+
+  /** Wires the account's full login cookie set for guest-jar adoption (Chrome parity). */
+  setAdoptProvider(provider: () => AdoptCookieSpec[] | null): void {
+    this.adoptProvider = provider
+  }
+
+  /**
+   * Copies the account's login cookies (session pair + device-binding context) into the guest
+   * partition so every request carries them the way a browser jar would. A null provider result
+   * (signed out) removes what was adopted.
+   */
+  async adoptAccountCookies(): Promise<void> {
+    const specs = this.adoptProvider?.() ?? null
+    const ses = session.fromPartition(GUEST_PARTITION)
+    if (!specs || specs.length === 0) {
+      for (const key of this.adoptedKeys) {
+        const [name, domain, path] = key.split('|')
+        if (!name || !domain) continue
+        await ses.cookies
+          .remove(`https://${domain.replace(/^\./, '')}${path || '/'}`, name)
+          .catch(() => undefined)
+      }
+      this.adoptedKeys = []
+      return
+    }
+    const keys: string[] = []
+    for (const spec of specs) {
+      try {
+        await ses.cookies.set({
+          url: `https://${spec.domain.replace(/^\./, '')}${spec.path || '/'}`,
+          name: spec.name,
+          value: spec.value,
+          domain: spec.domain,
+          path: spec.path || '/',
+          secure: spec.secure,
+          httpOnly: spec.httpOnly,
+          ...(spec.expirationDate ? { expirationDate: spec.expirationDate } : {})
+        })
+        keys.push(`${spec.name}|${spec.domain}|${spec.path || '/'}`)
+      } catch (err) {
+        log.warn('could not adopt account cookie', summarizeErrorForLog(err))
+      }
+    }
+    this.adoptedKeys = keys
+    if (keys.length) log.info(`adopted ${keys.length} account cookies into the guest jar`)
   }
 
   /** Wires the "use the page-login identity" toggle (official debugAccountInfo). */
@@ -218,7 +269,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
         if (cookie) {
           const cookieKey =
             Object.keys(headers).find((k) => k.toLowerCase() === 'cookie') ?? 'Cookie'
-          headers[cookieKey] = rewriteCookieHeader(headers[cookieKey], cookie)
+          headers[cookieKey] = mergeCookieHeader(headers[cookieKey], cookie)
         }
       }
       callback({ requestHeaders: headers })
@@ -785,6 +836,9 @@ class GuestManager extends EventEmitter<GuestEvents> {
     await ses.clearCodeCaches({})
     this.permissions.clear()
     clearNativeResources()
+    // The wipe also removed the adopted login cookies — put them back so being signed in
+    // survives a cache clear (Chrome keeps its jar too).
+    await this.adoptAccountCookies()
     log.info('guest cache cleared')
   }
 

@@ -165,7 +165,8 @@ export function registerIpc(deps: IpcDeps): void {
       throw new Error('no page login session to adopt')
     return deps.account.adoptSession({
       session: sessionCookie.value,
-      sessionList: listCookie.value.split('_').filter(Boolean)
+      sessionList: listCookie.value.split('_').filter(Boolean),
+      extra: []
     })
   })
   handle('guest:enableDebugIdentity', () =>

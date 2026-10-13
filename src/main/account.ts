@@ -39,13 +39,30 @@ const PersistedSchema = z.object({
   env: z.enum(['feishu', 'lark']).nullable().default(null),
   sessionEnc: z.string().nullable().default(null),
   sessionListEnc: z.string().nullable().default(null),
+  extraEnc: z.string().nullable().default(null),
   account: z.any().nullable().default(null)
 })
 type Persisted = z.infer<typeof PersistedSchema>
 
+/**
+ * A captured login cookie in the shape `session.cookies.set` accepts, so the guest partition
+ * can adopt the whole login context (device-binding cookies included) like a browser jar.
+ */
+export interface AdoptCookieSpec {
+  name: string
+  value: string
+  domain: string
+  path: string
+  secure: boolean
+  httpOnly: boolean
+  expirationDate?: number
+}
+
 interface Secrets {
   session: string
   sessionList: string[]
+  /** Device-binding / context cookies captured next to the session (Chrome-parity adoption). */
+  extra: AdoptCookieSpec[]
 }
 
 export interface AccountEvents {
@@ -126,6 +143,41 @@ export class AccountService extends EventEmitter<AccountEvents> {
     return this.secrets && this.state.status === 'signedIn' ? cookieHeader(this.secrets) : null
   }
 
+  /**
+   * The full login cookie set (session pair + device-binding context cookies) to adopt into the
+   * guest partition, or null when signed out. This is what makes the simulator's jar behave like
+   * the user's browser jar: the session travels on every request and the server sees a known
+   * device instead of a fresh anonymous one.
+   */
+  getAdoptCookies(): AdoptCookieSpec[] | null {
+    const secrets = this.secrets
+    if (!secrets || this.state.status !== 'signedIn') return null
+    const env = this.getEnv()
+    const domain = `.${ENV_ENDPOINTS[env].domain}`
+    const far = Math.floor(Date.now() / 1000) + 180 * 24 * 3600
+    return [
+      {
+        name: 'session',
+        value: secrets.session,
+        domain,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        expirationDate: far
+      },
+      {
+        name: 'session_list',
+        value: secrets.sessionList.join('_'),
+        domain,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        expirationDate: far
+      },
+      ...secrets.extra
+    ]
+  }
+
   getSession(): string | null {
     return this.state.status === 'signedIn' ? (this.secrets?.session ?? null) : null
   }
@@ -154,7 +206,8 @@ export class AccountService extends EventEmitter<AccountEvents> {
     try {
       this.secrets = {
         session: decrypt(persisted.sessionEnc),
-        sessionList: decrypt(persisted.sessionListEnc).split('_').filter(Boolean)
+        sessionList: decrypt(persisted.sessionListEnc).split('_').filter(Boolean),
+        extra: parseExtra(persisted.extraEnc)
       }
       this.state = { status: 'signedIn', account: persisted.account as AccountInfo }
       // Validate lazily so startup is never blocked by the network.
@@ -187,9 +240,11 @@ export class AccountService extends EventEmitter<AccountEvents> {
     }
     let sessionEnc: string
     let sessionListEnc: string
+    let extraEnc: string | null = null
     try {
       sessionEnc = encrypt(secrets.session)
       sessionListEnc = encrypt(secrets.sessionList.join('_'))
+      extraEnc = secrets.extra.length ? encrypt(JSON.stringify(secrets.extra)) : null
     } catch (err) {
       // Losing persistence must not turn a successful network login into a failed login. Keep
       // the authenticated process alive, but never fall back to plaintext storage.
@@ -205,6 +260,7 @@ export class AccountService extends EventEmitter<AccountEvents> {
       env: account.env,
       sessionEnc,
       sessionListEnc,
+      extraEnc,
       account
     })
   }
@@ -355,7 +411,9 @@ export class AccountService extends EventEmitter<AccountEvents> {
     // old session and the old tenant stay in place instead of drifting apart.
     const next: Secrets = {
       session: cookies.session,
-      sessionList: cookies.sessionList ?? this.secrets?.sessionList ?? []
+      sessionList: cookies.sessionList ?? this.secrets?.sessionList ?? [],
+      // The device context survives a tenant switch — the same jar issued the new session.
+      extra: this.secrets?.extra ?? []
     }
     try {
       const account = await this.loadAccount(env, next, true)
@@ -527,8 +585,13 @@ export class AccountService extends EventEmitter<AccountEvents> {
             finish(() => reject(new Error('get session error')))
             return
           }
+          const extra = captureExtraCookies(cookies, ENV_ENDPOINTS[env].domain)
           finish(() =>
-            resolve({ session: sessionCookie, sessionList: listCookie.split('_').filter(Boolean) })
+            resolve({
+              session: sessionCookie,
+              sessionList: listCookie.split('_').filter(Boolean),
+              extra
+            })
           )
         })
       })
@@ -553,6 +616,63 @@ export class AccountService extends EventEmitter<AccountEvents> {
 
 function isSessionExpired(err: unknown): boolean {
   return err instanceof SessionExpiredError || (err instanceof HttpError && err.status === 401)
+}
+
+/**
+ * Everything the login jar accumulated besides the session pair — device binding, csrf and
+ * locale context cookies — captured for the guest partition so the server sees the same trusted
+ * context the login created (this is what removes the "new device" re-consent).
+ */
+export function captureExtraCookies(
+  cookies: Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    secure?: boolean
+    httpOnly?: boolean
+    expirationDate?: number
+    session?: boolean
+  }>,
+  envDomain: string
+): AdoptCookieSpec[] {
+  const suffix = `.${envDomain}`
+  return cookies
+    .filter(
+      (c) =>
+        c.name !== 'session' &&
+        c.name !== 'session_list' &&
+        !!c.domain &&
+        (c.domain === suffix || c.domain === envDomain || c.domain.endsWith(suffix))
+    )
+    .map((c) => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain as string,
+      path: c.path || '/',
+      secure: !!c.secure,
+      httpOnly: !!c.httpOnly,
+      ...(c.expirationDate ? { expirationDate: c.expirationDate } : {})
+    }))
+}
+
+/** Tolerant decode of the persisted extra-cookie blob (old accounts have none). */
+function parseExtra(enc: string | null): AdoptCookieSpec[] {
+  if (!enc) return []
+  try {
+    const parsed: unknown = JSON.parse(decrypt(enc))
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (c): c is AdoptCookieSpec =>
+        !!c &&
+        typeof c === 'object' &&
+        typeof (c as AdoptCookieSpec).name === 'string' &&
+        typeof (c as AdoptCookieSpec).value === 'string' &&
+        typeof (c as AdoptCookieSpec).domain === 'string'
+    )
+  } catch {
+    return []
+  }
 }
 
 function isSuccessPage(url: string): boolean {

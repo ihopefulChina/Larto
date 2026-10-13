@@ -2,6 +2,23 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-13 — 修复 H5 应用跳登录页（authorize 会话注入断链）
+
+**做了什么**
+
+- 现象：打开妙达类 H5 应用被 302 到 accounts 登录页，未自动识别工具账号。
+- 用 CDP 抓包定位（launchd 包装器 + 独立 profile 复现）：authorize 在 open 域带上 session 后 302 到 **accounts 域**的同路径做真正的会话校验，而注入 origins 不含 accounts 域 → 断链。
+- 修复：`ENV_ENDPOINTS` 增加 `accounts`（accounts.feishu.cn / accounts.larksuite.com）；注入 origins 与 cookie 域匹配覆盖 accounts；补 `/authen/v1/authorize` 路径与 `/open-apis` 前缀剥离；新增 `tests/guest-passport.test.ts`（8 用例）。
+
+**验证**
+
+- CDP 现场复验：accounts authorize 请求携带 session 后不再弹登录页，到达「飞书授权」同意页并正确显示账号身份；vitest 8 用例 + tsc + build 全绿。
+
+**结论 / 遗留**
+
+- 同意页需用户点一次「授权」（安全边界，官方行为一致）；飞书记住授权后后续访问静默通过。
+- 官方 DMG 已删，路径表无法逐字核对，修复为行为驱动的超集。
+
 ## 2026-10-13 — larto-mcp@0.2.0 发 npm + 手动更新检查覆盖不可自更新安装
 
 **做了什么**

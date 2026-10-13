@@ -29,6 +29,13 @@ describe('isPassportApiUrl', () => {
     expect(isPassportApiUrl(`${OPEN}/authen/v1/confirm_inner?x=1`, ORIGINS)).toBe(true)
   })
 
+  it('matches the renamed confirm endpoint used by the consent page', () => {
+    expect(isPassportApiUrl(`${OPEN}/open-apis/authen/v1/confirm`, ORIGINS)).toBe(true)
+    expect(
+      isPassportApiUrl(`${OPEN}/open-apis/authen/v1/confirm_inner`, ORIGINS)
+    ).toBe(true)
+  })
+
   it('matches the passport-origin account endpoints', () => {
     expect(isPassportApiUrl(`${PASSPORT}/accounts/web/switch`, ORIGINS)).toBe(true)
     expect(isPassportApiUrl(`${PASSPORT}/accounts/security/user/u1`, ORIGINS)).toBe(true)

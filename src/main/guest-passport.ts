@@ -12,20 +12,19 @@ import { ENV_ENDPOINTS } from '@shared/constants'
 
 /**
  * Official BaseWindow passport path table (7 paths, 5 patterns): tenant switch,
- * user identity lists, auth code exchange and the authen confirm pair — plus
- * `/authen/v1/authorize`, the OAuth web-flow entry that H5 pages redirect to
- * (`open.feishu.cn/open-apis/authen/v1/authorize`); without an injected session
- * that navigation bounces to the accounts login page. Open-origin authen
- * endpoints appear both with and without the `/open-apis` prefix, so the
- * prefix is stripped before matching.
+ * user identity lists and the authen family — plus `/authen/v1/authorize`, the
+ * OAuth web-flow entry that H5 pages redirect to (`open.feishu.cn/open-apis/
+ * authen/v1/authorize`); without an injected session that navigation bounces to
+ * the accounts login page. The whole `/authen/v1/` family is covered by prefix
+ * because the endpoint names drift over time (confirm vs confirm_inner) and the
+ * open-origin variants appear both with and without the `/open-apis` prefix —
+ * the prefix is stripped before matching.
  */
 const PASSPORT_API_PATHS: readonly string[] = [
   '/accounts/web/switch',
   '/accounts/security/user/',
   '/accounts/auth/code/',
-  '/authen/v1/authorize',
-  '/authen/v1/get_auth_info_inner',
-  '/authen/v1/confirm_inner'
+  '/authen/v1/'
 ]
 
 /**

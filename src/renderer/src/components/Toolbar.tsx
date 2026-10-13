@@ -2,7 +2,6 @@ import { invoke } from '@/lib/bridge'
 import { useApp, useT } from '@/store/app'
 import { useSimulator } from '@/store/simulator'
 import { AccountMenu } from './AccountMenu'
-import { DeviceControls } from './DeviceControls'
 import { CodeIcon, PreviewIcon, TrashIcon } from './icons'
 import { UrlBar } from './UrlBar'
 
@@ -38,7 +37,6 @@ export function Toolbar({ onClearCache, onToggleDevTools, focusSignal }: Toolbar
             <span>{t('toolbar.webMode')}</span>
           </div>
           <UrlBar focusSignal={focusSignal} />
-          <DeviceControls />
         </div>
         <div className="toolBar-group toolBar-actions">
           <button

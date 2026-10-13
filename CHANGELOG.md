@@ -4,6 +4,35 @@
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-13
+
+这是第一个功能版本：对齐官方开发者工具的行为细节，并给设置页与模拟器带来一次布局重构。
+
+### 新增
+
+- **JSAPI Mock 规则引擎**：设置里用 JSON 编辑 `apiName + paramRules(正则) + response` 规则，命中的 JSAPI 由本地直接返回、不再走真实桥；规则在页面加载与修改时自动同步到模拟器。
+- **持续事件流**：`device.geolocation.start` 现在持续推送位置（每 5 秒），导航或关闭模拟器时自动停止。
+- **页面登录身份**：模拟器页面里自己的 passport 登录会话可实时用于该页面的接口请求（可在设置中开关）。
+- **hash 换租户协议**：页面导航到 `#mode=account` 时，页面内的登录身份会被采纳为工具账号；`#mode=debug` 启用页面登录身份调试。
+- **`opdev://` deep link**：`opdev://open?url=…` 可从外部直接在模拟器里打开页面（含冷启动场景）。
+- **`native-resource://` 文件协议**：基于一次性 token 的本地文件回传通道，为文件类 JSAPI 预留。
+- **远程调试端口**：设置里可开启 `--remote-debugging-port=17332`（仅回环监听，重启生效），供 `chrome://inspect` 等外部工具连接。
+- **passport 请求头注入**：模拟器页面发往 passport 的请求会自动携带账号会话 Cookie 与 `X-Device-Info: platform=websdk`。
+
+### 变更
+
+- **设置页拆分为四个标签页**：通用、网络、调试、应用；切换标签不丢编辑草稿。
+- **机型与缩放控件移到模拟器上方**的独立工具条，顶部命令栏释放空间、地址栏更聚焦。
+- **导航栏标题跟随页面**：页面修改 `document.title` 时导航栏标题同步更新。
+- 补充 `setNavigationInfo` / `navigateBack` / `navigateClose` / `getIp` / `loadLocation` 内部 API 名；会话过期时向页面推送 `setSessionExpired` 事件。
+- 内置 mock 固定值对齐官方硬编码（机型、Wi-Fi、位置、联系人等）。
+- 所有缺 SameSite 的 Set-Cookie 自动补 `SameSite=None; Secure`，第三方 SSO 跳转不再丢 Cookie。
+
+### 已知限制
+
+- 真实飞书登录、`tt.config` / `requestAuthCode` / `requestAccess` 与 PC 预览推送：代码已实现，**尚未用真实账号验收**。
+- macOS 包仅做 ad-hoc 签名且未公证，Windows 与 Linux 包未签名。浏览器下载后若仍被拦截或 Dock 一直跳，执行 `xattr -dr com.apple.quarantine /Applications/Larto.app` 后再打开。应用内更新仍需要 Developer ID 签名，因此当前安装包的「检查更新」会前往下载页。
+
 ## [0.1.8] — 2026-10-03
 
 分栏竖线静止时完全透明。顶栏「H5 网页调试」铭牌隐藏但保留宽度。空白的顶栏和手机周围的暗色区域可以拖动窗口。

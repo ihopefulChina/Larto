@@ -1,8 +1,8 @@
 import { cpSync, existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { app, BrowserWindow, dialog } from 'electron'
-import { APP_ID, APP_NAME } from '@shared/constants'
+import { dirname, join, resolve } from 'node:path'
+import { app, BrowserWindow, dialog, protocol } from 'electron'
+import { APP_ID, APP_NAME, REMOTE_DEBUGGING_PORT, URL_SCHEME } from '@shared/constants'
 import { resolveLanguage } from '@shared/i18n'
 import type { ShellCommand } from '@shared/ipc'
 import {
@@ -11,6 +11,7 @@ import {
   type ResolvedLanguage,
   type Settings
 } from '@shared/settings'
+import { parseOpdevDeepLink } from '@shared/url'
 import { AccountService } from './account'
 import { devToolsDock } from './devtools-dock'
 import { guestManager } from './guest'
@@ -27,6 +28,14 @@ import { createMainWindow, fitWindowToDevice, getMainWindow, sendToRenderer } fr
 
 app.setName(APP_NAME)
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+
+// `native-resource://` must be declared privileged before app ready so pages can fetch it.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'native-resource',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+  }
+])
 
 // Tests (scripts/e2e.mjs, --smoke-test runs) point this at a scratch directory so they never
 // touch the real settings/account/session of an installed copy. Must precede the instance lock.
@@ -72,6 +81,40 @@ async function bootstrap(): Promise<void> {
   const settings = new SettingsStore()
   const getLang = (): ResolvedLanguage => resolveLanguage(settings.get().language, app.getLocale())
   applyThemeMode(settings.get().theme)
+
+  // CDP remote debugging must be requested before ready; a later settings change applies on
+  // the next launch (the Settings dialog says so). Chromium binds it to 127.0.0.1 only.
+  const remoteDebuggingActive = settings.get().remoteDebugging
+  if (remoteDebuggingActive)
+    app.commandLine.appendSwitch('remote-debugging-port', String(REMOTE_DEBUGGING_PORT))
+
+  // Official `opdev://` deep links: register the scheme and route wrapped http(s) targets
+  // into the simulator (macOS delivers via open-url, Windows/Linux via second-instance argv).
+  if (process.defaultApp && process.argv.length >= 2)
+    app.setAsDefaultProtocolClient(URL_SCHEME, process.execPath, [resolve(process.argv[1] ?? '.')])
+  else app.setAsDefaultProtocolClient(URL_SCHEME)
+  const handleDeepLink = (raw: string): void => {
+    const target = parseOpdevDeepLink(raw)
+    if (!target) {
+      log.warn('ignored unsupported deep link')
+      return
+    }
+    log.info(`deep link navigate: ${target}`)
+    if (getMainWindow()) sendCommand({ type: 'navigate', url: target })
+    else pendingDeepLink = target // cold start: delivered once the shell is up
+  }
+  /** Deep link received before the shell window existed (macOS cold launch). */
+  let pendingDeepLink: string | null = null
+  const flushPendingDeepLink = (): void => {
+    if (!pendingDeepLink) return
+    const target = pendingDeepLink
+    pendingDeepLink = null
+    sendCommand({ type: 'navigate', url: target })
+  }
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    handleDeepLink(url)
+  })
 
   const account = new AccountService(
     () => settings.get().env,
@@ -129,7 +172,11 @@ async function bootstrap(): Promise<void> {
   }
 
   const diagnostics = (): string => {
-    const info = getAppInfo()
+    const info = getAppInfo({
+      setting: settings.get().remoteDebugging,
+      active: remoteDebuggingActive,
+      port: REMOTE_DEBUGGING_PORT
+    })
     const s = settings.get()
     return [
       `${APP_NAME} ${info.version} (${info.arch}, packaged=${info.isPackaged})`,
@@ -188,7 +235,10 @@ async function bootstrap(): Promise<void> {
       .catch((err) => log.warn('could not update inspect-mode emulation', err))
   })
 
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, commandLine) => {
+    // The deep link arrives in the *second* process's command line, delivered here.
+    const link = commandLine.find((a) => a.startsWith(`${URL_SCHEME}://`))
+    if (link) handleDeepLink(link)
     const win = getMainWindow()
     if (win) {
       if (win.isMinimized()) win.restore()
@@ -205,9 +255,13 @@ async function bootstrap(): Promise<void> {
   app.on('before-quit', () => void mcp.stop())
 
   await app.whenReady()
+  guestManager.setAccountCookieProvider(() => account.getCookie())
+  guestManager.setDebugIdentityOptions({
+    preferGuestSession: () => settings.get().guestDebugIdentity
+  })
   guestManager.installGlobalHooks()
   account.restore()
-  registerIpc({ settings, account, updater, mcp, getLang })
+  registerIpc({ settings, account, updater, mcp, getLang, remoteDebuggingActive })
   rebuildMenu()
   // Show the window before proxy/MCP settle. A hung system PAC or listen() used to leave
   // Dock/second-instance focused on a process that had never painted.
@@ -262,6 +316,9 @@ async function bootstrap(): Promise<void> {
         .attach(guest.id)
         .catch((err) => log.warn('initial guest emulation failed; renderer will retry', err))
     })
+    // A cold-start deep link waits here: did-finish-load means the shell bundle is running;
+    // the small delay lets App's shell:command subscription mount first.
+    win.webContents.on('did-finish-load', () => setTimeout(flushPendingDeepLink, 300))
     runSmokeTestIfRequested(win)
   }
 

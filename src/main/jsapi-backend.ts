@@ -165,6 +165,7 @@ export async function handleJsapiBackend(
         return ok(method, { text, data: text })
       }
       case 'device.connection.getGatewayIP':
+      case 'getIp':
         return ok(method, { ip: getLanIp() ?? '127.0.0.1' })
       case 'biz.util.getAppLanguage': {
         const lang = deps.getLang()
@@ -172,7 +173,8 @@ export async function handleJsapiBackend(
       }
       case 'device.geolocation.get':
       case 'device.geolocation.start':
-      case 'getLocation': {
+      case 'getLocation':
+      case 'loadLocation': {
         const loc = deps.settings.get().mockLocation
         if (!loc)
           return fail(

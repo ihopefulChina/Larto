@@ -1,4 +1,13 @@
-import { app, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import {
+  app,
+  clipboard,
+  ipcMain,
+  session,
+  shell,
+  type Cookie,
+  type IpcMainInvokeEvent
+} from 'electron'
+import { ENV_ENDPOINTS, GUEST_PARTITION, REMOTE_DEBUGGING_PORT } from '@shared/constants'
 import { DEVICES } from '@shared/devices'
 import type { AppInfo, IpcArgs, IpcRequestChannel, IpcResult } from '@shared/ipc'
 import type { ResolvedLanguage } from '@shared/settings'
@@ -6,6 +15,7 @@ import type { AccountService } from './account'
 import { hasSecureAccountStorage } from './account'
 import { devToolsDock } from './devtools-dock'
 import { guestManager } from './guest'
+import { passportHosts } from './guest-passport'
 import { handleJsapiBackend } from './jsapi-backend'
 import { getLogDir } from './logger'
 import type { McpService } from './mcp'
@@ -23,6 +33,8 @@ export interface IpcDeps {
   updater: UpdaterService
   mcp: McpService
   getLang: () => ResolvedLanguage
+  /** Whether the CDP remote-debugging switch took effect for this run (needs restart). */
+  remoteDebuggingActive: boolean
 }
 
 type Handler<C extends IpcRequestChannel> = (
@@ -45,7 +57,7 @@ function handle<C extends IpcRequestChannel>(channel: C, handler: Handler<C>): v
   })
 }
 
-export function getAppInfo(): AppInfo {
+export function getAppInfo(remoteDebugging: AppInfo['remoteDebugging']): AppInfo {
   return {
     name: app.name,
     version: app.getVersion(),
@@ -57,7 +69,8 @@ export function getAppInfo(): AppInfo {
     isPackaged: app.isPackaged,
     userDataPath: app.getPath('userData'),
     logPath: getLogDir(),
-    accountStorage: hasSecureAccountStorage() ? 'protected' : 'memoryOnly'
+    accountStorage: hasSecureAccountStorage() ? 'protected' : 'memoryOnly',
+    remoteDebugging
   }
 }
 
@@ -65,7 +78,13 @@ export function registerIpc(deps: IpcDeps): void {
   const ideSplit = new IdeSplitController(deps.settings)
   guestManager.on('attached', () => ideSplit.refreshHooks())
   devToolsDock.on('ready', () => ideSplit.refreshHooks())
-  handle('app:getInfo', () => getAppInfo())
+  handle('app:getInfo', () =>
+    getAppInfo({
+      setting: deps.settings.get().remoteDebugging,
+      active: deps.remoteDebuggingActive,
+      port: REMOTE_DEBUGGING_PORT
+    })
+  )
   handle('app:openExternal', (_e, url) => {
     if (/^(https?|mailto|lark):/i.test(url)) return shell.openExternal(url)
     throw new Error('blocked url scheme')
@@ -128,6 +147,30 @@ export function registerIpc(deps: IpcDeps): void {
   handle('account:login', () => deps.account.login())
   handle('account:logout', () => deps.account.logout())
   handle('account:switchTenant', (_e, userId) => deps.account.switchTenant(userId))
+  handle('account:adoptGuestSession', async () => {
+    // Official `#mode=account` (§3): the page finished its own passport login; adopt the
+    // guest partition's session cookies as the tool identity.
+    const ses = session.fromPartition(GUEST_PARTITION)
+    const hosts = passportHosts()
+    const latest = (cookies: Cookie[]): Cookie | null =>
+      cookies.slice().sort((a, b) => (b.expirationDate ?? 0) - (a.expirationDate ?? 0))[0] ?? null
+    const inPassport = (c: Cookie): boolean =>
+      !!c.domain &&
+      hosts.some((h) => c.domain === h || c.domain === `.${h}` || c.domain!.endsWith(h))
+    const [sessionCookie, listCookie] = await Promise.all([
+      ses.cookies.get({ name: 'session' }).then((cs) => latest(cs.filter(inPassport))),
+      ses.cookies.get({ name: 'session_list' }).then((cs) => latest(cs.filter(inPassport)))
+    ])
+    if (!sessionCookie?.value || !listCookie?.value)
+      throw new Error('no page login session to adopt')
+    return deps.account.adoptSession({
+      session: sessionCookie.value,
+      sessionList: listCookie.value.split('_').filter(Boolean)
+    })
+  })
+  handle('guest:enableDebugIdentity', () =>
+    deps.settings.patchWritable({ guestDebugIdentity: true })
+  )
 
   handle('preview:mobileQr', (_e, req) => buildMobilePreviewQr(req))
   handle('preview:pushPc', (_e, req) => pushPcPreviewAndOpen(deps, req))

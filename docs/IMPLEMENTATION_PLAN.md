@@ -79,7 +79,7 @@ pnpm format           # prettier --write
 
 ### 阶段 1 — 交互与像素级还原复核（0.5 天）— 已完成 2026-09-04
 
-目标：对照 `docs/RESEARCH_OFFICIAL_TOOL.md` §2、§3 逐项核对 UI。
+目标：对照官方工具行为逐项核对 UI（原研究文档已移除，规则保留在代码注释）。
 
 结果：iPhone/Android/iPad/iPad Pro/PC 六种机型、50%–150% 缩放、深/浅主题、DevTools 开关截图复核（`/tmp/larto-e2e/p1-*.png`，未入库）。修正：窗口最小宽度随机型（`window.ts#fitWindowToDevice`，官方规则 `deviceWidth + 70 + 387 + 100`，按显示器工作区裁剪，窗口过窄时自动加宽）；模拟器内容溢出时用 `margin: auto` 居中而非 `justify-content: center`（避免左侧被裁切）；缩放后的机身用 `.gadgetBox` 包裹成缩放后的实际尺寸，滚动/居中按视觉尺寸计算；滚动条改为悬停显示。剩余人工核对项如下，供后续再校：
 

@@ -3,10 +3,11 @@
  * JSSDK (h5sdk / tt.*) believes it runs inside a Feishu container. Runs sandboxed with
  * context isolation; page-visible objects are installed with contextBridge.
  *
- * Protocol and rationale: src/shared/jsapi.ts, docs/RESEARCH_OFFICIAL_TOOL.md §5.
+ * Protocol and rationale: src/shared/jsapi.ts, official tool reference §5.
  */
 import { contextBridge, ipcRenderer } from 'electron'
 import { JSAPI_CHANNEL, type BridgeFlavor, type GuestToHost, type HostToGuest } from '@shared/jsapi'
+import { matchMockRule, type MockRule } from '@shared/mock-rules'
 
 type Callback = (result: Record<string, unknown>) => void
 
@@ -23,6 +24,11 @@ interface Pending {
 
 const pending = new Map<number, Pending>()
 let seq = 0
+/** Guest-side mock rule engine, synced from the host (official `$syncMockList`). */
+let mockRules: MockRule[] = []
+
+/** Internal channel names the official host uses to sync/refresh the mock list. */
+const MOCK_SYNC_METHODS = new Set(['$syncMockList', '$mockListUpdated'])
 
 function send(msg: GuestToHost): void {
   ipcRenderer.sendToHost(JSAPI_CHANNEL, msg)
@@ -82,10 +88,26 @@ function deliver(p: Pending, result: Record<string, unknown>, ok: boolean): void
   }
 }
 
+/** Continued/subscription delivery: subscribeHandler for tt-style, else the success path. */
+function deliverContinued(p: Pending, result: Record<string, unknown>): void {
+  if (p.callbackId !== undefined) {
+    callTt('subscribeHandler', p.callbackId, result)
+    return
+  }
+  if (p.onSuccess) p.onSuccess(result)
+  else if (p.successName) callNamed(p.successName, result)
+}
+
 ipcRenderer.on(JSAPI_CHANNEL, (_event, msg: HostToGuest) => {
   if (msg.kind === 'result') {
     const p = pending.get(msg.id)
     if (!p) return
+    if (msg.continued) {
+      // Official `callbackType: 'continued'`: deliver through the subscription
+      // channel and keep the task alive for later pushes with the same id.
+      deliverContinued(p, msg.data)
+      return
+    }
     pending.delete(msg.id)
     deliver(p, msg.data, msg.ok && isOk(msg.data))
   } else if (msg.kind === 'push') {
@@ -103,6 +125,8 @@ ipcRenderer.on(JSAPI_CHANNEL, (_event, msg: HostToGuest) => {
       }) as never,
       [msg.name, msg.data]
     )
+  } else if (msg.kind === 'mocks') {
+    mockRules = msg.rules
   }
 })
 
@@ -149,8 +173,25 @@ function invoke(
   if (typeof args['onFailed'] === 'string') p.failName = args['onFailed']
   if (typeof args['callbackId'] === 'string' || typeof args['callbackId'] === 'number')
     p.callbackId = args['callbackId']
+
+  const name = String(method)
+  if (MOCK_SYNC_METHODS.has(name)) {
+    // Official internal sync channel: the payload may carry a full mock list.
+    const list = args['mockList'] ?? args['mockConfig'] ?? args['data']
+    mockRules = Array.isArray(list) ? (list as MockRule[]) : mockRules
+    setTimeout(() => deliver(p, { errMsg: `${name}:ok` }, true), 0)
+    return
+  }
+  // Mock rule engine: an enabled rule whose apiName matches and whose paramRules all hit is
+  // served locally, exactly like the official guest preload — the real bridge is not touched.
+  const hit = matchMockRule(mockRules, name, args)
+  if (hit) {
+    setTimeout(() => deliver(p, hit.payload, hit.ok), 0)
+    return
+  }
+
   pending.set(id, p)
-  send({ kind: 'invoke', id, method: String(method), params: sanitise(args), url: location.href })
+  send({ kind: 'invoke', id, method: name, params: sanitise(args), url: location.href })
 }
 
 // iOS flavour: window.WebViewJavascriptBridge.invoke({ method, args })

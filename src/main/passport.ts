@@ -1,7 +1,7 @@
 /**
  * Pure helpers for talking to Feishu passport (no Electron imports so they can be unit-tested).
  * Response shapes follow the official IDE core (`Middleware.formatResponse` /
- * `Middleware.isSessionExpired` / `AccountModule.formatTenantList`, docs/RESEARCH_OFFICIAL_TOOL.md §4).
+ * `Middleware.isSessionExpired` / `AccountModule.formatTenantList`, official tool reference §4).
  */
 import type { FeishuEnv } from '@shared/settings'
 

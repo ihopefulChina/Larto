@@ -57,6 +57,8 @@ export interface AppInfo {
   userDataPath: string
   logPath: string
   accountStorage: 'protected' | 'memoryOnly'
+  /** Remote-debugging (CDP) exposure: persisted preference vs active for this run. */
+  remoteDebugging: { setting: boolean; active: boolean; port: number }
 }
 
 export interface PreviewQrResult {
@@ -179,6 +181,14 @@ export interface IpcRequests {
   'account:login': [[], AccountState]
   'account:logout': [[], AccountState]
   'account:switchTenant': [[tenantUserId: string], AccountState]
+  /**
+   * Official `#mode=account` hash protocol: adopt the guest partition's own passport
+   * session (set by a page-level login) as the tool account. Fails when the guest
+   * partition holds no session cookies.
+   */
+  'account:adoptGuestSession': [[], AccountState]
+  /** Official `#mode=debug` hash protocol: prefer the page-login identity for guest injection. */
+  'guest:enableDebugIdentity': [[], Settings]
 
   'preview:mobileQr': [[req: { url: string; appId?: string; useLanIp?: boolean }], PreviewQrResult]
   'preview:pushPc': [[req: { url: string; appId?: string }], { ok: boolean; message?: string }]

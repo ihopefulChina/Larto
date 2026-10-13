@@ -4,6 +4,7 @@
  * lives in `settings-schema.ts` (main process only).
  */
 import { DEFAULT_DEVICE_ID, DEFAULT_ZOOM } from './devices'
+import type { MockRule } from './mock-rules'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type Language = 'system' | 'zh-CN' | 'en-US'
@@ -44,6 +45,20 @@ export interface Settings {
   /** Manual geolocation override used by the JSAPI geolocation bridge. */
   mockLocation: { latitude: number; longitude: number } | null
   /**
+   * Guest-side JSAPI mock rule engine (official `$syncMockList` shape):
+   * apiName + paramRules(regExp) + response; synced to the guest preload on
+   * bridge ready and on change.
+   */
+  mockRules: MockRule[]
+  /**
+   * Official `debugAccountInfo` equivalent: when on, guest passport requests are
+   * injected with the guest partition's own page-login session (adopted via the
+   * `#mode=debug` hash protocol) instead of the signed-in account.
+   */
+  guestDebugIdentity: boolean
+  /** Expose a loopback-only CDP remote-debugging port for external tools (needs restart). */
+  remoteDebugging: boolean
+  /**
    * Fixed CSS size for the PC preset. `null` = fill the simulator column (official
    * `calc(100% - 40px)` behaviour); the guest then uses the laid-out webview size.
    */
@@ -78,6 +93,9 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCheckUpdates: true,
   skippedUpdateVersion: null,
   mockLocation: null,
+  mockRules: [],
+  guestDebugIdentity: false,
+  remoteDebugging: false,
   pcViewport: null,
   simulatorColumnWidth: null,
   windowBounds: null
@@ -95,6 +113,9 @@ export const WritableSettingKeys = [
   'mcp',
   'autoCheckUpdates',
   'mockLocation',
+  'mockRules',
+  'guestDebugIdentity',
+  'remoteDebugging',
   'pcViewport',
   'simulatorColumnWidth'
 ] as const satisfies readonly (keyof Settings)[]

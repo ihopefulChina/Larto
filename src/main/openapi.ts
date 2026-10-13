@@ -1,7 +1,7 @@
 /**
  * Feishu Open Platform calls that back the JSAPI bridge and PC preview.
- * Endpoints and payloads are reverse-engineered from the official tool
- * (docs/RESEARCH_OFFICIAL_TOOL.md §4.1, §5.3, §6). All of them need a signed-in session.
+ * Endpoints and payloads follow the official tool's behaviour
+ * (official tool reference §4.1, §5.3, §6). All of them need a signed-in session.
  */
 import { ENV_ENDPOINTS } from '@shared/constants'
 import type { AccessConsentInfo } from '@shared/ipc'

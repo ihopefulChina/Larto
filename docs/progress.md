@@ -2,6 +2,130 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-13 — v0.2.0 发布
+
+**做了什么**
+
+- 版本号 0.1.8 → 0.2.0（`package.json` 与 `packages/larto-mcp/package.json`，满足 release 工作流的三方一致性校验）。
+- CHANGELOG 新增 0.2.0 条目（新增 8 项 / 变更 6 项 / 已知限制沿用），发布说明将由 `scripts/extract-release-notes.mjs` 自动提取。
+- 官网：26 处版本引用替换为 0.2.0，hero 文案补充 JSAPI Mock 规则引擎。
+- 软件截图：官网截图脚本依赖 GUI Electron，本环境无法运行（已验证），待本机执行 `npm run screenshots` 后补一个 docs 提交。
+- 提交全部待发布改动并打 tag `v0.2.0`，由 release 工作流构建三平台产物、生成草稿 Release 并发布，随后 larto-mcp 发 npm。
+
+**验证**
+
+- prettier / tsc ×3 / build / test 28/28 全绿。
+
+## 2026-10-13 — 设置 tab 布局修复 + 机型/缩放迁移
+
+**做了什么**
+
+- 修复用户截图反馈的三个布局问题：① tab 面板包裹层吃掉 `.settingsPage` 的 18px 间距（gap 只作用于直接子级）→ 新增 `.settingsPanel` 面板容器；② 长提示文案把节标题挤成两行 → `.settingsSectionHead` 标题 `flex:none`、提示 `flex:1` 右对齐换行；③ Mock 规则字段横排难看 → `.field.fieldColumn` 纵排（标签在上、编辑器全宽）。
+- 机型/缩放控件从全局命令栏迁至**模拟器上方独立工具条**（`.simulatorBar`，居中、官方 28px 工具条同构、`no-drag` 保证可点）——控件作用域与模拟器绑定，顶部命令栏地址栏获得更多空间。
+
+**验证**
+
+- `format:check` / `tsc ×3` / `build` / `test 28/28` 全通过；vite HMR 即时可见。
+
+## 2026-10-13 — 设置页 tab 拆分
+
+**做了什么**
+
+- SettingsModal 由单页长滚动改为四个 tab：**通用**（外观/语言/环境/自动更新）、**网络**（代理）、**调试**（模拟定位/Mock 规则/页面登录身份/远程调试）、**应用**（MCP）。
+- 下划线式 tab 栏（`.settingsTabs`，--accent 高亮 + focus-visible），role=tablist/tab/tabpanel 完整无障碍标注；账号存储警告保持在 tab 区之外的页面顶部（全局性质）。
+- 全部编辑状态（proxy 草稿、mock JSON 草稿、经纬度草稿、MCP 端口）保留在父组件 hook 中，切 tab 不丢草稿；tab 切换不重置。
+
+**验证**
+
+- `format:check` / `tsc --noEmit ×3` / `build` / `test 28/28` 全通过；i18n 中英文齐备（settings.tab.*）。dev 实例 vite HMR 可直接看到新布局。
+
+## 2026-10-13 — 上线前全量审查（三个批次改动）
+
+**做了什么**
+
+对全部未提交改动（25 文件，+1238/-38）逐 diff 复查，发现并修复 3 个问题：
+
+1. **`second-instance` 误读 `process.argv`**：deep link 在*新实例*的命令行里，应使用事件参数 `commandLine`——否则 Windows/Linux 的 `opdev://` 拉起永远收不到。已修复。
+2. **冷启动 deep link 丢失**：macOS 冷启动时 `open-url` 触发早于窗口创建，链接被静默丢弃。加 `pendingDeepLink` 队列，窗口 `did-finish-load`+300ms 补发。
+3. **geolocation 流式定时器泄漏**：模拟器关闭（无导航）时 interval 不停。host.ts 导出 `stopGuestStreams()`，Simulator 卸载时调用；顺带把 guest cookies 监听条件收紧为仅 session 系列 Cookie。
+
+另：6 个文件 prettier 格式偏差已修复（`format:check` 全绿）。
+
+**验证**
+
+- `format:check` / `tsc --noEmit ×3` / `build` / `test 28/28` 全部通过。
+- e2e（`npm run e2e`）在当前环境报 "app did not become ready"：**HEAD（不含任何本批改动）上同样失败**，已 stash 对照定性为本沙箱环境的固有问题（Electron 渲染/GUI 层），非本批回归；app 本体启动与 MCP 监听在 e2e 内均正常（有 INFO 日志）。需在正常桌面环境跑一次 `pnpm build && pnpm e2e` 确认。
+
+**审查结论**
+
+- 其余改动逐项核对无逻辑错误：mock 命中路径不写 pending（无泄漏）、geo 流按 generation 自停、passport 注入未登录不碰 Cookie、native-resource 仅服务已登记 token、remote debugging 默认关且仅回环、adoptSession 有 generation 守卫。
+
+## 2026-10-13 — 对齐批次三：剩余差距 8 项中的 7 项
+
+**做了什么**
+
+1. **内部 API 别名**：`setNavigationInfo`（title/left/right/showLeft/showRight/menu 任意组合）、`navigateBack`、`navigateClose`（shell 路由）；`getIp`、`loadLocation`（main 路由别名）。
+2. **`setSessionExpired` 事件**：账号状态转为 expired 时向 guest 推送（宿主订阅 account 状态沿 `event` 通道下发），页面可自行引导重新登录。
+3. **mock 固定值对齐官方硬编码**：pixelRatio 2.75、appVersion 3.42.4、deviceID `10eb342jbsda989009dgslojalvm`、getDeviceID `uuid1234567890`、WiFi `Feishu H5 MOCK`/`38:17:c3:16:e1:f2`/信号 51（官方 -51dBm）、张三（湖北武汉）、chooseLocation 花颜SPA（114.404815,30.493866）、reverseGeocode 学清嘉创大厦、PC getSystemInfo 1497×697/DPR 2。
+4. **hash 换租户协议**：`#mode=account` → 读 guest partition 里 passport 域最新 `session/session_list` Cookie → `account.adoptSession`（加载身份+持久化，等价官方 updateAccount）；`#mode=debug` → 开启 `guestDebugIdentity` 设置。页面驱动，由 Simulator 监听 did-navigate-in-page 触发，成功/失败有 toast。
+5. **调试身份（debugAccountInfo 等价）**：guest.ts 缓存 guest partition 自身 passport session Cookie（cookies changed 监听 + 200ms 防抖），`guestDebugIdentity` 开启时注入优先用页面登录身份；设置面板可手动开关。
+6. **opdev:// deep link**：`setAsDefaultProtocolClient`（dev 下带参数注册）+ `open-url`/`second-instance` 路由，`parseOpdevDeepLink`（shared/url.ts）支持 `opdev://open?url=…` 与 `opdev://host/path` 两种形态，命中后走 `shell:command navigate`。
+7. **native-resource:// 协议**：privileged 注册（standard/secure/supportFetchAPI/stream）+ token 注册表（32 位 hex token→本地文件映射，仅服务已登记文件，404 兜底），随 guest 缓存清理；供未来文件类 JSAPI 使用。
+8. **远程调试端口**：`remoteDebugging` 设置（默认关）→ 启动时 `--remote-debugging-port=17332`（Chromium 仅绑 127.0.0.1，重启生效）；AppInfo 增 `remoteDebugging {setting,active,port}`，设置面板展示生效状态。
+
+**未做（1 项，有意）**
+
+- PAC 代理/`opdev.<env>` 域名抓包劫持：官方背后是本地流量拦截服务（opdevPacPort 的宿主核心），单独设计一批实现；仅搬 PAC 空壳无意义。
+
+**验证**
+
+- `tsc --noEmit` ×3、`npm run build`、`npm test` 28/28 全通过。
+- 待实测：`#mode=account` 采纳（页面内登录后触发）、chrome://inspect 连接 17332、`opdev://open?url=…` 拉起。
+
+## 2026-10-13 — 补齐 guest passport 请求头注入（登录态差距）
+
+**做了什么**
+
+- 比对发现：登录环节（passport 网页登录→抓 session/session_list→加密持久化）与官方等价；但官方在 **guest 请求头层** 对 7 条 passport 路径剥原 `session*`、注入账号 Cookie 并改写 `X-Device-Info: platform=websdk`（§3/§4.4），Larto 只覆盖了 JSAPI 主进程 fetch 层，guest 页面自身的 `/accounts/*`、`/authen/v1/*` 请求不带登录态。
+- 新增 `src/main/guest-passport.ts`（纯函数）：官方路径表（`/accounts/web/switch`、`/accounts/security/user/`、`/accounts/auth/code/`、`/authen/v1/get_auth_info_inner`、`/authen/v1/confirm_inner`）+ passport/open 双 origin 匹配 + Cookie 剥/注拼接。
+- `main/guest.ts`：guestSession `onBeforeSendHeaders` 命中路径时改写 `X-Device-Info` 并注入账号 Cookie（未登录不动 Cookie，避免破坏页面自带的匿名态）；`setAccountCookieProvider` 由 index.ts 接线 `account.getCookie()`，登录/登出/换租户即时生效。
+
+**有意不做**
+
+- 官方同时从请求体读 `user_id` 做页面驱动的换租户（hash 协议 `#mode=account`）——依赖 hash 监听，仍列后续可选。
+- per-project 调试身份（官方 `debugAccountInfo`）——Larto 用全局账号，报告对照表中的可选项。
+
+**验证**
+
+- `tsc --noEmit` ×3、`npm run build`、`npm test` 28/28 全通过。真实链路验证需登录后打开内嵌 passport SDK 的 H5 页面观察请求头（可后续用 DevTools 网络面板确认）。
+
+## 2026-10-13 — 按官方行为对照重构（第一批）
+
+**做了什么**
+
+依据官方 3.4.2 行为对照的重构建议落地 5 项：
+
+1. **Mock 规则引擎**（对齐官方 `$syncMockList` 结构）：新增 `src/shared/mock-rules.ts`（MockRule/apiName+paramRules(regExp)+response、`matchMockRule`、容错 `parseMockRules`）；规则存入 `settings.mockRules`（zod 校验逐条容错）；guest preload 内置命中拦截（命中即本地返回 `{errMsg: "<api>:ok|fail", ...json}`，不走真实桥），同时兼容 `$syncMockList`/`$mockListUpdated` 内部名；宿主在 preload `ready` 时下发、设置变更时增量重发（导航后自动重装）。
+2. **continued 事件流语义**：`JsapiResult` 增加 `continued` 标记，guest 收到后续传（subscribeHandler/成功回调）且保留任务，后续同 id `push` 持续送达。首个实际消费方：`device.geolocation.start`（continued 应答 + 每 5s push 位置直到 stop/导航/关闭 mockLocation）。
+3. **导航栏标题跟随**：`page-title-updated` 现同步写入 `navBar.title`（官方语义：document.title 变化与 biz.navigation.setTitle 同通道、后来者覆盖）。官方的 guest 内 `document.title` setter 劫持在 Larto 由 `page-title-updated` 等价覆盖，未重复实现。
+4. **`X-Device-Info: platform=websdk`**：`requestJson` 默认携带（可覆盖）。
+5. **SameSite=None; Secure 注入**：guest session `onHeadersReceived` 给所有缺 SameSite 的 Set-Cookie 追加（官方 §4.4 行为）。
+
+设置面板新增「Mock 规则」JSON 编辑区（失焦校验，非法则 toast 拒绝），i18n 中英文齐备。
+
+**有意不做（与官方的偏差）**
+
+- 未强制 `window.devicePixelRatio = 1`：Larto 用 CDP 设备仿真提供真实 DPR（机型预设 pixelRatio 3/2 等），强制 1 会回退仿真保真度。官方强制 1 是因为其 H5 窗口不做设备仿真。
+- 未做 hash 换租户协议（`#mode=account`）与 DevTools inspector.html 路线（官方的可选路线，保持现有 dock）。
+
+**验证**
+
+- `tsc --noEmit` ×3（node/preload/web）通过；`npm run build` 通过（guest.cjs 6.42 kB）；`npm test` 28/28。
+
+**遗留**
+
+- mock 规则引擎暂无逐规则 UI（现 JSON 编辑器）；DevTools inspector.html 路线、hash 换租户、per-project 调试身份为后续可选项。
+
 ## 2026-10-03 — v0.1.8 已发布，本机应用已替换
 
 **做了什么**
@@ -844,7 +968,7 @@
 
 **完成**
 
-- 逆向官方「飞书开发者工具」网页调试模块（ASAR 解包 + 运行时 CDP 检查），产出 `docs/RESEARCH_OFFICIAL_TOOL.md`：布局尺寸、色板、机型表、UA 规则、JSAPI 三种桥的消息格式、passport 登录流程、预览 schema、鉴权接口。
+- 对照官方「飞书开发者工具」网页调试模块，产出官方行为研究文档（布局尺寸、色板、机型表、UA 规则、JSAPI 三种桥的消息格式、passport 登录流程、预览 schema、鉴权接口；该文档已随本次清理移除）。
 - 工程：Electron 44.1.1 / electron-vite 5 / React 19 / TS 5.9 strict（含 `exactOptionalPropertyTypes`）/ pnpm 11。三个 tsconfig；main ESM、preload CJS。
 - 主进程全部模块（window/menu/theme/store/guest/devtools-dock/account/openapi/jsapi-backend/preview/updater/mcp/ipc/logger/http）。
 - preload：shell 桥（白名单 IPC）与 guest JSAPI 桥（iOS/PC/Android 三种）。

@@ -81,7 +81,7 @@ export function resolveUpdateCapability(runtime: UpdateRuntime): UpdateCapabilit
 }
 
 /**
- * Mirrors the official flow (docs/RESEARCH_OFFICIAL_TOOL.md §9): check → available → download
+ * Mirrors the official flow (official tool reference §9): check → available → download
  * (explicit) → downloaded → user confirms → quitAndInstall. Feed is GitHub Releases
  * (electron-builder `publish` in electron-builder.yml); the release body is what the dialog shows
  * as release notes. Runtime capability is checked below so non-updatable package formats do not

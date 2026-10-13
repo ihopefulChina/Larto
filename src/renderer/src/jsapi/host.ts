@@ -47,19 +47,93 @@ export function emitGuestEvent(
   if (webview) sendToGuest(webview, { kind: 'event', name, data })
 }
 
+/** Official M→R `setSessionExpired`: lets the page react to a dead passport session. */
+function emitSessionExpired(): void {
+  const { webview } = useSimulator.getState()
+  if (webview) sendToGuest(webview, { kind: 'event', name: 'setSessionExpired', data: {} })
+}
+
 const documents = createJsapiDocumentGuard()
+
+// --- guest-side mock rule sync (official `$syncMockList` channel) ---
+
+let mockSyncBound = false
+/** Pushes the current settings mock rules into the guest preload. */
+function syncMockRules(webview: WebviewTag): void {
+  sendToGuest(webview, { kind: 'mocks', rules: useApp.getState().settings.mockRules })
+}
+
+/** Re-syncs the mock rules whenever settings change (guest preloads reset on every navigation). */
+function bindMockSync(): void {
+  if (mockSyncBound) return
+  mockSyncBound = true
+  let prev = useApp.getState().settings.mockRules
+  let prevAccountStatus = useApp.getState().account.status
+  useApp.subscribe((s) => {
+    const next = s.settings.mockRules
+    if (next !== prev) {
+      prev = next
+      const { webview } = useSimulator.getState()
+      if (webview) syncMockRules(webview)
+    }
+    // Official M→R setSessionExpired: the guest page learns the passport session died.
+    if (s.account.status === 'expired' && prevAccountStatus !== 'expired') emitSessionExpired()
+    prevAccountStatus = s.account.status
+  })
+}
+
+// --- geolocation streaming (continued result + periodic pushes) ---
+
+const GEO_STREAM_INTERVAL_MS = 5000
+const geoStreams = new Map<number, ReturnType<typeof setInterval>>()
+
+function stopGeoStream(id: number): void {
+  const timer = geoStreams.get(id)
+  if (timer !== undefined) {
+    clearInterval(timer)
+    geoStreams.delete(id)
+  }
+}
+
+function stopAllGeoStreams(): void {
+  for (const id of [...geoStreams.keys()]) stopGeoStream(id)
+}
+
+function locationPayload(): Record<string, unknown> | null {
+  const loc = useApp.getState().settings.mockLocation
+  if (!loc) return null
+  return {
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    accuracy: 65,
+    time: Date.now(),
+    netType: 'wifi',
+    operatorType: 'unknown'
+  }
+}
 
 function cancelGuestJsapi(): void {
   documents.begin()
+  stopAllGeoStreams()
   void invoke('jsapi:cancelPending').catch(() => undefined)
 }
 
+/** Stops every streaming push (simulator closed / webview replaced without a navigation). */
+export function stopGuestStreams(): void {
+  stopAllGeoStreams()
+}
+
 export function attachJsapiHost(webview: WebviewTag): () => void {
+  bindMockSync()
   const onMessage = (event: Electron.IpcMessageEvent) => {
     if (event.channel !== JSAPI_CHANNEL) return
     const msg = event.args[0] as GuestToHost | undefined
     if (!msg || typeof msg !== 'object') return
-    if (msg.kind === 'ready') return
+    if (msg.kind === 'ready') {
+      // The preload reruns on every navigation, so rules must be re-installed each time.
+      syncMockRules(webview)
+      return
+    }
     if (msg.kind === 'title') {
       useSimulator.getState().setNavBar({ title: msg.title })
       return
@@ -98,7 +172,32 @@ async function handleInvoke(webview: WebviewTag, msg: JsapiInvoke): Promise<void
     result = fail(method, JSAPI_ERROR.NETWORK, err instanceof Error ? err.message : String(err))
   }
   if (documents.isCurrent(generation)) {
-    sendToGuest(webview, { kind: 'result', id: msg.id, data: result.data, ok: result.ok })
+    if (method === 'device.geolocation.stop') stopAllGeoStreams()
+    // Streaming start: answer `continued` (keeps the guest callback alive) and push fresh
+    // positions periodically — mirrors the official container's subscription semantics.
+    const streamStart =
+      method === 'device.geolocation.start' && result.ok && locationPayload() !== null
+    if (streamStart) {
+      stopGeoStream(msg.id)
+      sendToGuest(webview, {
+        kind: 'result',
+        id: msg.id,
+        data: result.data,
+        ok: true,
+        continued: true
+      })
+      const timer = setInterval(() => {
+        const data = locationPayload()
+        if (!data || !documents.isCurrent(generation)) {
+          stopGeoStream(msg.id)
+          return
+        }
+        sendToGuest(webview, { kind: 'push', id: msg.id, data })
+      }, GEO_STREAM_INTERVAL_MS)
+      geoStreams.set(msg.id, timer)
+    } else {
+      sendToGuest(webview, { kind: 'result', id: msg.id, data: result.data, ok: result.ok })
+    }
   }
   void invoke('jsapi:log', {
     ts: started,
@@ -264,6 +363,35 @@ async function handleShell(method: string, p: Record<string, unknown>): Promise<
       })
       return ok(method)
     }
+    // Internal navigation channel: one call may carry any combination of title/left/right/menu
+    // (official `setNavigationInfo`, the convergence point of the navigation family).
+    case 'setNavigationInfo': {
+      const patch: Record<string, unknown> = {}
+      if (typeof p['title'] === 'string') patch['title'] = p['title']
+      if (p['left'] !== undefined) {
+        const showLeft = p['showLeft'] !== false && p['left'] !== false
+        const left = Array.isArray(p['left']) ? (p['left'] as NavItem[]) : []
+        patch['left'] = showLeft ? left : []
+        if (typeof p['showLeft'] === 'boolean' || p['left'] === false) patch['showBack'] = showLeft
+      }
+      if (p['right'] !== undefined) {
+        const showRight = p['showRight'] !== false && p['right'] !== false
+        patch['right'] = showRight
+          ? Array.isArray(p['right'])
+            ? (p['right'] as NavItem[])
+            : []
+          : []
+      }
+      if (Array.isArray(p['menu'])) patch['menu'] = p['menu'] as NavItem[]
+      sim.setNavBar(patch)
+      return ok(method)
+    }
+    case 'navigateBack':
+      simulatorActions.goBack()
+      return ok(method)
+    case 'navigateClose':
+      simulatorActions.close()
+      return ok(method)
     case 'biz.navigation.close':
       simulatorActions.close()
       return ok(method)

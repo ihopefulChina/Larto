@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { FeishuEnv, Language, ProxySettings, ThemeMode } from '@shared/settings'
+import { parseMockRules } from '@shared/mock-rules'
 import { useApp, useT } from '@/store/app'
 import { Modal } from '../Modal'
+
+type SettingsTab = 'general' | 'network' | 'debug' | 'app'
+
+const TABS: SettingsTab[] = ['general', 'network', 'debug', 'app']
 
 export function SettingsModal() {
   const t = useT()
@@ -9,6 +14,7 @@ export function SettingsModal() {
   const info = useApp((s) => s.info)
   const mcp = useApp((s) => s.mcp)
   const setSetting = useApp((s) => s.setSetting)
+  const [tab, setTab] = useState<SettingsTab>('general')
   const [proxy, setProxy] = useState<ProxySettings>(settings.proxy)
   const [mcpPort, setMcpPort] = useState(String(settings.mcp.port))
   const [lat, setLat] = useState(
@@ -17,6 +23,8 @@ export function SettingsModal() {
   const [lng, setLng] = useState(
     settings.mockLocation ? String(settings.mockLocation.longitude) : ''
   )
+  /** `null` = clean (mirror settings); a string is an in-flight JSON edit. */
+  const [mockDraft, setMockDraft] = useState<string | null>(null)
 
   useEffect(() => setProxy(settings.proxy), [settings.proxy])
 
@@ -40,6 +48,18 @@ export function SettingsModal() {
     // Half-filled pair: wait for the other field (Number('') would silently become 0).
     else if (lat !== '' && lng !== '' && Number.isFinite(la) && Number.isFinite(ln))
       void setSetting('mockLocation', { latitude: la, longitude: ln })
+  }
+  const commitMocks = () => {
+    if (mockDraft === null) return
+    try {
+      const parsed: unknown = JSON.parse(mockDraft)
+      if (!Array.isArray(parsed)) throw new Error('expected a rule array')
+      const rules = parseMockRules(parsed)
+      setMockDraft(null)
+      void setSetting('mockRules', rules)
+    } catch {
+      useApp.getState().showToast(t('settings.mocks.invalid'))
+    }
   }
 
   const seg = <V extends string>(
@@ -76,210 +96,333 @@ export function SettingsModal() {
             </div>
           </div>
         )}
-        <section className="settingsSection" aria-labelledby="settings-general">
-          <h3 id="settings-general" className="section-title">
-            {t('settings.general')}
-          </h3>
-          <div className="settingsRows">
-            <div className="field">
-              <span id="set-appearance">{t('settings.appearance')}</span>
-              {seg<ThemeMode>(
-                'set-appearance',
-                settings.theme,
-                [
-                  ['system', t('menu.appearance.system')],
-                  ['light', t('menu.appearance.light')],
-                  ['dark', t('menu.appearance.dark')]
-                ],
-                (v) => void setSetting('theme', v)
-              )}
-            </div>
-            <div className="field">
-              <span id="set-language">{t('settings.language')}</span>
-              {seg<Language>(
-                'set-language',
-                settings.language,
-                [
-                  ['system', t('menu.language.system')],
-                  ['zh-CN', '简体中文'],
-                  ['en-US', 'English']
-                ],
-                (v) => void setSetting('language', v)
-              )}
-            </div>
-            <div className="field">
-              <span id="set-env">{t('settings.env')}</span>
-              {seg<FeishuEnv>(
-                'set-env',
-                settings.env,
-                [
-                  ['feishu', t('settings.env.feishu')],
-                  ['lark', t('settings.env.lark')]
-                ],
-                (v) => void setSetting('env', v)
-              )}
-            </div>
-          </div>
-        </section>
 
-        <section className="settingsSection" aria-labelledby="settings-proxy">
-          <h3 id="settings-proxy" className="section-title">
-            {t('settings.proxy')}
-          </h3>
-          <div className="settingsRows">
-            <div className="field">
-              <span id="set-proxy">{t('settings.proxy')}</span>
-              {seg<ProxySettings['mode']>(
-                'set-proxy',
-                proxy.mode,
-                [
-                  ['system', t('settings.proxy.system')],
-                  ['none', t('settings.proxy.none')],
-                  ['manual', t('settings.proxy.manual')]
-                ],
-                (mode) => {
-                  const next = { ...proxy, mode }
-                  setProxy(next)
-                  // "Manual" with no address is an editable draft, not a request to silently use
-                  // the system proxy. Commit after the address is valid.
-                  if (mode !== 'manual' || next.url.trim()) commitProxy(next)
-                }
-              )}
-            </div>
-            {proxy.mode === 'manual' && (
-              <>
+        <div className="settingsTabs" role="tablist" aria-label={t('settings.title')}>
+          {TABS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`settings-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`settings-panel-${id}`}
+              className={tab === id ? 'active' : ''}
+              onClick={() => setTab(id)}
+            >
+              {t(`settings.tab.${id}` as const)}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'general' && (
+          <div
+            id="settings-panel-general"
+            role="tabpanel"
+            aria-labelledby="settings-tab-general"
+            className="settingsPanel"
+          >
+            <section className="settingsSection" aria-labelledby="settings-general">
+              <h3 id="settings-general" className="section-title">
+                {t('settings.general')}
+              </h3>
+              <div className="settingsRows">
                 <div className="field">
-                  <label htmlFor="set-proxy-url">{t('settings.proxy.url')}</label>
-                  <div className="fieldControl">
-                    <input
-                      id="set-proxy-url"
-                      type="text"
-                      placeholder="http://127.0.0.1:7890"
-                      value={proxy.url}
-                      onChange={(e) => setProxy({ ...proxy, url: e.target.value })}
-                      onBlur={() => {
-                        const next = { ...proxy, url: proxy.url.trim() }
-                        if (next.url) commitProxy(next)
-                        else {
-                          setProxy(settings.proxy)
-                          useApp.getState().showToast(t('settings.proxy.urlRequired'))
-                        }
-                      }}
-                      required
-                      aria-invalid={!proxy.url.trim()}
-                      aria-describedby="set-proxy-url-error"
-                    />
-                    {!proxy.url.trim() && (
-                      <span id="set-proxy-url-error" className="fieldValidation" role="alert">
-                        {t('settings.proxy.urlRequired')}
-                      </span>
-                    )}
-                  </div>
+                  <span id="set-appearance">{t('settings.appearance')}</span>
+                  {seg<ThemeMode>(
+                    'set-appearance',
+                    settings.theme,
+                    [
+                      ['system', t('menu.appearance.system')],
+                      ['light', t('menu.appearance.light')],
+                      ['dark', t('menu.appearance.dark')]
+                    ],
+                    (v) => void setSetting('theme', v)
+                  )}
                 </div>
                 <div className="field">
-                  <label htmlFor="set-proxy-bypass">{t('settings.proxy.bypass')}</label>
+                  <span id="set-language">{t('settings.language')}</span>
+                  {seg<Language>(
+                    'set-language',
+                    settings.language,
+                    [
+                      ['system', t('menu.language.system')],
+                      ['zh-CN', '简体中文'],
+                      ['en-US', 'English']
+                    ],
+                    (v) => void setSetting('language', v)
+                  )}
+                </div>
+                <div className="field">
+                  <span id="set-env">{t('settings.env')}</span>
+                  {seg<FeishuEnv>(
+                    'set-env',
+                    settings.env,
+                    [
+                      ['feishu', t('settings.env.feishu')],
+                      ['lark', t('settings.env.lark')]
+                    ],
+                    (v) => void setSetting('env', v)
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="settingsSection" aria-labelledby="settings-update">
+              <h3 id="settings-update" className="section-title">
+                {t('settings.update')}
+              </h3>
+              <div className="settingsRows">
+                <div className="field">
+                  <label htmlFor="set-autoupdate">{t('settings.autoCheckUpdates')}</label>
                   <input
-                    id="set-proxy-bypass"
-                    type="text"
-                    value={proxy.bypass}
-                    onChange={(e) => setProxy({ ...proxy, bypass: e.target.value })}
-                    onBlur={() => commitProxy(proxy)}
+                    id="set-autoupdate"
+                    type="checkbox"
+                    checked={settings.autoCheckUpdates}
+                    onChange={(e) => void setSetting('autoCheckUpdates', e.target.checked)}
                   />
                 </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        <section className="settingsSection" aria-labelledby="settings-mcp">
-          <h3 id="settings-mcp" className="section-title">
-            {t('settings.mcp')}
-          </h3>
-          <div className="settingsRows">
-            <div className="field">
-              <label htmlFor="set-mcp">{t('settings.mcp.enabled')}</label>
-              <input
-                id="set-mcp"
-                type="checkbox"
-                checked={settings.mcp.enabled}
-                onChange={(e) =>
-                  void setSetting('mcp', { ...settings.mcp, enabled: e.target.checked })
-                }
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="set-mcp-port">{t('settings.mcp.port')}</label>
-              <div className="ctl mcpStatus">
-                <input
-                  id="set-mcp-port"
-                  type="number"
-                  min={1024}
-                  max={65535}
-                  value={mcpPort}
-                  onChange={(e) => setMcpPort(e.target.value)}
-                  onBlur={commitMcpPort}
-                />
-                <span className={mcp.error ? 'error' : ''}>
-                  {mcp.error ?? (mcp.running ? mcp.url : 'off')}
-                </span>
               </div>
-            </div>
+            </section>
           </div>
-        </section>
+        )}
 
-        <section className="settingsSection" aria-labelledby="settings-update">
-          <h3 id="settings-update" className="section-title">
-            {t('settings.update')}
-          </h3>
-          <div className="settingsRows">
-            <div className="field">
-              <label htmlFor="set-autoupdate">{t('settings.autoCheckUpdates')}</label>
-              <input
-                id="set-autoupdate"
-                type="checkbox"
-                checked={settings.autoCheckUpdates}
-                onChange={(e) => void setSetting('autoCheckUpdates', e.target.checked)}
-              />
-            </div>
+        {tab === 'network' && (
+          <div
+            id="settings-panel-network"
+            role="tabpanel"
+            aria-labelledby="settings-tab-network"
+            className="settingsPanel"
+          >
+            <section className="settingsSection" aria-labelledby="settings-proxy">
+              <h3 id="settings-proxy" className="section-title">
+                {t('settings.proxy')}
+              </h3>
+              <div className="settingsRows">
+                <div className="field">
+                  <span id="set-proxy">{t('settings.proxy')}</span>
+                  {seg<ProxySettings['mode']>(
+                    'set-proxy',
+                    proxy.mode,
+                    [
+                      ['system', t('settings.proxy.system')],
+                      ['none', t('settings.proxy.none')],
+                      ['manual', t('settings.proxy.manual')]
+                    ],
+                    (mode) => {
+                      const next = { ...proxy, mode }
+                      setProxy(next)
+                      // "Manual" with no address is an editable draft, not a request to silently
+                      // use the system proxy. Commit after the address is valid.
+                      if (mode !== 'manual' || next.url.trim()) commitProxy(next)
+                    }
+                  )}
+                </div>
+                {proxy.mode === 'manual' && (
+                  <>
+                    <div className="field">
+                      <label htmlFor="set-proxy-url">{t('settings.proxy.url')}</label>
+                      <div className="fieldControl">
+                        <input
+                          id="set-proxy-url"
+                          type="text"
+                          placeholder="http://127.0.0.1:7890"
+                          value={proxy.url}
+                          onChange={(e) => setProxy({ ...proxy, url: e.target.value })}
+                          onBlur={() => {
+                            const next = { ...proxy, url: proxy.url.trim() }
+                            if (next.url) commitProxy(next)
+                            else {
+                              setProxy(settings.proxy)
+                              useApp.getState().showToast(t('settings.proxy.urlRequired'))
+                            }
+                          }}
+                          required
+                          aria-invalid={!proxy.url.trim()}
+                          aria-describedby="set-proxy-url-error"
+                        />
+                        {!proxy.url.trim() && (
+                          <span id="set-proxy-url-error" className="fieldValidation" role="alert">
+                            {t('settings.proxy.urlRequired')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="set-proxy-bypass">{t('settings.proxy.bypass')}</label>
+                      <input
+                        id="set-proxy-bypass"
+                        type="text"
+                        value={proxy.bypass}
+                        onChange={(e) => setProxy({ ...proxy, bypass: e.target.value })}
+                        onBlur={() => commitProxy(proxy)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
           </div>
-        </section>
+        )}
 
-        <section className="settingsSection" aria-labelledby="settings-location">
-          <div className="settingsSectionHead">
-            <h3 id="settings-location" className="section-title">
-              {t('settings.location')}
-            </h3>
-            <p>{t('settings.location.hint')}</p>
+        {tab === 'debug' && (
+          <div
+            id="settings-panel-debug"
+            role="tabpanel"
+            aria-labelledby="settings-tab-debug"
+            className="settingsPanel"
+          >
+            <section className="settingsSection" aria-labelledby="settings-location">
+              <div className="settingsSectionHead">
+                <h3 id="settings-location" className="section-title">
+                  {t('settings.location')}
+                </h3>
+                <p>{t('settings.location.hint')}</p>
+              </div>
+              <div className="settingsRows">
+                <div className="field locationField">
+                  <label htmlFor="set-location-lat">{t('settings.lat')}</label>
+                  <input
+                    id="set-location-lat"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder={t('settings.latPlaceholder')}
+                    step="any"
+                    value={lat}
+                    onChange={(e) => setLat(e.target.value)}
+                    onBlur={commitLocation}
+                  />
+                </div>
+                <div className="field locationField">
+                  <label htmlFor="set-location-lng">{t('settings.lng')}</label>
+                  <input
+                    id="set-location-lng"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder={t('settings.lngPlaceholder')}
+                    step="any"
+                    value={lng}
+                    onChange={(e) => setLng(e.target.value)}
+                    onBlur={commitLocation}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="settingsSection" aria-labelledby="settings-mocks">
+              <div className="settingsSectionHead">
+                <h3 id="settings-mocks" className="section-title">
+                  {t('settings.mocks')}
+                </h3>
+                <p>{t('settings.mocks.hint')}</p>
+              </div>
+              <div className="settingsRows">
+                <div className="field fieldColumn">
+                  <label htmlFor="set-mock-rules">{t('settings.mocks.rules')}</label>
+                  <textarea
+                    id="set-mock-rules"
+                    className="mockRulesEditor"
+                    spellCheck={false}
+                    value={mockDraft ?? JSON.stringify(settings.mockRules, null, 2)}
+                    onChange={(e) => setMockDraft(e.target.value)}
+                    onBlur={commitMocks}
+                    rows={10}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="settingsSection" aria-labelledby="settings-debug">
+              <div className="settingsSectionHead">
+                <h3 id="settings-debug" className="section-title">
+                  {t('settings.debug')}
+                </h3>
+                <p>{t('settings.remoteDebug.hint')}</p>
+              </div>
+              <div className="settingsRows">
+                <div className="field">
+                  <label htmlFor="set-guest-identity" title={t('settings.guestIdentity.hint')}>
+                    {t('settings.guestIdentity')}
+                  </label>
+                  <input
+                    id="set-guest-identity"
+                    type="checkbox"
+                    checked={settings.guestDebugIdentity}
+                    onChange={(e) => void setSetting('guestDebugIdentity', e.target.checked)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="set-remote-debug">{t('settings.remoteDebug')}</label>
+                  <div className="ctl">
+                    <input
+                      id="set-remote-debug"
+                      type="checkbox"
+                      checked={settings.remoteDebugging}
+                      onChange={(e) => void setSetting('remoteDebugging', e.target.checked)}
+                    />
+                    <span
+                      className={
+                        info?.remoteDebugging.setting === info?.remoteDebugging.active
+                          ? ''
+                          : 'error'
+                      }
+                    >
+                      {info
+                        ? info.remoteDebugging.active
+                          ? `127.0.0.1:${info.remoteDebugging.port}`
+                          : t('settings.remoteDebug.restart')
+                        : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
-          <div className="settingsRows">
-            <div className="field locationField">
-              <label htmlFor="set-location-lat">{t('settings.lat')}</label>
-              <input
-                id="set-location-lat"
-                type="number"
-                inputMode="decimal"
-                placeholder={t('settings.latPlaceholder')}
-                step="any"
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                onBlur={commitLocation}
-              />
-            </div>
-            <div className="field locationField">
-              <label htmlFor="set-location-lng">{t('settings.lng')}</label>
-              <input
-                id="set-location-lng"
-                type="number"
-                inputMode="decimal"
-                placeholder={t('settings.lngPlaceholder')}
-                step="any"
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                onBlur={commitLocation}
-              />
-            </div>
+        )}
+
+        {tab === 'app' && (
+          <div
+            id="settings-panel-app"
+            role="tabpanel"
+            aria-labelledby="settings-tab-app"
+            className="settingsPanel"
+          >
+            <section className="settingsSection" aria-labelledby="settings-mcp">
+              <h3 id="settings-mcp" className="section-title">
+                {t('settings.mcp')}
+              </h3>
+              <div className="settingsRows">
+                <div className="field">
+                  <label htmlFor="set-mcp">{t('settings.mcp.enabled')}</label>
+                  <input
+                    id="set-mcp"
+                    type="checkbox"
+                    checked={settings.mcp.enabled}
+                    onChange={(e) =>
+                      void setSetting('mcp', { ...settings.mcp, enabled: e.target.checked })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="set-mcp-port">{t('settings.mcp.port')}</label>
+                  <div className="ctl mcpStatus">
+                    <input
+                      id="set-mcp-port"
+                      type="number"
+                      min={1024}
+                      max={65535}
+                      value={mcpPort}
+                      onChange={(e) => setMcpPort(e.target.value)}
+                      onBlur={commitMcpPort}
+                    />
+                    <span className={mcp.error ? 'error' : ''}>
+                      {mcp.error ?? (mcp.running ? mcp.url : 'off')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
-        </section>
+        )}
       </div>
     </Modal>
   )

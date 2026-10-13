@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { SIMULATOR_COLUMN_MAX_W, SIMULATOR_COLUMN_MIN_W } from '@shared/ide-split'
+import { parseMockRules } from '@shared/mock-rules'
 import { DEFAULT_SETTINGS, MAX_URL_HISTORY, MAX_URL_LENGTH, type Settings } from '@shared/settings'
 
 export const ThemeModeSchema = z.enum(['system', 'light', 'dark'])
@@ -41,6 +42,13 @@ export const SettingsSchema: z.ZodType<Settings, unknown> = z.object({
   autoCheckUpdates: z.boolean().default(d.autoCheckUpdates),
   skippedUpdateVersion: z.string().nullable().default(null),
   mockLocation: z.object({ latitude: z.number(), longitude: z.number() }).nullable().default(null),
+  /** Malformed rules are dropped entry-by-entry via the tolerant normaliser. */
+  mockRules: z
+    .array(z.unknown())
+    .default([])
+    .transform((v) => parseMockRules(v)),
+  guestDebugIdentity: z.boolean().default(d.guestDebugIdentity),
+  remoteDebugging: z.boolean().default(d.remoteDebugging),
   pcViewport: z
     .object({
       width: z.number().int().min(320).max(2560),

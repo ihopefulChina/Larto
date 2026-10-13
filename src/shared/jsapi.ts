@@ -1,7 +1,7 @@
 /**
  * JSAPI bridge protocol between the guest preload (injected into the H5
  * <webview>), the shell renderer (simulator UI) and the main process
- * (network/system capabilities). See docs/RESEARCH_OFFICIAL_TOOL.md §5.
+ * (network/system capabilities). See official tool reference §5.
  *
  *   H5 page (official JSSDK)
  *     └─ window.WebViewJavascriptBridge / __LarkPCSDK__ / LkWebViewJavascriptBridge   (main world, installed by preload)
@@ -9,6 +9,8 @@
  *                                        ◀── webview.send(JSAPI_CHANNEL, HostToGuest) ───────────┘
  *                                                                shell renderer ── ipc 'jsapi:backend' ──▶ main
  */
+import type { MockRule } from './mock-rules'
+
 export const JSAPI_CHANNEL = 'larto:jsapi'
 
 /** How an invocation reached the preload; determines the callback style. */
@@ -43,6 +45,12 @@ export interface JsapiResult {
   /** Payload merged into the callback object; `errMsg` is added by the preload. */
   data: Record<string, unknown>
   ok: boolean
+  /**
+   * Official `callbackType: 'continued'` semantics (official tool reference §4.3):
+   * deliver this result through the subscription channel and keep the callback alive so
+   * later `push` messages with the same id keep flowing (geolocation updates, wifi lists…).
+   */
+  continued?: boolean
 }
 
 /** Continued callback for subscriptions (geolocation updates, navigation button clicks…). */
@@ -52,14 +60,24 @@ export interface JsapiPush {
   data: Record<string, unknown>
 }
 
-/** Host → guest events not tied to an invocation (e.g. left/right nav bar taps). */
+/** Host → guest events not tied to an invocation (nav bar taps, session expiry). */
 export interface JsapiHostEvent {
   kind: 'event'
-  name: 'onLeftNavigationBarClick' | 'onRightNavigationBarClick' | 'onMenuItemClick'
+  name:
+    | 'onLeftNavigationBarClick'
+    | 'onRightNavigationBarClick'
+    | 'onMenuItemClick'
+    | 'setSessionExpired'
   data: Record<string, unknown>
 }
 
-export type HostToGuest = JsapiResult | JsapiPush | JsapiHostEvent
+/** Installs/replaces the guest-side mock rule set (official `$syncMockList` sync). */
+export interface JsapiMockSync {
+  kind: 'mocks'
+  rules: MockRule[]
+}
+
+export type HostToGuest = JsapiResult | JsapiPush | JsapiHostEvent | JsapiMockSync
 
 export function okMsg(method: string): string {
   return `${method}:ok`
@@ -113,10 +131,14 @@ export const JSAPI_MAIN_METHODS = new Set<string>([
   'biz.util.getClipboardInfo',
   'getClipboardData',
   'device.connection.getGatewayIP',
+  /** Internal alias of the gateway IP API (official internal channel name). */
+  'getIp',
   'device.geolocation.get',
   'device.geolocation.start',
   'device.geolocation.stop',
   'getLocation',
+  /** Internal alias of getLocation (official internal channel name). */
+  'loadLocation',
   'biz.util.getAppLanguage'
 ])
 
@@ -139,6 +161,10 @@ export const JSAPI_SHELL_METHODS = new Set<string>([
   'biz.navigation.close',
   'biz.navigation.goBack',
   'setNavigationBar',
+  /** Internal navigation channel names (official internal channel layer). */
+  'setNavigationInfo',
+  'navigateBack',
+  'navigateClose',
   'biz.util.openLink',
   'previewImage'
 ])

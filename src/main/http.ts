@@ -39,6 +39,9 @@ export async function requestJson<T = unknown>(
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'User-Agent': `opdev-ide/${app.getVersion()} ${APP_NAME}`,
+    // Official BaseWindow marks every passport/open-api request with the websdk platform
+    // (official tool reference §3); callers may override via opts.headers.
+    'X-Device-Info': 'platform=websdk',
     ...opts.headers
   }
   if (opts.cookie) headers['Cookie'] = opts.cookie

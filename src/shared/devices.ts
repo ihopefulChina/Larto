@@ -1,7 +1,7 @@
 /**
  * Device catalogue for the simulator. Mirrors the official tool's list
  * (`feishu-devtools-core/libs/modules/simulator/common/common.js`, see
- * docs/RESEARCH_OFFICIAL_TOOL.md §3). Dimensions are CSS pixels.
+ * official tool reference §3). Dimensions are CSS pixels.
  */
 export type DevicePlatform = 'ios' | 'android' | 'pc'
 

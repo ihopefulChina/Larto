@@ -66,3 +66,8 @@ export const LARK_OPEN_SCHEMA = 'lark://client/open'
 /** Session partitions. `persist:` keeps cookies on disk like the official tool. */
 export const GUEST_PARTITION = 'persist:h5-guest'
 export const LOGIN_PARTITION_PREFIX = 'login-'
+
+/** Official URL scheme for deep links (`opdev://open?url=…`). */
+export const URL_SCHEME = 'opdev'
+/** Loopback-only CDP remote-debugging port (opt-in; sibling of the MCP port). */
+export const REMOTE_DEBUGGING_PORT = 17332

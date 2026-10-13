@@ -1,10 +1,25 @@
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { isIP } from 'node:net'
-import { app, dialog, session, webContents, type WebContents, type WebPreferences } from 'electron'
+import {
+  app,
+  dialog,
+  session,
+  webContents,
+  type Cookie,
+  type WebContents,
+  type WebPreferences
+} from 'electron'
 import { findDevice, guestViewport, type DeviceSpec } from '@shared/devices'
 import { GUEST_PARTITION } from '@shared/constants'
 import { createLatestWinsQueue } from './cdp-queue'
+import {
+  isPassportApiUrl,
+  passportApiOrigins,
+  passportHosts,
+  rewriteCookieHeader
+} from './guest-passport'
+import { clearNativeResources, installNativeResourceProtocol } from './native-resources'
 import { createLogger } from './logger'
 import { GuestPermissionPolicy } from './permissions'
 import { getMainWindow } from './window'
@@ -63,6 +78,18 @@ class GuestManager extends EventEmitter<GuestEvents> {
   private inspecting = false
   private readonly permissions = new GuestPermissionPolicy()
   private reloadQueue: Promise<void> = Promise.resolve()
+  /**
+   * Current account cookie for guest passport request rewriting (official §3/§4.4). Wired from
+   * index.ts so this module stays independent of AccountService; null while signed out.
+   */
+  private accountCookieProvider: (() => string | null) | null = null
+  /**
+   * Official `debugAccountInfo` equivalent: when enabled, guest passport requests prefer the
+   * guest partition's own page-login session (adopted via the `#mode=debug` hash protocol).
+   */
+  private preferGuestSession: () => boolean = () => false
+  private guestCookieHeader: string | null = null
+  private guestCookieRefreshTimer: NodeJS.Timeout | null = null
   private activeReload: {
     generation: number
     contents: WebContents
@@ -78,6 +105,48 @@ class GuestManager extends EventEmitter<GuestEvents> {
     this.device = findDevice(deviceId)
     this.viewport = guestViewport(this.device)
     this.intendedDevice = this.device
+  }
+
+  /** Wires the account session used by the guest passport header injection. */
+  setAccountCookieProvider(provider: () => string | null): void {
+    this.accountCookieProvider = provider
+  }
+
+  /** Wires the "use the page-login identity" toggle (official debugAccountInfo). */
+  setDebugIdentityOptions(opts: { preferGuestSession: () => boolean }): void {
+    this.preferGuestSession = opts.preferGuestSession
+  }
+
+  /** Latest `session`/`session_list` cookies of the guest partition, as a header string. */
+  private async refreshGuestSessionCookie(): Promise<void> {
+    try {
+      const ses = session.fromPartition(GUEST_PARTITION)
+      const cookies = await ses.cookies.get({})
+      const hosts = passportHosts()
+      const inPassport = (c: Cookie): boolean => {
+        const d = c.domain
+        return !!d && hosts.some((h) => d === h || d === `.${h}` || d.endsWith(h))
+      }
+      const latest = (name: string): string | null => {
+        const best = cookies
+          .filter((c) => c.name === name && inPassport(c) && c.value)
+          .sort((a, b) => (b.expirationDate ?? 0) - (a.expirationDate ?? 0))[0]
+        return best?.value ?? null
+      }
+      const s = latest('session')
+      const l = latest('session_list')
+      this.guestCookieHeader = s && l ? `session=${s}; session_list=${l}` : null
+    } catch (err) {
+      log.warn('could not read guest partition session cookies', err)
+    }
+  }
+
+  private scheduleGuestCookieRefresh(): void {
+    if (this.guestCookieRefreshTimer) return
+    this.guestCookieRefreshTimer = setTimeout(() => {
+      this.guestCookieRefreshTimer = null
+      void this.refreshGuestSessionCookie()
+    }, 200)
   }
   private readonly consoleBuffer: ConsoleEntry[] = []
   private lastUrl = ''
@@ -108,6 +177,52 @@ class GuestManager extends EventEmitter<GuestEvents> {
     })
 
     const guestSession = session.fromPartition(GUEST_PARTITION)
+    installNativeResourceProtocol(guestSession)
+    // Track the guest partition's own passport session (page logins) for the debug identity.
+    void this.refreshGuestSessionCookie()
+    guestSession.cookies.on('changed', (_event, cookie) => {
+      if (/^(session|session_list)$/.test(cookie.name)) this.scheduleGuestCookieRefresh()
+    })
+    // Official guest session hardening (official tool reference §4.4): every Set-Cookie
+    // without a SameSite attribute gains `SameSite=None; Secure` so third-party SSO redirects
+    // inside the H5 page keep their cookies.
+    guestSession.webRequest.onHeadersReceived((details, callback) => {
+      const headers = details.responseHeaders
+      let changed = false
+      if (headers) {
+        for (const key of Object.keys(headers)) {
+          if (key.toLowerCase() !== 'set-cookie') continue
+          const list = headers[key]
+          if (!list) continue
+          headers[key] = list.map((cookie) => {
+            if (/samesite=/i.test(cookie)) return cookie
+            changed = true
+            return `${cookie}; SameSite=None; Secure`
+          })
+        }
+      }
+      callback(changed ? { responseHeaders: headers } : {})
+    })
+    // Passport request rewriting (official §3 BaseWindow / §4.4 guest session): the guest
+    // partition is never signed in, so page-issued requests to the passport endpoints get the
+    // account session spliced into the Cookie header and the websdk device marker.
+    guestSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      const headers = { ...details.requestHeaders }
+      if (isPassportApiUrl(details.url, passportApiOrigins())) {
+        headers['X-Device-Info'] = 'platform=websdk'
+        // Debug identity (official debugAccountInfo): the page-login session wins when enabled.
+        const cookie =
+          (this.preferGuestSession() ? this.guestCookieHeader : null) ??
+          this.accountCookieProvider?.() ??
+          null
+        if (cookie) {
+          const cookieKey =
+            Object.keys(headers).find((k) => k.toLowerCase() === 'cookie') ?? 'Cookie'
+          headers[cookieKey] = rewriteCookieHeader(headers[cookieKey], cookie)
+        }
+      }
+      callback({ requestHeaders: headers })
+    })
     guestSession.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) =>
       this.permissions.check(
         permission,
@@ -669,6 +784,7 @@ class GuestManager extends EventEmitter<GuestEvents> {
     await ses.clearStorageData()
     await ses.clearCodeCaches({})
     this.permissions.clear()
+    clearNativeResources()
     log.info('guest cache cleared')
   }
 

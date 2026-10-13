@@ -52,7 +52,7 @@ export interface AccountEvents {
   change: [state: AccountState]
 }
 
-/** Extra headers passport expects from the IDE (docs/RESEARCH_OFFICIAL_TOOL.md §4.1). */
+/** Extra headers passport expects from the IDE (official tool reference §4.1). */
 function passportHeaders(lang: ResolvedLanguage): Record<string, string> {
   return {
     'X-Api-Version': '1.0.0',
@@ -292,6 +292,29 @@ export class AccountService extends EventEmitter<AccountEvents> {
     return this.state
   }
 
+  /**
+   * Adopts a session captured from the guest partition — the official `#mode=account`
+   * hash protocol (official tool reference §3): a page that completed its own
+   * passport login hands the identity over to the tool.
+   */
+  async adoptSession(secrets: Secrets): Promise<AccountState> {
+    const generation = ++this.accountGeneration
+    const env = this.getEnv()
+    try {
+      const account = await this.loadAccount(env, secrets, true)
+      if (!this.canCommit(generation, secrets)) return this.state
+      this.secrets = secrets
+      this.persist(account, secrets)
+      this.setState({ status: 'signedIn', account })
+      log.info(`adopted guest session (${account.tenantList.length} tenant(s), env=${env})`)
+    } catch (err) {
+      if (!this.canCommit(generation, secrets)) return this.state
+      if (isSessionExpired(err)) return this.markExpired(err)
+      throw err
+    }
+    return this.state
+  }
+
   async switchTenant(tenantUserId: string): Promise<AccountState> {
     if (!this.secrets || this.state.status !== 'signedIn') throw new Error('not signed in')
     const generation = ++this.accountGeneration
@@ -455,7 +478,7 @@ export class AccountService extends EventEmitter<AccountEvents> {
   /**
    * Opens the Feishu passport login page (QR code + password) in a child window using a
    * throw-away session partition, and resolves with the `session`/`session_list` cookies
-   * once passport redirects to the IDE success page (docs/RESEARCH_OFFICIAL_TOOL.md §4).
+   * once passport redirects to the IDE success page (official tool reference §4).
    */
   private openLoginWindow(env: FeishuEnv, lang: ResolvedLanguage): Promise<Secrets> {
     return new Promise<Secrets>((resolve, reject) => {

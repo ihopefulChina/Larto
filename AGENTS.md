@@ -2,7 +2,7 @@
 
 ## 开工前
 
-1. 读 `docs/IMPLEMENTATION_PLAN.md`（目标、边界、阶段与验收标准）、`docs/ARCHITECTURE.md`（模块与数据流）、`docs/progress.md`（最新状态与已知问题）。官方工具的行为依据在 `docs/RESEARCH_OFFICIAL_TOOL.md`。
+1. 读 `docs/IMPLEMENTATION_PLAN.md`（目标、边界、阶段与验收标准）、`docs/ARCHITECTURE.md`（模块与数据流）、`docs/progress.md`（最新状态与已知问题）。官方工具的行为依据以既有研究结论与代码注释（official tool reference）为准。
 2. 只做当前阶段验收标准要求的最小完整改动；不重构无关代码，不提前做后续阶段。
 3. 结束时在 `docs/progress.md` 追加一条：做了什么、跑了哪些验证、结论、遗留。
 

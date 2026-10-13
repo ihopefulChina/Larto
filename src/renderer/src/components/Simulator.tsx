@@ -11,11 +11,13 @@ import {
   guestViewport,
   zoomScale
 } from '@shared/devices'
-import { attachJsapiHost } from '@/jsapi/host'
+import { attachJsapiHost, stopGuestStreams } from '@/jsapi/host'
 import { invoke } from '@/lib/bridge'
 import { afterLayout } from '@/lib/layout'
 import { useApp, useT } from '@/store/app'
 import { simulatorActions, useSimulator } from '@/store/simulator'
+import { guestHashMode } from '@shared/url'
+import { DeviceControls } from './DeviceControls'
 import { JsapiOverlays } from './JsapiOverlays'
 import { NavBar } from './NavBar'
 import { StatusBar } from './StatusBar'
@@ -184,8 +186,27 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
       sim.resetPage()
       sim.patch({ url: e.url, canGoBack: wv.canGoBack() })
     }
-    const onNavigateInPage = (e: Electron.DidNavigateInPageEvent) => sim.patch({ url: e.url })
-    const onTitle = (e: Electron.PageTitleUpdatedEvent) => sim.patch({ title: e.title })
+    const onNavigateInPage = (e: Electron.DidNavigateInPageEvent) => {
+      sim.patch({ url: e.url })
+      // Official page-driven protocol (official tool reference §3): the page can hand
+      // its own passport identity to the tool (`#mode=account`) or request the debug identity
+      // mode (`#mode=debug`).
+      const mode = guestHashMode(e.url)
+      if (mode === 'account')
+        void invoke('account:adoptGuestSession')
+          .then(() => useApp.getState().showToast(t('guest.hashAccountAdopted')))
+          .catch(() => useApp.getState().showToast(t('guest.hashAdoptFailed')))
+      else if (mode === 'debug')
+        void invoke('guest:enableDebugIdentity').then(() =>
+          useApp.getState().showToast(t('guest.hashDebugEnabled'))
+        )
+    }
+    const onTitle = (e: Electron.PageTitleUpdatedEvent) => {
+      sim.patch({ title: e.title })
+      // Official container: document.title changes drive the navigation bar title — last writer
+      // wins on the same channel as biz.navigation.setTitle (official tool reference §4.3).
+      sim.setNavBar({ title: e.title })
+    }
     const onFail = (e: Electron.DidFailLoadEvent) => {
       if (e.isMainFrame && e.errorCode !== -3)
         console.warn(`[guest] load failed ${e.errorCode} ${e.errorDescription} ${e.validatedURL}`)
@@ -206,6 +227,7 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
       disposed = true
       attached = true // stop pending retries
       detachJsapi()
+      stopGuestStreams()
       wv.removeEventListener('did-attach', attachGuest)
       wv.removeEventListener('dom-ready', onDomReady)
       wv.removeEventListener('did-start-loading', onStart)
@@ -424,6 +446,11 @@ export function Simulator({ columnWidth }: { columnWidth?: number }) {
       className="simulatorColumn"
       style={columnWidth === undefined ? { flex: 1 } : { width: columnWidth, flex: 'none' }}
     >
+      {/* Simulator-scoped chrome (official 28px simulator toolbar): device/zoom only act on
+          the guest, so they live next to it instead of the global command bar. */}
+      <div className="simulatorBar">
+        <DeviceControls />
+      </div>
       <div className="simulatorContent">
         <div
           ref={boxRef}

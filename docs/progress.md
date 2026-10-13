@@ -9,7 +9,7 @@
 - 版本号 0.1.8 → 0.2.0（`package.json` 与 `packages/larto-mcp/package.json`，满足 release 工作流的三方一致性校验）。
 - CHANGELOG 新增 0.2.0 条目（新增 8 项 / 变更 6 项 / 已知限制沿用），发布说明将由 `scripts/extract-release-notes.mjs` 自动提取。
 - 官网：26 处版本引用替换为 0.2.0，hero 文案补充 JSAPI Mock 规则引擎。
-- 软件截图：官网截图脚本依赖 GUI Electron，本环境无法运行（已验证），待本机执行 `npm run screenshots` 后补一个 docs 提交。
+- 软件截图：官网 6 张截图已在本机重新生成（应用经 launchd 包装器拉起、脚本驱动 MCP 抓取，2360×1908 @2x、深浅双主题），含 v0.2.0 新布局（模拟器顶部机型/缩放工具条）。
 - 提交全部待发布改动并打 tag `v0.2.0`，由 release 工作流构建三平台产物、生成草稿 Release 并发布，随后 larto-mcp 发 npm。
 
 **验证**

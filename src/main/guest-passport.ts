@@ -28,14 +28,25 @@ const PASSPORT_API_PATHS: readonly string[] = [
   '/authen/v1/confirm_inner'
 ]
 
-/** Passport + open origins of every supported env. */
+/**
+ * Origins whose requests get the account session injected. Covers the passport
+ * host, the accounts host (where the web session actually lives — the OAuth
+ * authorize flow lands there after open.* delegates to it) and the open host.
+ */
 export function passportApiOrigins(): string[] {
-  return Object.values(ENV_ENDPOINTS).flatMap((ep) => [ep.passport, ep.open])
+  return Object.values(ENV_ENDPOINTS).flatMap((ep) => [ep.passport, ep.accounts, ep.open])
 }
 
-/** Hostnames of the passport origins (for cookie-domain matching). */
+/** Hostnames of the passport + accounts origins (for cookie-domain matching). */
 export function passportHosts(): string[] {
-  return [...new Set(Object.values(ENV_ENDPOINTS).map((ep) => new URL(ep.passport).hostname))]
+  return [
+    ...new Set(
+      Object.values(ENV_ENDPOINTS).flatMap((ep) => [
+        new URL(ep.passport).hostname,
+        new URL(ep.accounts).hostname
+      ])
+    )
+  ]
 }
 
 /** True when the URL is one of the passport endpoints the official tool rewrites. */

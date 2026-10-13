@@ -142,6 +142,8 @@ const zhCN = {
   'update.checking.hint': '正在连接更新服务器。',
   'update.available': '新版本的 {app} 已经发布',
   'update.available.hint': '{app} {new} 可供下载，您现在的版本是 {cur}。要现在安装吗？',
+  'update.available.manual.hint':
+    '{app} {new} 已发布，您现在的版本是 {cur}。当前安装方式不支持应用内更新，请下载新版本后手动替换。',
   'update.notAvailable': '你已经是最新版本！',
   'update.notAvailable.hint': '{app} {cur} 是目前最新的版本。',
   'update.unsupported': '此安装包不支持应用内更新',
@@ -321,6 +323,8 @@ const enUS: Record<I18nKey, string> = {
   'update.available': 'A new version of {app} is available',
   'update.available.hint':
     '{app} {new} is now available — you have {cur}. Would you like to install it now?',
+  'update.available.manual.hint':
+    "{app} {new} is out — you have {cur}. This install type can't update itself; download the new version and replace it manually.",
   'update.notAvailable': "You're up to date!",
   'update.notAvailable.hint': '{app} {cur} is currently the newest version available.',
   'update.unsupported': "This build can't update itself",

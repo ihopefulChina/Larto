@@ -17,6 +17,11 @@ export interface EnvEndpoints {
   /** Root domain, e.g. feishu.cn */
   domain: string
   passport: string
+  /**
+   * The accounts host where the web session actually lives and where the
+   * OAuth authorize flow lands after open.* delegates to it.
+   */
+  accounts: string
   open: string
   /** Default page shown in the simulator before the user enters a URL. */
   defaultPage: string
@@ -28,6 +33,7 @@ export const ENV_ENDPOINTS: Record<FeishuEnv, EnvEndpoints> = {
   feishu: {
     domain: 'feishu.cn',
     passport: 'https://passport.feishu.cn',
+    accounts: 'https://accounts.feishu.cn',
     open: 'https://open.feishu.cn',
     defaultPage:
       'https://sf1-cdn-tos.huoshanstatic.com/obj/larkdeveloper/opdev/staticPage/h5_zh_CN.html',
@@ -37,6 +43,7 @@ export const ENV_ENDPOINTS: Record<FeishuEnv, EnvEndpoints> = {
   lark: {
     domain: 'larksuite.com',
     passport: 'https://passport.larksuite.com',
+    accounts: 'https://accounts.larksuite.com',
     open: 'https://open.larksuite.com',
     defaultPage:
       'https://sf1-cdn-tos.huoshanstatic.com/obj/larkdeveloper/opdev/staticPage/h5_lark_en_US.html',

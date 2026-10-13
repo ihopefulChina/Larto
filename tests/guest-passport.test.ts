@@ -17,6 +17,12 @@ describe('isPassportApiUrl', () => {
     expect(isPassportApiUrl(url, ORIGINS)).toBe(true)
   })
 
+  it('matches the authorize hop on the accounts host where the session is checked', () => {
+    const ACCOUNTS = ORIGINS.find((o) => o.includes('accounts.')) ?? 'https://accounts.feishu.cn'
+    const url = `${ACCOUNTS}/open-apis/authen/v1/authorize?client_id=cli_a8fcb11112a89013`
+    expect(isPassportApiUrl(url, ORIGINS)).toBe(true)
+  })
+
   it('matches authen endpoints with and without the /open-apis prefix', () => {
     expect(isPassportApiUrl(`${OPEN}/open-apis/authen/v1/get_auth_info_inner`, ORIGINS)).toBe(true)
     expect(isPassportApiUrl(`${OPEN}/authen/v1/get_auth_info_inner`, ORIGINS)).toBe(true)

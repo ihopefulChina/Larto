@@ -102,6 +102,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
   private offered: UpdateInfoLite | null = null
   private readonly enabled: boolean
   private readonly unsupportedReason: UnsupportedUpdateReason
+  private readonly isPackaged: boolean
 
   constructor(
     private readonly settings: SettingsStore,
@@ -141,6 +142,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
     })
     this.enabled = capability.enabled
     this.unsupportedReason = capability.unsupportedReason ?? 'platform'
+    this.isPackaged = runtime.isPackaged
     if (runtime.isPackaged && !this.enabled) {
       log.info(`automatic updater disabled: ${this.unsupportedReason}`)
     }
@@ -153,7 +155,13 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
         return
       }
       this.offered = lite(info)
-      this.set({ status: 'available', info: this.offered })
+      // A packaged install that cannot update itself still reports the newer version, but the
+      // dialog must route the user to the releases page instead of the in-app download.
+      this.set({
+        status: 'available',
+        info: this.offered,
+        ...(this.enabled ? {} : { manualInstall: this.unsupportedReason })
+      })
     })
     autoUpdater.on('update-not-available', () =>
       this.set({ status: 'notAvailable', currentVersion: app.getVersion() })
@@ -201,12 +209,21 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
       return Promise.resolve(this.state)
     }
     if (!this.enabled) {
-      this.set({
-        status: 'unsupported',
-        currentVersion: app.getVersion(),
-        reason: this.unsupportedReason
-      })
-      return Promise.resolve(this.state)
+      // Manual checks on a packaged-but-unsupported install still ask the feed whether the
+      // running version is current ("你已经是最新版本") — only download/install stay manual.
+      // Silent startup checks answer "unsupported" without touching the network so nothing can
+      // pop up on launch, and dev builds without a test feed have no feed to ask at all.
+      if (opts.manual === false || !this.isPackaged) {
+        this.set({
+          status: 'unsupported',
+          currentVersion: app.getVersion(),
+          reason: this.unsupportedReason
+        })
+        return Promise.resolve(this.state)
+      }
+      // Swap the resting "unsupported" panel for the spinner right away, before the network
+      // round-trip, so the dialog never flashes the old answer while checking.
+      this.set({ status: 'checking' })
     }
     this.manualRequested = manual
     const operation = (async () => {
@@ -227,7 +244,9 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
   }
 
   async download(): Promise<UpdateState> {
-    if (this.state.status !== 'available') return this.state
+    // Unsupported installs offer the releases page instead; never start a download that cannot
+    // be installed (and that macOS would reject as signature-unverifiable for ad-hoc builds).
+    if (!this.enabled || this.state.status !== 'available') return this.state
     const info = this.state.info
     // Move out of `available` synchronously: otherwise a fast second click can still skip or
     // re-check the update before electron-updater emits its first progress event.
@@ -248,7 +267,7 @@ export class UpdaterService extends EventEmitter<UpdaterEvents> {
   }
 
   install(): void {
-    if (this.state.status !== 'downloaded') return
+    if (!this.enabled || this.state.status !== 'downloaded') return
     setImmediate(() => autoUpdater.quitAndInstall(false, true))
   }
 

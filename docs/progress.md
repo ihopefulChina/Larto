@@ -2,6 +2,18 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-13 — larto-mcp@0.2.0 发 npm + 手动更新检查覆盖不可自更新安装
+
+**做了什么**
+
+- `larto-mcp@0.2.0` 已发布到 npm（用户完成 2FA 网页认证后 `npm publish --access public` 成功，registry 可查），v0.2.0 发布流程全部收尾。
+- 不可自更新的安装方式（mac ad-hoc、Windows 便携版、非 AppImage Linux）原本点「检查更新」不联网、直接提示不支持；现在手动检查照常向 feed 比对版本：已是最新显示"你已经是最新版本"，有新版则弹 available 对话框并把「安装更新」换成「前往下载页」（下载后手动替换）。`UpdateState.available` 新增 `manualInstall?` 标记，主进程 `download()`/`install()` 对不可自更新安装为 no-op 双保险；静默启动检查行为不变（不联网、不弹窗）。
+
+**验证**
+
+- prettier / tsc ×3 / vitest 113/113（updater 测试改 2 例语义、新增 3 例）/ build / scripts node --test 全绿。
+- 新对话路径待真机 UAT：mac ad-hoc 安装包点「检查更新」→ 提示前往下载页。
+
 ## 2026-10-13 — v0.2.0 发布
 
 **做了什么**

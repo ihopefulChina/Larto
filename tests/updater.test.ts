@@ -115,14 +115,14 @@ describe('UpdaterService.check', () => {
     expect(macBundlePath('/usr/local/bin/node')).toBeNull()
   })
 
-  it('does not call electron-updater for an ad-hoc macOS package', async () => {
+  it('answers unsupported without the network for a silent check on an ad-hoc macOS package', async () => {
     const settings = { get: () => ({ skippedUpdateVersion: null }), patch: vi.fn() }
     const service = new UpdaterService(settings as never, {
       platform: 'darwin',
       isPackaged: true,
       macDeveloperIdSigned: false
     })
-    const state = await service.check()
+    const state = await service.check({ manual: false })
     expect(updater.checkForUpdates).not.toHaveBeenCalled()
     expect(state).toMatchObject({
       status: 'unsupported',
@@ -131,18 +131,62 @@ describe('UpdaterService.check', () => {
     })
   })
 
-  it('does not call electron-updater for a non-AppImage Linux package', async () => {
+  it('compares versions for a manual check on an ad-hoc macOS package', async () => {
+    const settings = { get: () => ({ skippedUpdateVersion: null }), patch: vi.fn() }
+    const service = new UpdaterService(settings as never, {
+      platform: 'darwin',
+      isPackaged: true,
+      macDeveloperIdSigned: false
+    })
+
+    // Up to date: the manual check still reports "already the latest".
+    updater.checkForUpdates.mockResolvedValueOnce(null)
+    const current = service.check()
+    updater.autoUpdater.emit('update-not-available')
+    await current
+    expect(service.getState()).toMatchObject({ status: 'notAvailable', currentVersion: '1.0.0' })
+
+    // Newer version: reported as available, but flagged so the dialog sends the user to the
+    // releases page instead of the in-app download.
+    updater.checkForUpdates.mockResolvedValueOnce(null)
+    const newer = service.check()
+    updater.autoUpdater.emit('update-available', {
+      version: '2.0.0',
+      releaseDate: '2026-10-13',
+      releaseNotes: 'notes'
+    })
+    await newer
+    expect(service.getState()).toEqual({
+      status: 'available',
+      manualInstall: 'macUnsigned',
+      info: { version: '2.0.0', releaseDate: '2026-10-13', releaseNotes: 'notes' }
+    })
+
+    // Download and install are main-side guarded no-ops for unsupported installs.
+    await service.download()
+    expect(updater.downloadUpdate).not.toHaveBeenCalled()
+    expect(service.getState().status).toBe('available')
+    service.install()
+    expect(updater.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+  })
+
+  it('compares versions for a manual check on a non-AppImage Linux package too', async () => {
     const settings = { get: () => ({ skippedUpdateVersion: null }), patch: vi.fn() }
     const service = new UpdaterService(settings as never, {
       platform: 'linux',
       isPackaged: true
     })
-    const state = await service.check()
-    expect(updater.checkForUpdates).not.toHaveBeenCalled()
-    expect(state).toMatchObject({
-      status: 'unsupported',
-      currentVersion: '1.0.0',
-      reason: 'linuxPackage'
+    updater.checkForUpdates.mockResolvedValueOnce(null)
+    const check = service.check()
+    updater.autoUpdater.emit('update-available', {
+      version: '2.0.0',
+      releaseDate: '2026-10-13',
+      releaseNotes: 'notes'
+    })
+    await check
+    expect(service.getState()).toMatchObject({
+      status: 'available',
+      manualInstall: 'linuxPackage'
     })
   })
 

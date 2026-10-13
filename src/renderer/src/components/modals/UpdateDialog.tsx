@@ -75,22 +75,30 @@ export function UpdateDialog() {
       )
       break
     }
-    case 'available':
+    case 'available': {
+      // Installs that cannot update themselves still get the real check result, but the
+      // download button becomes a link to the releases page (download and replace by hand).
+      const manual = Boolean(update.manualInstall)
       title = msg('update.available', vars())
-      hint = msg('update.available.hint', vars({ new: update.info.version }))
+      hint = msg(
+        manual ? 'update.available.manual.hint' : 'update.available.hint',
+        vars({ new: update.info.version })
+      )
       body = (
         <>
           <ReleaseNotes notes={update.info.releaseNotes} label={t('update.releaseNotes')} />
-          <label className="updateAuto">
-            <input
-              type="checkbox"
-              checked={autoCheck}
-              onChange={(e) =>
-                void useApp.getState().setSetting('autoCheckUpdates', e.target.checked)
-              }
-            />
-            {t('settings.autoCheckUpdates')}
-          </label>
+          {!manual && (
+            <label className="updateAuto">
+              <input
+                type="checkbox"
+                checked={autoCheck}
+                onChange={(e) =>
+                  void useApp.getState().setSetting('autoCheckUpdates', e.target.checked)
+                }
+              />
+              {t('settings.autoCheckUpdates')}
+            </label>
+          )}
         </>
       )
       left = (
@@ -98,7 +106,20 @@ export function UpdateDialog() {
           {t('update.skip')}
         </button>
       )
-      right = (
+      right = manual ? (
+        <>
+          <button className="btn" onClick={close}>
+            {t('update.later')}
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => void invoke('app:openExternal', RELEASES_URL).then(close)}
+            autoFocus
+          >
+            {t('update.openReleases')}
+          </button>
+        </>
+      ) : (
         <>
           <button className="btn" onClick={close}>
             {t('update.later')}
@@ -109,6 +130,7 @@ export function UpdateDialog() {
         </>
       )
       break
+    }
     case 'downloading':
       title = t('update.downloading')
       hint = msg('update.downloading.hint', vars({ new: update.info.version }))

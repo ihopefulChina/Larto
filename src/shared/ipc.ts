@@ -31,7 +31,12 @@ export type UnsupportedUpdateReason =
 export type UpdateState =
   | { status: 'idle' }
   | { status: 'checking' }
-  | { status: 'available'; info: UpdateInfoLite }
+  /**
+   * `manualInstall` is set when the install format cannot update itself in place: the check
+   * still runs (so the user learns whether their version is current), but the dialog must send
+   * them to the releases page to download and replace the app by hand.
+   */
+  | { status: 'available'; info: UpdateInfoLite; manualInstall?: UnsupportedUpdateReason }
   | { status: 'notAvailable'; currentVersion: string }
   | { status: 'unsupported'; currentVersion: string; reason: UnsupportedUpdateReason }
   | {

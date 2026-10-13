@@ -2,6 +2,22 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-13 — 会话 Cookie 全量采纳进模拟器（Chrome parity）
+
+**做了什么**
+
+- 登录窗口成功时捕获 passport 全套 Cookie（设备绑定、csrf、locale 上下文），加密持久化（account.json `extraEnc`，schema v1 容错兼容旧文件）。
+- 模拟器分区在每次账号变化时采纳这套 Cookie（启动恢复、登录、切换租户、`#mode=account` 采纳 → 写入；登出/过期 → 清除）；清缓存后自动重新采纳。
+- 请求头注入升级 `mergeCookieHeader`：分区里已是同值会话则不重写（尊重 passport 轮换出的新 Cookie），不同才走官方剥/注。
+
+**验证**
+
+- vitest 12 用例（guest-passport）+ tsc ×3 + build 全绿；复现环境确认 `adopted 2 account cookies into the guest jar` 且 OAuth 链路无退化。
+
+**结论 / 遗留**
+
+- 旧格式账号（本批改动前登录的）没有设备 Cookie，**重新登录一次**工具账号即可捕获完整上下文（预期消除「请重新授权」的新设备确认，达成与浏览器一致的静默授权）。
+
 ## 2026-10-13 — 修复 H5 应用跳登录页（authorize 会话注入断链）
 
 **做了什么**

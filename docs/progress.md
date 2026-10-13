@@ -2,6 +2,82 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-13 — 弹层点击失效根因实锤与终版修复：移除模拟器列拖拽区
+
+**做了什么**
+
+- 用户现场测试实锤根因：按住历史项拖动，**窗口跟着移动** → `.simulatorColumn` 的 `-webkit-app-region: drag` 把弹层上的 mousedown 吞成窗口拖拽；点击既不进壳也不进 guest（两渲染器监听均无输出），与全部现象闭环。
+- 动态方案（弹层打开时整列置 no-drag）被证伪：用户重启后拖拽依旧 → 本环境下 `-webkit-app-region` 的动态更新不可靠（连首次帧的静态 no-drag 挖洞都丢失）。
+- **终版修复（静态化）**：移除 `.simulatorColumn`、`.statusBar`、`.navigator` 的 drag（均为弹层可能悬停其上的区域，纯静态 CSS 首次布局即定型）。保留 `.toolBar-content` 的拖拽（窗口拖动仍在）与 `.toolBar-title`（pointer-events:none）。popoverShield（webview pointer-events + Modal/UrlBar/Dropdown 接入）保留作纵深防御。
+- 行为变化：模拟器列空白处不再能拖动窗口（工具栏拖动保留）。
+
+**验证**
+
+- prettier / electron-vite build 全绿；`grep app-region: drag` 仅剩工具栏两处。
+- 待用户重启 dev 确认：历史项/缩放菜单点击恢复，清空历史确认框、历史过滤正常。
+
+**结论 / 遗留**
+
+- 若需恢复「拖手机周围空白移动窗口」，需换非 app-region 实现（如自实现拖拽 IPC），另行评估。
+- e2e 仍未跑（沙箱无法启动 GPU Electron），待桌面环境。
+
+## 2026-10-13 — 弹层点击失效根因实锤：模拟器列拖拽区吞 mousedown
+
+**做了什么**
+
+- 用户现场测试（19:26-19:31）：在历史项上**按住拖动，窗口跟着移动** → 实锤 `.simulatorColumn` 的 `-webkit-app-region: drag` 把弹层上的 mousedown 吞成窗口拖拽。事件既不进壳渲染器也不进 guest（用户在页面 DevTools 挂监听无输出），与全部现象闭环（下拉不关闭、无 hover、工具条/模拟器栏正常）。
+- 修复定稿：`data-popover-open`（popoverShield，引用计数）→ `:root[data-popover-open] .simulatorColumn { -webkit-app-region: no-drag }`——弹层打开期间整个模拟器列退出拖拽区，关闭自动恢复；不依赖逐元素 no-drag 挖洞（其在 GPU 合成下不可靠）。附带 webview pointer-events:none 与 Modal 接入保持不变。
+- 未根究：挖洞失效的底层机理（疑 popIn 合成层动画导致拖拽区数据陈旧）；列级开关已绕过。
+
+**验证**
+
+- 用户拖动测试实锤根因；prettier / electron-vite build 全绿。
+- 待用户重启 dev 后点击历史项/缩放菜单项确认恢复（「不能选择历史」「缩放菜单点不动」「清空历史无确认」应一并解决）。
+
+**结论 / 遗留**
+
+- 若恢复，本轮 UrlBar 系列修复全部收口。观察项：弹层关闭后列拖拽是否正常恢复（区域数据回传依赖帧，异常时表现为暂不能拖窗，轻微）。
+
+## 2026-10-13 — 弹层悬在模拟器页面上方时点击/悬停全部失效（OOPIF 命中测试）
+
+**做了什么**
+
+- 用户实测（截图×2）：历史项、缩放菜单项**悬在模拟器页面矩形上方时点击无反应、无 hover**；下拉保持打开（说明渲染器根本没收到 mousedown）。模拟器栏/工具条上的按钮全部正常——**失败点击区域与 webview 矩形 100% 重合**。
+- 排查过程（6 个独立 Electron 最小复现实验，全部通过=未能复现）：拖拽区 no-drag 挖洞、无边框 hiddenInset、popIn 合成层动画、活体 `<webview>` 覆盖、`transform: scale` 容器——均正常。真实应用的差异只剩 **GPU 合成 + 真实 OOPIF guest**。
+- 结论（待用户端确认）：Electron 44 的 `<webview>` 底层是 OOPIF（官方文档明确警告事件路由稳定性），GPU 合成下浏览器进程按几何把指针事件路由进 guest，压过画在它上面的 DOM 弹层。本沙箱 `--disable-gpu`/EGL 初始化失败无法复现 GPU 路径。
+- 修复：新增 `lib/popoverShield.ts`（引用计数）——弹层打开期间给 `<html>` 标 `data-popover-open`，CSS 将 `webview` 置 `pointer-events: none`，把 guest 从嵌入层命中测试数据中摘除。接入 UrlBar 历史下拉、Dropdown（设备/缩放/账号菜单）、Modal（遮罩同样盖在 webview 上）。根因若不在此则该改动无害。
+
+**验证**
+
+- prettier / tsc(web) / vitest 118 / build 全绿。
+- 待用户 UAT：弹层打开后点击菜单项/历史项是否恢复响应；顺带确认清空历史确认框、历史过滤等此前修复。
+
+**结论 / 遗留**
+
+- 若 shield 无效，后续候选：① electron 44.1.1 → 44.5.0 补丁位升级（Chromium 命中测试修复）；② 模拟器 guest 迁移 WebContentsView（官方推荐替代，工程量大）。
+- 本沙箱无法启动真实 GPU Electron（EGL/Vulkan 初始化被限制），e2e 继续留待桌面环境。
+
+## 2026-10-13 — 地址栏历史交互修复（选择/过滤/确认框/失败反馈）
+
+**做了什么**
+
+- 用户反馈「url 输入框 bug 很多：不能选择历史、清空历史没有对话框等」，逐项排查修复：
+  1. **清空历史加确认对话框**：原来点「清空历史」立即无提示清空。新增 `ClearHistoryModal`（Modal + `modal` 状态体系，原生 DevTools 视图在其打开期间自动隐藏），i18n 中英文齐备（`toolbar.clearHistoryConfirm*`）；确认后才调 `settings:clearHistory`，取消/ESC/遮罩关闭不动数据。
+  2. **导航失败静默（被感知为「选了没反应」）**：点击历史项后 `loadURL` 失败（dev server 已关、DNS 失败等）原来被吞掉，地址栏停留在旧 URL 且无任何提示。现在 `navigateTo` 捕获失败并 toast `toolbar.navFailed`（`ERR_ABORTED` 视为被取代/重定向，不误报）。
+  3. **历史列表按输入过滤**：输入时 combobox 过滤（大小写不敏感子串），聚焦未输入仍显示全部；无匹配显示「无匹配结果」（`toolbar.historyNoMatch`），与空历史「暂无记录」区分。
+  4. **chevron 打开即聚焦输入框**：修掉 progress 早前记录的「历史按钮直接按 ArrowDown 无响应」——点箭头打开后键盘（↑↓/Enter）立即可用。
+  5. **点输入框可重新展开下拉**：此前经 chevron 收起后输入框仍持有焦点，再点输入框 `onFocus` 不触发，下拉打不开（体感「点了没反应」）。
+  6. **失焦联动收起**：焦点离开 urlbox（如 Tab）时下拉同步收起；点历史项（mousedown preventDefault 保持焦点）不受影响。
+
+**验证**
+
+- `prettier --check .` / `tsc --noEmit ×3`（web/node/preload）/ `vitest 118/118` / `electron-vite build` 全部通过。
+- 未跑 `pnpm e2e`：本沙箱环境 Electron GUI 启动固有失败（HEAD 上同样失败，见 2026-10-13 全量审查条目），待正常桌面环境 UAT：点历史项导航、清空确认框、输入过滤、chevron 后键盘导航。
+
+**结论 / 遗留**
+
+- 上列 6 项已修；「无效 URL（可达性未知）仍会写入历史」维持现状（需等导航结果再决定写入，涉及 MCP navigate 时序，另行处理）。
+
 ## 2026-10-13 — 会话 Cookie 全量采纳进模拟器（Chrome parity）
 
 **做了什么**
@@ -34,6 +110,18 @@
 
 - 同意页需用户点一次「授权」（安全边界，官方行为一致）；飞书记住授权后后续访问静默通过。
 - 官方 DMG 已删，路径表无法逐字核对，修复为行为驱动的超集。
+
+## 2026-10-13 — DevTools 面板在 macOS zoom/全屏后错位修复
+
+**做了什么**
+
+- 用户反馈：双击标题栏 zoom 后 DevTools 原生视图被「拉升」（盖住命令栏），拖动窗口边框恢复。根因：macOS zoom/全屏是动画过渡，动画期间落在 AppKit 快照里的 `WebContentsView.setBounds` 会留下缩放/偏移的显示帧，存储 frame 正确但显示错误；渲染进程已上报最终 bounds，同值短路导致无法自愈。
+- 修复（`src/main/devtools-dock.ts`）：记录渲染进程最后上报的可见矩形；监听 `maximize`/`unmaximize`/`enter-full-screen`/`leave-full-screen`（只有动画过渡会触发，普通拖动不碰），过渡结束后 500ms 强制重贴最终矩形（1px 抖动 + 复位，绕过同值短路逼 AppKit 重排）；`closeNow` 解绑并清理。
+
+**验证**
+
+- prettier / tsc(node) / vitest 118/118 / build 全绿。
+- 待 UAT：真机双击标题栏 zoom、绿色按钮全屏，确认 DevTools 不再错位、普通拖动窗口无视觉抖动。
 
 ## 2026-10-13 — larto-mcp@0.2.0 发 npm + 手动更新检查覆盖不可自更新安装
 

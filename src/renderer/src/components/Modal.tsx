@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useApp, useT } from '@/store/app'
+import { popoverShield } from '@/lib/popoverShield'
 import { CloseIcon } from './icons'
 
 interface ModalProps {
@@ -36,6 +37,12 @@ export function Modal({
     if (onCloseRef.current) onCloseRef.current()
     else useApp.getState().openModal(null)
   }
+
+  useEffect(() => {
+    // The mask covers the guest surface; shield it for the dialog's lifetime (see popoverShield).
+    popoverShield(true)
+    return () => popoverShield(false)
+  }, [])
 
   useEffect(() => {
     const root = dialogRef.current

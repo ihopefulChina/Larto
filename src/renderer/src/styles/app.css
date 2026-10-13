@@ -633,7 +633,10 @@ input {
   flex-direction: column;
   min-width: 410px;
   background: var(--bg-window);
-  -webkit-app-region: drag;
+  /* Deliberately NOT a -webkit-app-region: drag region. Carve-outs for popovers hanging over
+     the column (.history/.menu) silently fail to reach the browser process under GPU
+     compositing, so mousedown on menu items started window drags (window moved, no click,
+     no hover). Window dragging stays on the toolbar row. */
 }
 .simulatorChrome {
   display: flex;
@@ -850,7 +853,8 @@ body.pc-resizing * {
   font-weight: 600;
   letter-spacing: -0.02em;
   background: var(--sim-bg);
-  -webkit-app-region: drag;
+  /* Not a drag region: popovers from the toolbar can hang over the phone chrome, and a drag
+     region here would swallow their clicks (same reason .simulatorColumn is not one). */
 }
 .statusBar.notch {
   height: var(--status-h, 47px);
@@ -907,7 +911,7 @@ body.pc-resizing * {
   border-bottom: 1px solid var(--sim-border);
   background: var(--sim-bg);
   font-size: 15px;
-  -webkit-app-region: drag;
+  /* Not a drag region — see .statusBar above. */
 }
 .navigator .side {
   display: flex;
@@ -972,6 +976,11 @@ body.pc-resizing * {
   width: 100%;
   height: 100%;
   background-color: #fff;
+}
+/* While a shell popover is open the OOPIF guest must not outrank DOM painted above it
+   (menu items over the page otherwise stop receiving hover/clicks). See lib/popoverShield.ts. */
+:root[data-popover-open] webview {
+  pointer-events: none;
 }
 .guestAttachError {
   position: absolute;
@@ -1284,6 +1293,12 @@ body.ide-resizing * {
   padding: 12px 18px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
+}
+.confirmText {
+  margin: 0;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.6;
 }
 .btn {
   height: 30px;

@@ -8,6 +8,7 @@ import { IdePanel } from './components/IdePanel'
 import { Toolbar } from './components/Toolbar'
 import { navigateTo } from './components/UrlBar'
 import { AboutModal } from './components/modals/AboutModal'
+import { ClearHistoryModal } from './components/modals/ClearHistoryModal'
 import { PreviewModal } from './components/modals/PreviewModal'
 import { SettingsModal } from './components/modals/SettingsModal'
 import { UpdateDialog } from './components/modals/UpdateDialog'
@@ -102,6 +103,7 @@ export function App() {
       {modal === 'about' && <AboutModal />}
       {modal === 'update' && <UpdateDialog />}
       {modal === 'consent' && consent && <ConsentModal key={consent.id} />}
+      {modal === 'clearHistory' && <ClearHistoryModal />}
     </div>
   )
 }

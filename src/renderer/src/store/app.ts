@@ -12,7 +12,8 @@ import {
 } from '@shared/settings'
 import { invoke, on } from '@/lib/bridge'
 
-export type ModalId = 'preview' | 'settings' | 'about' | 'update' | 'consent' | null
+export type ModalId =
+  'preview' | 'settings' | 'about' | 'update' | 'consent' | 'clearHistory' | null
 
 interface AppState {
   ready: boolean

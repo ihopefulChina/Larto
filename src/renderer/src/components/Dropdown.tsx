@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { popoverShield } from '@/lib/popoverShield'
 import { useCoversDevTools } from '@/store/app'
 
 interface DropdownProps {
@@ -31,6 +32,8 @@ export function Dropdown({
 
   useEffect(() => {
     if (!open) return
+    // While the menu is open the guest surface must not swallow the pointer (see popoverShield).
+    popoverShield(true)
     const items = () => [
       ...(menuRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
     ]
@@ -58,6 +61,7 @@ export function Dropdown({
     window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
+      popoverShield(false)
       window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }

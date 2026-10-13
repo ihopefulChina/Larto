@@ -35,6 +35,11 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
   private reopenGeneration = 0
   private reopenTarget: WebContents | null = null
   private readonly reopenTimers = new Set<ReturnType<typeof setTimeout>>()
+  /** Window the current view is attached to (for the zoom-transition re-attach hooks). */
+  private ownerWin: BrowserWindow | null = null
+  /** Last visible rect the renderer reported; the anchor for the post-zoom nudge. */
+  private lastRect: Rect | null = null
+  private nudgeTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
     super()
@@ -151,6 +156,7 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
     })
     view.setBackgroundColor('#00000000')
     win.contentView.addChildView(view)
+    this.watchWindowTransition(win)
     view.setBounds(roundRect(bounds))
     guest.setDevToolsWebContents(view.webContents)
     guest.openDevTools({ mode: 'detach', activate: false })
@@ -202,6 +208,7 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
     if (this.view.getVisible() !== visible) this.view.setVisible(visible)
     if (!visible) return
     const next = roundRect(bounds)
+    this.lastRect = next
     const cur = this.view.getBounds()
     if (
       cur.x !== next.x ||
@@ -210,6 +217,61 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
       cur.height !== next.height
     )
       this.view.setBounds(next)
+  }
+
+  /**
+   * macOS zoom (double-click title bar) and native fullscreen animate the window frame while
+   * the renderer keeps reporting placeholder bounds; `setBounds` calls that land inside the
+   * animation can leave the child view with a scaled or offset *displayed* frame even though
+   * the stored frame is correct. The user sees the panel shifted over the toolbar until the
+   * next real bounds change. These events fire only for animated transitions — never for plain
+   * resize drags — so a one-shot corrective nudge after the transition cannot disturb them.
+   */
+  private watchWindowTransition(win: BrowserWindow): void {
+    if (this.ownerWin === win) return
+    this.ownerWin = win
+    win.on('maximize', this.onWindowTransition)
+    win.on('unmaximize', this.onWindowTransition)
+    win.on('enter-full-screen', this.onWindowTransition)
+    win.on('leave-full-screen', this.onWindowTransition)
+  }
+
+  private unwatchWindowTransition(): void {
+    const win = this.ownerWin
+    if (this.nudgeTimer) {
+      clearTimeout(this.nudgeTimer)
+      this.nudgeTimer = null
+    }
+    if (!win || win.isDestroyed()) {
+      this.ownerWin = null
+      return
+    }
+    win.off('maximize', this.onWindowTransition)
+    win.off('unmaximize', this.onWindowTransition)
+    win.off('enter-full-screen', this.onWindowTransition)
+    win.off('leave-full-screen', this.onWindowTransition)
+    this.ownerWin = null
+  }
+
+  private onWindowTransition = (): void => {
+    if (this.nudgeTimer) clearTimeout(this.nudgeTimer)
+    // Zoom and fullscreen animations run ~300-400ms; wait them out, then force re-layout.
+    this.nudgeTimer = setTimeout(() => {
+      this.nudgeTimer = null
+      this.nudge()
+    }, 500)
+  }
+
+  /** Force two real frame changes (bypassing the same-rect short circuit) after a transition. */
+  private nudge(): void {
+    const view = this.view
+    const rect = this.lastRect
+    if (!view || view.webContents.isDestroyed() || !view.getVisible() || !rect) return
+    const next = roundRect(rect)
+    view.setBounds({ ...next, width: next.width + 1 })
+    setTimeout(() => {
+      if (this.view === view && !view.webContents.isDestroyed()) view.setBounds(next)
+    }, 20)
   }
 
   close(): void {
@@ -222,6 +284,8 @@ export class DevToolsDock extends EventEmitter<DevToolsDockEvents> {
     const target = this.target
     this.view = null
     this.target = null
+    this.lastRect = null
+    this.unwatchWindowTransition()
     this.detachGuest?.()
     this.detachGuest = null
     this.setInspecting(false)

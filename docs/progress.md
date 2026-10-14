@@ -2,6 +2,59 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-10-14 — larto-mcp@0.2.1 npm 补发完成
+
+**做了什么**
+
+- 用户本地 `npm login`（前一日 publish 404 的根因是本地登录态失效，whoami 401）+ OTP 手动发布 `larto-mcp@0.2.1`，registry 确认 latest=0.2.1。
+- v0.2.1 发布链路全部对齐：GitHub Release / 官网 / 本机 App / 本机全局 CLI / npm。
+
+**验证**
+
+- `npm view larto-mcp version` = 0.2.1（latest）；/Applications/Larto.app = 0.2.1。
+
+**结论 / 遗留**
+
+- CI publish-mcp 的 Trusted Publishing 仍未匹配（ENEEDAUTH）：需逐字核对 npm 后台 Trusted Publisher 的 repo/workflow filename/environment 与 release.yml（job 无 environment 声明）；配好后重跑 failed job 即全自动。未配前每次发版手动补发。
+- 待用户确认 0.2.1 App 内弹层点击修复效果。
+
+## 2026-10-13 — v0.2.1 发布完成 + 本机更新
+
+**做了什么**
+
+- GitHub Release v0.2.1 已正式发布（CI 全绿：三平台构建+冒烟+SHA256SUMS+attestations；20 个资产，Latest）。**publish-mcp 仍因 npm ENEEDAUTH 失败**（Trusted Publishing 未配置，与 0.2.0 相同），larto-mcp@0.2.1 待用户 OTP 手动补发。
+- 本机更新：/Applications/Larto.app 0.2.0 → **0.2.1**（下载 CI 官方 arm64 zip，SHA-256 与 SHA256SUMS 比对一致，ditto 安装，旧版移入废纸篓）；全局 larto-mcp 0.1.6 → **0.2.1**（从本地包安装）。App 已启动。
+- 本地 electron-builder 打包在 WorkBuddy CLI 的文件代理 shim 下不可行（mkdir ~/Library/Caches、/tmp、隐藏目录均被拦，HOME 重定向无效），改用 CI 产物。
+
+**验证**
+
+- 产物校验：Larto-0.2.1-mac-arm64.zip sha256 与 release SHA256SUMS.txt 一致（21393ba…）。
+- 安装后 Info.plist CFBundleShortVersionString = 0.2.1；`open -a Larto` 启动成功。
+- 待用户在新 App 里确认弹层点击修复生效。
+
+**结论 / 遗留**
+
+- larto-mcp@0.2.1 npm 补发（用户 OTP）；或配置 npm Trusted Publishing 后重跑 publish-mcp job。
+- 官网 script.js 的 SITE_VERSION 已随本次更新到 0.2.1（此前 0.2.0 发布时漏改，注意后续发布清单加入此项）。
+
+## 2026-10-13 — 发布 v0.2.1
+
+**做了什么**
+
+- 版本号 0.2.1（package.json + larto-mcp）；CHANGELOG 增加 0.2.1 条目（弹层点击修复、地址栏历史交互、authorize accounts 域修复、guest jar Cookie 采纳）。
+- 官网同步：index.html 全部 0.2.0 → 0.2.1（26 处，含下载链接与 mcp 安装命令）；script.js `SITE_VERSION` 0.1.8 → 0.2.1（0.2.0 发布时漏改，已补）。
+- 提交 `92d54a0`（弹层/地址栏修复）+ `53088cd`（chore: release Larto 0.2.1），tag `v0.2.1` 已推送，Release 工作流自动触发（run 38392050540）。
+
+**验证**
+
+- 本地：prettier / tsc ×3 / vitest 118 / build 全绿；e2e 沙箱无法运行，由 CI 三平台冒烟替代。
+- CI：v0.2.0 的 run 除 `publish-mcp`（npm ENEEDAUTH，Trusted Publishing 未配置）外全绿且 Release 已发布；v0.2.1 的 npm 发布预计同样失败，需在 npm 包设置配置 Trusted Publishing 或手动 `npm publish`。
+
+**结论 / 遗留**
+
+- larto-mcp@0.2.1 的 npm 发布待处理（ENEEDAUTH）。
+- 模拟器列空白处拖动窗口的能力随拖拽区移除而取消（工具栏可拖）；如需恢复走自研 IPC 拖拽。
+
 ## 2026-10-13 — 弹层点击失效根因实锤与终版修复：移除模拟器列拖拽区
 
 **做了什么**

@@ -36,20 +36,21 @@ Larto 专注复现官方开发者工具的「网页调试」工作流：在同�
 | Chromium DevTools | Elements、Console、Sources、Network、Application 等面板停靠在主窗口右侧；支持直接选择模拟器中的元素 |
 | 飞书登录 | passport 扫码登录、多租户切换；受保护后端可用时通过 Electron `safeStorage` 持久化，否则仅在当前进程保留 |
 | JSAPI | `tt.config`、`requestAuthCode`、`requestAccess` 请求真实开放平台；剪贴板、定位、Toast、Modal、ActionSheet、Preloader、导航栏、链接与图片预览等本机模拟能力 |
+| Mock 规则 | 设置 → 调试里用 JSON 编写 `apiName + paramRules + response`；命中后由模拟器本地返回，不走真实桥 |
 | 真机预览 | 生成 `lark://client/web?isDev=1&url=…` 二维码或推送本机飞书；`localhost` 自动转换为局域网地址 |
-| 日常工具 | 地址历史、清缓存、深色 / 浅色 / 跟随系统、中英文、GitHub Releases 更新检查 |
+| 日常工具 | 地址历史（可过滤，清空需确认）、清缓存、深色 / 浅色 / 跟随系统、中英文、GitHub Releases 更新检查 |
 | MCP | 18 个工具，覆盖导航、设备、缩放、主题、截图、DOM、脚本、控制台与 JSAPI 调用记录 |
 
-## 下载 0.1.8
+## 下载 0.2.1
 
 所有安装包由 GitHub Release 工作流按原生平台构建，文件名明确包含系统与架构。下载后建议先核对同一 Release 中的 `SHA256SUMS.txt`。
 
 | 平台 | 架构 | 包格式 | 文件名 |
 | --- | --- | --- | --- |
-| macOS 13+ | Apple Silicon / arm64 | DMG、ZIP | `Larto-0.1.8-mac-arm64.{dmg,zip}` |
-| macOS 13+ | Intel / x64 | DMG、ZIP | `Larto-0.1.8-mac-x64.{dmg,zip}` |
-| Windows 10/11 | x64 | NSIS 安装版、便携版、ZIP | `Larto-0.1.8-windows-x64-setup.exe`、`…-portable.exe`、`…-x64.zip` |
-| Linux | x64 | AppImage、DEB、RPM、tar.gz | `Larto-0.1.8-linux-x64.{AppImage,deb,rpm,tar.gz}` |
+| macOS 13+ | Apple Silicon / arm64 | DMG、ZIP | `Larto-0.2.1-mac-arm64.{dmg,zip}` |
+| macOS 13+ | Intel / x64 | DMG、ZIP | `Larto-0.2.1-mac-x64.{dmg,zip}` |
+| Windows 10/11 | x64 | NSIS 安装版、便携版、ZIP | `Larto-0.2.1-windows-x64-setup.exe`、`…-portable.exe`、`…-x64.zip` |
+| Linux | x64 | AppImage、DEB、RPM、tar.gz | `Larto-0.2.1-linux-x64.{AppImage,deb,rpm,tar.gz}` |
 
 ### macOS
 
@@ -69,11 +70,11 @@ xattr -dr com.apple.quarantine /Applications/Larto.app
 - `windows-x64-portable.exe`：无需安装，适合临时使用。
 - `windows-x64.zip`：手动解压版本。
 
-0.1.8 尚未配置 Windows 代码签名，SmartScreen 可能提示未知发布者。请只从本项目 GitHub Releases 下载并先核对 SHA-256；确认无误后再选择「更多信息 → 仍要运行」。
+0.2.1 尚未配置 Windows 代码签名，SmartScreen 可能提示未知发布者。请只从本项目 GitHub Releases 下载并先核对 SHA-256；确认无误后再选择「更多信息 → 仍要运行」。
 
 ### Linux
 
-- AppImage：`chmod +x Larto-0.1.8-linux-x64.AppImage` 后运行。它不会回退到无沙箱模式：打包检查会拒绝带 `--no-sandbox` 的桌面入口，应用检测到该参数、Electron 实际开关或 `ELECTRON_DISABLE_SANDBOX` 环境变量也会直接退出。若系统无法提供 Chromium 沙箱，请修复 user namespace 支持或改用其它包格式，不要绕过该保护。
+- AppImage：`chmod +x Larto-0.2.1-linux-x64.AppImage` 后运行。它不会回退到无沙箱模式：打包检查会拒绝带 `--no-sandbox` 的桌面入口，应用检测到该参数、Electron 实际开关或 `ELECTRON_DISABLE_SANDBOX` 环境变量也会直接退出。若系统无法提供 Chromium 沙箱，请修复 user namespace 支持或改用其它包格式，不要绕过该保护。
 - Debian / Ubuntu 系使用 `.deb`，Fedora / RHEL 系使用 `.rpm`；其它发行版可选 `.tar.gz`。
 - 登录会话使用 Electron `safeStorage`。建议桌面环境安装并解锁兼容 Secret Service 的密钥环；后端为 `basic_text`、`unknown` 或没有可用的受保护 keyring 时，应用拒绝持久化新的登录 Cookie：凭证不写入磁盘，只在当前应用进程内有效，退出后需要重新登录。
 
@@ -82,14 +83,14 @@ xattr -dr com.apple.quarantine /Applications/Larto.app
 macOS / Linux：
 
 ```bash
-shasum -a 256 ./Larto-0.1.8-mac-arm64.dmg
-# Linux 示例：sha256sum ./Larto-0.1.8-linux-x64.AppImage
+shasum -a 256 ./Larto-0.2.1-mac-arm64.dmg
+# Linux 示例：sha256sum ./Larto-0.2.1-linux-x64.AppImage
 ```
 
 Windows PowerShell：
 
 ```powershell
-Get-FileHash .\Larto-0.1.8-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Larto-0.2.1-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 将输出与 `SHA256SUMS.txt` 中**同名文件**的哈希比对。清单覆盖全部平台，只下载一个安装包时不要直接对整份清单运行 `-c`，否则其它未下载文件会被报告为缺失。
@@ -113,17 +114,17 @@ Get-FileHash .\Larto-0.1.8-windows-x64-setup.exe -Algorithm SHA256
 需要 stdio、调用工具时按需启动应用或一键写入客户端配置时，使用 npm 包：
 
 ```bash
-npx --yes larto-mcp@0.1.8 install cursor
-npx --yes larto-mcp@0.1.8 install claude-code
-npx --yes larto-mcp@0.1.8 install claude-desktop
-npx --yes larto-mcp@0.1.8 install codex
+npx --yes larto-mcp@0.2.1 install cursor
+npx --yes larto-mcp@0.2.1 install claude-code
+npx --yes larto-mcp@0.2.1 install claude-desktop
+npx --yes larto-mcp@0.2.1 install codex
 ```
 
-从 0.1.3 起，启动 stdio 桥、初始化连接、探测存活或获取工具列表都不会打开桌面应用；只有实际调用工具时才按需启动。添加 `--no-launch` 可禁止桥启动应用。修复位于 npm 桥中，升级桌面应用时也需将 `larto-mcp` 更新到 0.1.8 或更新版本；固定旧版本或直接运行旧本地脚本的配置也需同步更新。
+从 0.1.3 起，启动 stdio 桥、初始化连接、探测存活或获取工具列表都不会打开桌面应用；只有实际调用工具时才按需启动。添加 `--no-launch` 可禁止桥启动应用。修复位于 npm 桥中，升级桌面应用时也需将 `larto-mcp` 更新到 0.2.1 或更新版本；固定旧版本或直接运行旧本地脚本的配置也需同步更新。
 
 安装器只合并 `larto` 条目；修改已有 JSON/TOML 前会在目标文件旁保留 `.bak`，并以同目录原子替换写入。由 dotfiles 管理的符号链接会保留，写入其真实目标。
 
-如果 npm registry 尚未同步 0.1.8，可先使用上面的 HTTP 地址；不要改用来源不明的同名包。
+当前 npm 包是 `larto-mcp@0.2.1`。若 registry 暂时查不到该版本，先用上面的 HTTP 地址；不要改用来源不明的同名包。
 
 | 工具 | 作用 |
 | --- | --- |
@@ -144,15 +145,16 @@ npx --yes larto-mcp@0.1.8 install codex
 - 网页 `<webview>` 保持 `contextIsolation=true`、`sandbox=true`、`nodeIntegration=false`。
 - Linux AppImage 的桌面入口不得携带 `--no-sandbox`；应用运行时检测到该参数、Electron 实际开关或 `ELECTRON_DISABLE_SANDBOX` 环境变量会拒绝启动，不会静默降低 Chromium 隔离级别。
 - 网页的敏感浏览器权限按来源询问，选择只保留到退出应用或清缓存；JSAPI 剪贴板读写同样需要主进程按当前页面来源确认，登录窗口的临时分区拒绝全部 Web 权限。
-- JSAPI 桥只在 `src/preload/guest.ts` 注入；工具不伪造登录态或飞书 `open-apis` 响应。
-- MCP 只监听 `127.0.0.1`，不向局域网或公网开放。
+- JSAPI 桥只在 `src/preload/guest.ts` 注入；工具不伪造登录态或飞书 `open-apis` 响应。已登录时，模拟器发往 passport / accounts / open 的鉴权路径会注入真实会话 Cookie，并把登录窗口捕获的 Cookie 采纳进模拟器分区。
+- MCP 只监听 `127.0.0.1`，不向局域网或公网开放。它没有单独鉴权，本机同一用户可以导航、截图并在当前页面执行脚本。
+- 远程调试端口默认关闭。开启后 Chromium 只绑定 `127.0.0.1:17332`，修改后需重启；不要转发该端口。
 - 登录会话仅在受保护的 Electron `safeStorage` 后端可用时持久化：macOS 使用钥匙串，Windows 使用系统凭证保护；Linux 的 `basic_text`、`unknown` 或不可用后端均视为不安全，新登录 Cookie 不落盘且仅在当前进程有效。
-- 0.1.8 发布流程配置为生成平台 / 架构明确的资产、统一 SHA-256 清单与 GitHub artifact attestations；下载前仍应确认 Release 工作流已成功、清单已实际发布且 attestation 验证通过。
+- 0.2.1 的打包与 GitHub Release 已发布，并带有 SHA-256 清单与 artifact attestations。`publish-mcp` 当时失败，npm 包是维护者本机补发的。下载前仍应核对清单，并确认要核验的资产确实来自该 Release。
 
 [阅读完整安全政策与私密漏洞报告流程](SECURITY.md)。
 
 > [!WARNING]
-> 0.1.8 仍是 pre-1.0 版本。macOS DMG / ZIP 内的 `.app` 仅做 ad-hoc 签名且未公证，容器没有 Developer ID 签名；Windows 与 Linux 包未签名。自动化检查或构建通过不等于真实飞书账号 UAT、商业代码签名或企业环境验证已经完成。
+> 0.2.1 仍是 pre-1.0 版本。macOS DMG / ZIP 内的 `.app` 仅做 ad-hoc 签名且未公证，容器没有 Developer ID 签名；Windows 与 Linux 包未签名。自动化检查或构建通过不等于真实飞书账号 UAT、商业代码签名或企业环境验证已经完成。
 
 ## 开发
 

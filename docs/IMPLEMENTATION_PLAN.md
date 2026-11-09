@@ -33,22 +33,17 @@
 
 1. `<webview>` 保持 `contextIsolation=true, sandbox=true, nodeIntegration=false`（`src/main/window.ts` 的 `will-attach-webview` 强制）。JSAPI 桥只能通过 `src/preload/guest.ts` 注入。
 2. 主进程只暴露 `src/shared/ipc.ts` 里声明过的通道；新增通道必须同时改 `shared/ipc.ts`、`preload/shell.ts` 白名单、`main/ipc.ts`。
-3. MCP 只监听 `127.0.0.1`，默认端口 17331；不做鉴权以外的"远程调试"。
+3. MCP 只监听 `127.0.0.1`，默认端口 17331，本身无额外鉴权；不要转发该端口。可选的 Chromium 远程调试端口默认关闭，开启后也只绑 `127.0.0.1:17332`。
 4. 不提交密钥、Cookie、租户信息、截图中的个人信息。会话仅用 `safeStorage` 存于 userData。
 5. 发布矩阵固定为 macOS arm64/x64、Windows x64、Linux x64；Electron 44 不提供 Windows 32 位与 Linux armv7l 包。macOS 最低 13（Ventura）。
 
-## 1. 现状快照（更新于 2026-09-04，阶段 8）
+## 1. 现状快照（更新于 2026-11-09）
 
-- 代码量约 7.3k 行 TS/TSX（`src/`），全部通过 `pnpm typecheck`（三个 tsconfig，strict + exactOptionalPropertyTypes）。
-- `pnpm build` 产出 `out/main/index.js`（ESM）、`out/preload/{shell,guest}.js`（CJS，sandbox 要求）、`out/renderer/`。
-- 自动化验证（本机全部通过，见 `docs/progress.md`）：
-  - `pnpm test`：`tests/shared.test.ts` 7 个用例（URL 归一化、设备/UA、JSAPI 错误格式、i18n）+ `tests/openapi.test.ts` 4 个用例（`requestAccess` 授权载荷解析、verify 错误码映射）。`vitest.config.ts` 提供 `@shared` 别名，可直接测试不依赖 `electron` 的主进程模块。
-  - `pnpm e2e`：`scripts/e2e.mjs` 启动应用，通过 MCP 依次验证：启动/健康检查、iPhone 13 仿真（390×733，dpr 3，screen 390×844）、Lark UA、JSAPI 回调 `:ok`、JSAPI 日志、Android 机型切换、缩放不改变 CSS 视口、DevTools 停靠 + 截图、关闭、窗口截图、主题切换、清缓存。
-- GitHub 仓库已公开；CI（format/typecheck/test/build/smoke-test）与 Pages 已在 `main` 跑通。官网：https://ihopefulchina.github.io/Larto/
-- 阶段 1–4 已完成（见 `docs/progress.md` 2026-09-04 条目）：窗口最小宽度随机型（官方 `deviceWidth+557` 规则）、模拟器溢出滚动、DevTools 随外观切换重建、`requestAccess` 授权确认弹窗、官网真图。
-- 阶段 7 已发布：https://github.com/ihopefulChina/Larto/releases/tag/v0.1.0 （未签名 arm64 dmg/zip）。签名 / 真实飞书 UAT 仍为已知限制。
-- 阶段 8 将 v0.1.1 扩展到 macOS arm64/x64、Windows x64、Linux x64；Release workflow 在各原生 runner 构建并聚合资产、SHA-256 清单与构建来源证明。最终 CI/Release 结果以 `docs/progress.md` 最新记录为准。
-- 尚未做过：真实飞书账号登录、`tt.config` / `requestAuthCode` / `requestAccess` 真实鉴权、PC 预览推送、签名/公证、真实 Release 的自动更新。
+- 当前版本 **0.2.1**（根包与 `larto-mcp` 一致）。`src/` 约 1.2 万行 TS/TSX。官网与 CHANGELOG 已是 0.2.1；公开 README、SECURITY 与本文件此前仍写 0.1.8，2026-11-09 已对齐。
+- 窗口拖动只在顶栏。模拟器列、状态栏、导航标题不是拖拽区（0.2.1 为修弹层点击吞事件而移除）。机型与缩放在模拟器列上方的工具条，不在顶栏。
+- GitHub Release v0.2.1 的打包与 `publish-release` 成功；`publish-mcp` 因 npm Trusted Publishing `ENEEDAUTH` 失败，包由维护者本机补发，registry 上 `larto-mcp` 的 latest 为 0.2.1。下次 tag 在配好 Trusted Publisher 之前仍会在该 job 失败。
+- 阶段 5 清单未收口：真实登录恢复、切租户、`tt.config` / `requestAuthCode` / `requestAccess`、PC 预览推送仍待 UAT。签名与公证未做。进度里对弹层点击和 DevTools zoom/全屏错位的记录仍是「待用户确认」，本次未重跑 e2e。
+- 自动化门禁与历史验证结果以 `docs/progress.md` 最新记录为准，不要把旧快照里的用例数当成当前结果。
 
 ## 2. 开发环境与命令
 
@@ -164,7 +159,7 @@ pnpm format           # prettier --write
 5. 官网与 README 的首要任务是让开发者确认能力、安全边界并选择正确下载；系统自动识别只做推荐，始终提供完整手动下载矩阵。截图使用匿名本地示例页，不含账号、租户或内部域名。
 6. 发布前跑本文件 §5 全套、本机 macOS arm64/x64 包启动；发布后等待 CI、Release、Pages 和 npm registry 的最终状态，再记录真实结果。未签名/未公证、Windows SmartScreen、Linux keyring、真实飞书账号 UAT 均需如实披露。
 
-验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view larto-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。当前桌面与 MCP 包版本为 **0.1.8**（分栏竖线静止时完全透明；顶栏铭牌隐藏但保留宽度；空白顶栏和手机周围暗色区域可以拖动窗口；没有 Developer ID 的 macOS 包检查更新时直接去下载页）；发布结果以 `docs/progress.md` 最新记录为准。
+验收：`v0.1.1` Release 中各平台资产与 SHA-256 清单齐全，Actions 原生 smoke 通过，官网 Pages 已部署；`npm view larto-mcp@0.1.1 version` 可查。任何一项未完成都不能写成已发布。当前桌面与 MCP 包版本为 **0.2.1**。窗口拖动只在顶栏；模拟器列不再是拖拽区。没有 Developer ID 的 macOS 包检查更新时前往下载页。`larto-mcp@0.2.1` 已在 npm，但 Release 的 `publish-mcp` 仍因 Trusted Publishing 失败，配好之前不会自动发布。发布结果以 `docs/progress.md` 最新记录为准。
 
 ### 后续（v0.2+，非必须）
 

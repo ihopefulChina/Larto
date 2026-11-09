@@ -2,6 +2,24 @@
 
 按时间倒序追加。每条写清：做了什么、怎么验证的、结论、遗留。不要写账号/租户/密钥。
 
+## 2026-11-09 — 公开文档对齐到 0.2.1
+
+**做了什么**
+
+- README、SECURITY、`packages/larto-mcp/README.md`、实施计划现状快照从 0.1.8 对齐到 0.2.1。下载文件名与 v0.2.1 Release 资产一致，校验示例和 `npx larto-mcp@0.2.1` 一并更新。
+- 安全政策与架构补上 0.2 的信任面：鉴权路径注入真实会话 Cookie、采纳进模拟器分区、默认关闭的回环远程调试端口、`native-resource://` 只服务已登记 token。未把真实飞书 UAT 或签名写成已完成。
+- 架构文档纠正窗口拖拽区：只在顶栏；模拟器列、状态栏、导航标题不是拖拽区。机型/缩放在模拟器工具条。`app.css` 里仍写「列是拖拽区」的注释已改掉，避免以后把 `drag` 加回去。
+
+**验证**
+
+- 对照根包与 `larto-mcp` 的 `package.json`（均为 0.2.1）、`app.css` 里仅顶栏两处 `app-region: drag`、`gh release view v0.2.1` 的资产文件名，以及 Release run `38392050540`（打包与 `publish-release` 成功，`publish-mcp` 失败）。
+- 对改过的文件跑 prettier。未跑 typecheck / test / e2e：没有运行时行为变更。
+
+**结论 / 遗留**
+
+- 按 README 安装不会再指向 0.1.8。
+- npm Trusted Publishing、阶段 5 真实账号 UAT、签名公证仍未做。弹层点击与 DevTools zoom/全屏仍是进度里的待确认项，本次未重测。
+
 ## 2026-10-14 — larto-mcp@0.2.1 npm 补发完成
 
 **做了什么**

@@ -645,8 +645,8 @@ input {
   flex: none;
   min-width: 0;
 }
-/* Simulator-scoped device/zoom bar above the device frame. The column is a window drag
-   region, so the bar must opt back into interactivity. */
+/* Simulator-scoped device/zoom bar. The column is not a window drag region; no-drag
+   here keeps these controls clickable if a parent drag region is added later. */
 .simulatorBar {
   flex: none;
   display: flex;

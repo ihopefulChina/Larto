@@ -11,7 +11,7 @@ interface ToolbarProps {
   focusSignal: number
 }
 
-/** Single window command bar: address, device, zoom, and actions on one row. */
+/** Window command bar: address and actions. Device and zoom live on the simulator bar. */
 export function Toolbar({ onClearCache, onToggleDevTools, focusSignal }: ToolbarProps) {
   const t = useT()
   const showDevTools = useApp((s) => s.settings.showDevTools)

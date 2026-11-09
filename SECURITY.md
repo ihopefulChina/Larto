@@ -8,8 +8,8 @@ boundaries below before using it with a real account.
 
 | Version | Security updates |
 | --- | --- |
-| 0.1.8 | Supported |
-| 0.1.7 and earlier | Not supported; upgrade to the latest release |
+| 0.2.1 | Supported |
+| 0.2.0 and earlier | Not supported; upgrade to the latest release |
 
 ## Report a vulnerability
 
@@ -38,6 +38,16 @@ coordinate disclosure after the issue has been reproduced and a fix is available
   provides a protected backend. On Linux, `basic_text`, `unknown`, and unavailable keyring backends
   are treated as insecure: new session cookies are not written to disk and remain valid only in the
   current application process.
+- When an account is signed in, guest requests to the passport, accounts, and open origins on the
+  official auth path table receive that account's `session` / `session_list` cookies and
+  `X-Device-Info: platform=websdk`. The same cookies are adopted into the guest partition when the
+  account changes. This forwards the real session; it does not manufacture Open Platform success
+  responses. Treat the guest partition as holding that session until logout, expiry, or cache clear.
+- The optional Chromium remote-debugging port (`17332`) is off by default. When enabled it is
+  requested before ready and Chromium binds it to `127.0.0.1` only; a settings change applies on
+  the next launch. Do not forward it.
+- `native-resource://` serves only files registered for the current process under a random token.
+  It is not a general filesystem read.
 - The Linux AppImage desktop entry is verified not to include `--no-sandbox`, and the application
   exits when that option, Electron's effective switch, or the `ELECTRON_DISABLE_SANDBOX`
   environment variable is detected at runtime. If Chromium sandbox support is unavailable, fix
@@ -46,7 +56,7 @@ coordinate disclosure after the issue has been reproduced and a fix is available
   navigate, inspect, and evaluate code in the current guest page. Any process running as the same
   local user may be able to call it; disable MCP in Settings when it is not needed and do not
   forward its port.
-- Version 0.1.8 is an early release: the `.app` inside each macOS DMG/ZIP is ad-hoc signed and not
+- Version 0.2.1 is an early release: the `.app` inside each macOS DMG/ZIP is ad-hoc signed and not
   notarized, while the download containers have no Developer ID signature. Windows and Linux
   artifacts are unsigned. This is disclosed in the README, website, and Release.
 - Automated tests and packaged smoke checks do not establish real-account UAT, tenant-specific
@@ -55,14 +65,15 @@ coordinate disclosure after the issue has been reproduced and a fix is available
 ## Verify a release
 
 Download artifacts only from this repository's
-[GitHub Releases](https://github.com/ihopefulChina/Larto/releases). The 0.1.8 release
-workflow is configured to publish `SHA256SUMS.txt` and GitHub artifact attestations. Before trusting
-a download, confirm that the workflow succeeded, the checksum file is present, and attestation
-verification succeeds.
+[GitHub Releases](https://github.com/ihopefulChina/Larto/releases). The 0.2.1 release
+workflow is configured to publish `SHA256SUMS.txt` and GitHub artifact attestations. The package
+and `publish-release` jobs for that tag succeeded; `publish-mcp` failed and the npm package was
+published manually. Before trusting a download, confirm that the asset you fetched is on that
+Release, the checksum file is present, and attestation verification succeeds.
 
 ```bash
-sha256sum Larto-0.1.8-linux-x64.AppImage
-gh attestation verify Larto-0.1.8-mac-arm64.dmg \
+sha256sum Larto-0.2.1-linux-x64.AppImage
+gh attestation verify Larto-0.2.1-mac-arm64.dmg \
   --repo ihopefulChina/Larto
 ```
 
